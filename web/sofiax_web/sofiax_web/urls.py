@@ -16,10 +16,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, reverse_lazy, include
 from django.views.generic.base import RedirectView
+from django.conf import settings
 
-admin.site.site_header = "WALLABY - the ASKAP HI All-Sky Survey"
-admin.site.site_title = "WALLABY Portal"
-admin.site.index_title = "Welcome to the WALLABY Portal"
+admin.site.site_header = settings.SITE_HEADER
+admin.site.site_title = settings.SITE_TITLE
+admin.site.index_title = settings.INDEX_TITLE
 
 urlpatterns = [
     path('sofiax_detections/', include('sofiax_detections.urls')),
