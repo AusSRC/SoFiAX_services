@@ -122,13 +122,14 @@ def detection_products(request):
             info.size = len(product[0].spectrum)
             tar.addfile(info, io.BytesIO(initial_bytes=product[0].spectrum))
 
-            data = fh.getvalue()
-            size = len(data)
+        data = fh.getvalue()
+        size = len(data)
 
-            response = HttpResponse(data, content_type='application/x-tar')
-            response['Content-Disposition'] = f'attachment; filename={name}.tar'
-            response['Content-Length'] = size
-            return response
+        response = HttpResponse(data, content_type='application/x-tar')
+        response['Content-Disposition'] = f'attachment; filename={name}.tar.gz'
+        response['Content-Length'] = size
+        return response
+
     else:
         product = Products.objects.filter(detection=detect_id). \
             select_related('detection',
