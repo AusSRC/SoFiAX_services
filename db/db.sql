@@ -96,32 +96,3 @@ ALTER TABLE wallaby.instance ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run (
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("instance_id") REFERENCES wallaby.instance ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.products ADD FOREIGN KEY ("detection_id") REFERENCES wallaby.detection ("id") ON DELETE CASCADE;
-
-ALTER TABLE wallaby.run OWNER TO "admin";
-ALTER TABLE wallaby.instance OWNER TO "admin";
-ALTER TABLE wallaby.detection OWNER TO "admin";
-ALTER TABLE wallaby.products OWNER TO "admin";
-
-GRANT ALL PRIVILEGES ON DATABASE sofiadb TO "admin";
-GRANT ALL PRIVILEGES ON DATABASE sofiadb TO "gavoadmin";
-GRANT ALL PRIVILEGES ON DATABASE sofiadb TO "gavo";
-
-GRANT CONNECT ON DATABASE sofiadb TO "wallaby_user";
-GRANT USAGE ON SCHEMA "wallaby" TO "wallaby_user";
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE wallaby.instance, wallaby.detection, wallaby.run, wallaby.products TO "wallaby_user";
-GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA wallaby TO "wallaby_user";
-
-GRANT CONNECT ON DATABASE sofiadb TO "gavoadmin";
-GRANT USAGE ON SCHEMA "wallaby" TO "gavoadmin";
-GRANT SELECT ON TABLE wallaby.instance, wallaby.detection, wallaby.run, wallaby.products TO "gavoadmin";
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA wallaby TO "gavoadmin";
-
-GRANT CONNECT ON DATABASE sofiadb TO "gavo";
-GRANT USAGE ON SCHEMA "wallaby" TO "gavo";
-GRANT SELECT ON TABLE wallaby.instance, wallaby.detection, wallaby.run, wallaby.products TO "gavo";
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA wallaby TO "gavo";
-
-GRANT CONNECT ON DATABASE sofiadb TO "untrusted";
-GRANT USAGE ON SCHEMA "wallaby" TO "untrusted";
-GRANT SELECT ON TABLE wallaby.instance, wallaby.detection, wallaby.run, wallaby.products TO "untrusted";
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA wallaby TO "untrusted";
