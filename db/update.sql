@@ -32,7 +32,7 @@ CREATE TABLE wallaby.comments (
   "comment" text NOT NULL,
   "detection_id" bigint NOT NULL,
   "added_at" timestamp without time zone NOT NULL,
-  "updated_at" timestamp without time zone
+  "updated_at" timestamp without time zone NOT NULL
 );
 ALTER TABLE wallaby.comments ADD FOREIGN KEY ("detection_id") REFERENCES wallaby.detection ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
