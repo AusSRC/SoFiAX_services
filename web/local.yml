@@ -5,6 +5,7 @@ services:
   sofiax_web_app:
     image: sofiax_web_app
     container_name: sofiax_web_app
+    env_file: .env
     build:
       context: .
       dockerfile: Dockerfile.gun
@@ -46,7 +47,7 @@ services:
       - 8080:8080
     networks:
       - sofiax_network
-
+            
 networks:
   sofiax_network:
     name: sofiax_network

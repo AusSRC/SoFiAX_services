@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'yz+@(y^2j6-r$iqxxgh^optx#$76g!ur_qs07l$f^)=4c*v#24'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = FALSE
 
 ALLOWED_HOSTS = []
 
@@ -89,7 +89,7 @@ DATABASES = {
         'NAME': 'sofiadb',
         'USER': 'admin',
         'PASSWORD': 'admin',
-        'HOST': '127.0.0.1',
+        'HOST': 'sofiax_db',
         'PORT': '5432',
     },
     'wallaby': {
@@ -100,7 +100,7 @@ DATABASES = {
         'NAME': 'sofiadb',
         'USER': 'admin',
         'PASSWORD': 'admin',
-        'HOST': '127.0.0.1',
+        'HOST': 'sofiax_db',
         'PORT': '5432',
     }
 }

@@ -3,6 +3,11 @@
 import os
 import sys
 
+from dotenv import load_dotenv
+
+# Run load_dotenv() to make the env file accessible 
+# as your source of environment variables
+load_dotenv()
 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sofiax_web.settings')
