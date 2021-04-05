@@ -20,12 +20,12 @@ DEBUG=1
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY=<secret key by generator>
 DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
-SQL_ENGINE=django.db.backends.postgresql
-SQL_DATABASE=sofiadb
-SQL_USER=admin
-SQL_PASSWORD=admin
-SQL_HOST=sofiax_db
-SQL_PORT=5432
+DATABASE_ENGINE=django.db.backends.postgresql
+DATABASE_NAME=sofiadb
+DATABASE_USER=admin
+DATABASE_PASSWORD=admin
+DATABASE_HOST=sofiax_db
+DATABASE_PORT=5432
 DATABASE=postgres
 
 #Configuration of the view of Django web application
