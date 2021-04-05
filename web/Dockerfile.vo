@@ -1,20 +1,42 @@
-FROM ubuntu
-
+ARG DEBIAN_IMAGE="buster"
+FROM "debian:$DEBIAN_IMAGE"
+# FROM Ubuntu
 RUN apt-get update && apt-get -y upgrade && \
-    apt-get install -y subversion python3 python3-setuptools python3-pip
-    
-RUN svn co http://svn.ari.uni-heidelberg.de/svn/gavo/python/tags/release-2.0.3/ dachs
+    apt-get install -y subversion python3 python3-setuptools python3-pip \
+    curl git gnupg2 locales sudo vim wget  
+#RUN svn co http://svn.ari.uni-heidelberg.de/svn/gavo/python/tags/release-2.0.3/ dachs
+# Patched
+#COPY ./sofiax_web/_files/twistedpatch.py ./gavo/formal/twistedpatch.py
+# BUILD-time arguments; to use GAVO's "beta" repo, for instance,
+# `docker build --build-arg APT_REPO=beta .`
+ARG APT_REPO="release" 
 
-WORKDIR ./dachs/
+# This is the brute-force solution for Debian;
+# I am having problems in set locales non-interactively,
+# and since I really need the "C/UTF8" for postgres, will just set it for all.
+ENV LC_ALL=C.UTF-8
+RUN echo LC_ALL="$LC_ALL" > /etc/default/locale
+
+RUN echo "deb http://vo.ari.uni-heidelberg.de/debian ${APT_REPO} main" \
+        > /etc/apt/sources.list.d/gavo.list                         && \
+    wget -qO - http://docs.g-vo.org/archive-key.asc | apt-key add -
+
+
+RUN DEBIAN_FRONTEND='noninteractive'                  && \
+    apt-get update                                    && \
+    apt-get install -y python3-gavo       && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+    
+
+#WORKDIR ./dachs/
 
 # Patched
-COPY ./sofiax_web/_files/twistedpatch.py ./gavo/formal/twistedpatch.py
+#COPY ./sofiax_web/_files/twistedpatch.py ./gavo/formal/twistedpatch.py
 
-RUN python3 setup.py install && \
-    pip3 install cryptography astropy psycopg2-binary twisted lxml && \
-    pip3 install Pillow pymoc pyparsing==2.2 rjsmin testresources && \
-    pip3 install matplotlib docutils && \
-    pip3 install future
+#RUN python3 setup.py install && \
+#    pip3 install cryptography astropy psycopg2-binary twisted lxml && \
+#    pip3 install Pillow pymoc pyparsing==2.2 rjsmin testresources && \
+#    pip3 install matplotlib docutils
 
 ENV GAVO_ROOT="/var/gavo"
 ENV GAVO_INPUTS="${GAVO_ROOT}/inputs"
