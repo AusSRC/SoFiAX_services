@@ -38,6 +38,36 @@ class DetectionAdmin(admin.ModelAdmin):
         return False
 
 
+class DetectionAdminInline(admin.TabularInline):
+    model = Detection
+    show_change_link = True
+    list_display = ('name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download')
+    exclude = ['x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min', 'f_max', 'rel', 'rms',
+               'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa', 'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum',
+               'ra', 'dec', 'freq', 'flag', 'unresolved', 'instance',  'l', 'b', 'v_rad', 'v_opt', 'v_app']
+    readonly_fields = list_display
+    fk_name = 'run'
+
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html("<a href='%s?id=%s'>%s</a>" % (url, obj.id, 'Products'))
+
+    detection_products_download.short_description = 'Products'
+
+    def get_queryset(self, request):
+        qs = super(DetectionAdminInline, self).get_queryset(request)
+        return qs.filter(unresolved=False)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 class UnresolvedDetectionAdmin(admin.ModelAdmin):
     model = UnresolvedDetection
     show_change_link = True
@@ -141,36 +171,6 @@ class UnresolvedDetectionAdmin(admin.ModelAdmin):
     check_action.short_description = 'Sanity Check Detections'
 
 
-class DetectionAdminInline(admin.TabularInline):
-    model = Detection
-    show_change_link = True
-    list_display = ('name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download')
-    exclude = ['x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min', 'f_max', 'rel', 'rms',
-               'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa', 'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum',
-               'ra', 'dec', 'freq', 'flag', 'unresolved', 'instance',  'l', 'b', 'v_rad', 'v_opt', 'v_app']
-    readonly_fields = list_display
-    fk_name = 'run'
-
-    def detection_products_download(self, obj):
-        url = reverse('detection_products')
-        return format_html("<a href='%s?id=%s'>%s</a>" % (url, obj.id, 'Products'))
-
-    detection_products_download.short_description = 'Products'
-
-    def get_queryset(self, request):
-        qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False)
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-
 class UnresolvedDetectionAdminInline(admin.TabularInline):
     model = UnresolvedDetection
     show_change_link = True
@@ -256,8 +256,14 @@ class InstanceAdmin(admin.ModelAdmin):
 
 class RunAdmin(admin.ModelAdmin):
     model = Run
-    list_display = ('id', 'name', 'sanity_thresholds', 'run_catalog', 'run_link')
+    list_display = ('id', 'name', 'sanity_thresholds', 'run_catalog', 'run_link', 'run_products_download')
     inlines = (UnresolvedDetectionAdminInline, DetectionAdminInline, InstanceAdminInline, )
+
+    def run_products_download(self, obj):
+        url = reverse('run_products')
+        return format_html("<a href='%s?id=%s'>%s</a>" % (url, obj.id, 'Products'))
+
+    run_products_download.short_description = 'Products'
 
     def run_catalog(self, obj):
         url = reverse('run_catalog')
@@ -285,9 +291,15 @@ class RunAdmin(admin.ModelAdmin):
 class RunAdminInline(admin.TabularInline):
     model = Run
     show_change_link = True
-    list_display = ['id', 'name', 'sanity_thresholds']
+    list_display = ['id', 'name', 'sanity_thresholds', 'run_products_download']
     fields = list_display
     readonly_fields = fields
+
+    def run_products_download(self, obj):
+        url = reverse('run_products')
+        return format_html("<a href='%s?id=%s'>%s</a>" % (url, obj.id, 'Products'))
+
+    run_products_download.short_description = 'Products'
 
     def has_add_permission(self, request, obj=None):
         return False

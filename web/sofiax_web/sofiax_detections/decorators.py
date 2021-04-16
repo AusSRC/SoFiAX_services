@@ -5,7 +5,6 @@ from django.contrib.admin import helpers
 from django.template.response import TemplateResponse
 from django.http import HttpResponse
 from django.contrib.auth import authenticate
-from django.conf import settings
 
 
 def action_form(form_class=None):
