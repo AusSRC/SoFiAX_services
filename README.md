@@ -2,6 +2,8 @@
 
 This repository provides dode for the deployment of database portals using *docker* containers.
 
+[![Linting](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml/badge.svg)](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml)
+
 **TOC**
 <HR>
 
