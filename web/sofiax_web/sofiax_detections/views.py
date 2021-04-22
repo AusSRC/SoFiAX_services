@@ -3,11 +3,20 @@ import tarfile
 
 from django.http import HttpResponse
 from urllib.request import pathname2url
-from .models import Products, Instance, Detection
+from .models import Products, Instance, Detection, Run
 from .decorators import basicauth
 
 
+PRODUCTS = ['moment0', 'moment1', 'moment2',
+            'cube', 'mask', 'channels', 'spectrum']
+
+
+@basicauth
 def instance_products(request):
+    """Download products for all detections of an instance
+    from the Admin portal.
+
+    """
     if not request.user.is_authenticated:
         return HttpResponse('Unauthorized', status=401)
 
@@ -20,42 +29,134 @@ def instance_products(request):
     except ValueError:
         return HttpResponse('id is not an integer.', status=400)
 
-    instance = Instance.objects.filter(id=instance_id)
+    instance = Instance.objects.filter(id=instance_id).first()
     if not instance:
         return HttpResponse('instance not found.', status=404)
 
-    instance_name = instance[0].id
-    run_name = instance[0].run.name
-    name = f"{run_name}_{instance_name}"
-    name = pathname2url(name.replace(' ', '_'))
+    detections = Detection.objects.filter(instance=instance)
+    if not instance:
+        return HttpResponse('no detections for this instance.', status=404)
 
     fh = io.BytesIO()
     with tarfile.open(fileobj=fh, mode='w:gz') as tar:
-        if instance[0].reliability_plot is not None:
-            info = tarfile.TarInfo(f'{name}_rel.eps')
-            info.size = len(instance[0].reliability_plot)
-            tar.addfile(info, io.BytesIO(initial_bytes=instance[0].reliability_plot))
+        for detection in detections:
+            product = Products.objects.filter(detection=detection).first()
+            if product is None:
+                return HttpResponse(
+                    f'no products for detection {detection.id}.',
+                    status=404
+                )
+            folder = f'{detection.name}'.replace(' ', '_')
 
-        if instance[0].stdout is not None:
-            info = tarfile.TarInfo(f'{name}_stdout.txt')
-            info.size = len(instance[0].stdout)
-            tar.addfile(info, io.BytesIO(initial_bytes=instance[0].stdout))
+            info = tarfile.TarInfo(f'{folder}/moment0.fits')
+            info.size = len(product.moment0)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment0))
 
-        if instance[0].stderr is not None:
-            info = tarfile.TarInfo(f'{name}_stderr.txt')
-            info.size = len(instance[0].stderr)
-            tar.addfile(info, io.BytesIO(initial_bytes=instance[0].stderr))
+            info = tarfile.TarInfo(f'{folder}/moment1.fits')
+            info.size = len(product.moment1)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment1))
+
+            info = tarfile.TarInfo(f'{folder}/moment2.fits')
+            info.size = len(product.moment2)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment2))
+
+            info = tarfile.TarInfo(f'{folder}/cube.fits')
+            info.size = len(product.cube)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.cube))
+
+            info = tarfile.TarInfo(f'{folder}/mask.fits')
+            info.size = len(product.mask)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.mask))
+
+            info = tarfile.TarInfo(f'{folder}/channels.fits')
+            info.size = len(product.channels)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.channels))
+
+            info = tarfile.TarInfo(f'{folder}/spectrum.txt')
+            info.size = len(product.spectrum)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.spectrum))
 
     data = fh.getvalue()
     size = len(data)
 
     response = HttpResponse(data, content_type='application/x-tar')
-    response['Content-Disposition'] = f'attachment; filename={name}.tar'
+    response['Content-Disposition'] = f'attachment; filename={instance.run.name}_{instance.filename}.tar'  # noqa
     response['Content-Length'] = size
     return response
 
 
-PRODUCTS = ['moment0', 'moment1', 'moment2', 'cube', 'mask', 'channels', 'spectrum']
+@basicauth
+def run_products(request):
+    """Download products for all detections of a run
+    from the Admin portal.
+
+    """
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+
+    run_id = request.GET.get('id', None)
+    if not run_id:
+        return HttpResponse('id does not exist.', status=400)
+
+    try:
+        run_id = int(run_id)
+    except ValueError:
+        return HttpResponse('id is not an integer.', status=400)
+
+    run = Run.objects.filter(id=run_id).first()
+    if not run:
+        return HttpResponse('run not found.', status=404)
+
+    detections = Detection.objects.filter(run=run)
+    if detections is None:
+        return HttpResponse('no detections for this run.', status=404)
+
+    fh = io.BytesIO()
+    with tarfile.open(fileobj=fh, mode='w:gz') as tar:
+        for detection in detections:
+            product = Products.objects.filter(detection=detection).first()
+            if product is None:
+                return HttpResponse(
+                    f'no products for detection {detection.id}.',
+                    status=404
+                )
+            folder = f'{detection.name}'.replace(' ', '_')
+
+            info = tarfile.TarInfo(f'{folder}/moment0.fits')
+            info.size = len(product.moment0)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment0))
+
+            info = tarfile.TarInfo(f'{folder}/moment1.fits')
+            info.size = len(product.moment1)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment1))
+
+            info = tarfile.TarInfo(f'{folder}/moment2.fits')
+            info.size = len(product.moment2)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.moment2))
+
+            info = tarfile.TarInfo(f'{folder}/cube.fits')
+            info.size = len(product.cube)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.cube))
+
+            info = tarfile.TarInfo(f'{folder}/mask.fits')
+            info.size = len(product.mask)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.mask))
+
+            info = tarfile.TarInfo(f'{folder}/channels.fits')
+            info.size = len(product.channels)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.channels))
+
+            info = tarfile.TarInfo(f'{folder}/spectrum.txt')
+            info.size = len(product.spectrum)
+            tar.addfile(info, io.BytesIO(initial_bytes=product.spectrum))
+
+    data = fh.getvalue()
+    size = len(data)
+
+    response = HttpResponse(data, content_type='application/x-tar')
+    response['Content-Disposition'] = f'attachment; filename={run.id}_{run.name}_products.tar'  # noqa
+    response['Content-Length'] = size
+    return response
 
 
 @basicauth
