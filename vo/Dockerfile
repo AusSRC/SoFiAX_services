@@ -34,16 +34,16 @@ RUN adduser --system gavo && \
        
 
 RUN gavo init --nodb
-COPY ./config/vo/gavo.rc /etc/gavo.rc
-COPY ./config/vo/defaultmeta.txt ${GAVO_ROOT}/etc/defaultmeta.txt
-COPY ./config/vo/dsn ${GAVO_ROOT}/etc/dsn
-COPY ./config/vo/feed ${GAVO_ROOT}/etc/feed
-COPY ./config/vo/trustedquery ${GAVO_ROOT}/etc/trustedquery
-COPY ./config/vo/untrustedquery ${GAVO_ROOT}/etc/untrustedquery
-COPY ./config/vo/startup.sh /startup.sh
+COPY gavo.rc /etc/gavo.rc
+COPY defaultmeta.txt ${GAVO_ROOT}/etc/defaultmeta.txt
+COPY dsn ${GAVO_ROOT}/etc/dsn
+COPY feed ${GAVO_ROOT}/etc/feed
+COPY trustedquery ${GAVO_ROOT}/etc/trustedquery
+COPY untrustedquery ${GAVO_ROOT}/etc/untrustedquery
+COPY startup.sh /startup.sh
 
 RUN mkdir -p ${GAVO_INPUTS}/wallaby
-COPY ./config/vo/vo.rd ${GAVO_INPUTS}/wallaby/vo.rd
+COPY vo.rd ${GAVO_INPUTS}/wallaby/vo.rd
 
 RUN chmod +x /startup.sh
 CMD /startup.sh

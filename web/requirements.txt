@@ -1,3 +1,5 @@
+gunicorn
+django
 astropy
 matplotlib
 opencv-python

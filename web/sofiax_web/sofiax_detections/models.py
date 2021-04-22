@@ -1,18 +1,17 @@
 from django.db import models
-
 import math
 import cv2
 import numpy as np
 import binascii
-
-import matplotlib
-matplotlib.use('Agg')
-
 from PIL import Image
+import matplotlib
 import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 from astropy.io import fits
 from django.utils.safestring import mark_safe
+
+
+matplotlib.use('Agg')
 
 
 class Detection(models.Model):

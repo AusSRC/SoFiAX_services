@@ -14,9 +14,12 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = int(os.environ.get("DEBUG", default=0))
 
 # 'DJANGO_ALLOWED_HOSTS' should be a single string of hosts with a space between each.
-#ALLOWED_HOSTS = []
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
-
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
+if os.environ.get("DJANGO_ALLOWED_HOSTS") is not None:
+    ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 
 #Variable for view configuration of website 
 SITE_HEADER = os.environ.get("SITE_HEADER")
