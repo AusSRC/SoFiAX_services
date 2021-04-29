@@ -1,6 +1,7 @@
 version: '3.5'
 
 services:
+  # TODO(austin): point to api subdirectory
   sofiax_web_app:
     image: sofiax_web_app
     container_name: sofiax_web_app

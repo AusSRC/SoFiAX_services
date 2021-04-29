@@ -1,9 +1,0 @@
-gunicorn
-django
-astropy
-matplotlib
-opencv-python
-psycopg2-binary
-Pillow
-django-split-settings
-python-dotenv

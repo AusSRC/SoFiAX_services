@@ -17,7 +17,10 @@ def action_form(form_class=None):
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset, form)
-                    self.message_user(request, '%s objects updated' % obj_count)
+                    self.message_user(
+                        request,
+                        '%s objects updated' % obj_count
+                    )
                     return None
 
             context = dict(
@@ -28,7 +31,11 @@ def action_form(form_class=None):
                 queryset=queryset, form=form,
                 action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
 
-            return TemplateResponse(request, 'admin/form_action_confirmation.html', context)
+            return TemplateResponse(
+                request,
+                'templates/admin/form_action_confirmation.html',
+                context
+            )
 
         wrapper.short_description = form_class.title
 
@@ -36,7 +43,10 @@ def action_form(form_class=None):
     return decorator
 
 
-def basicauth(view):
+def basic_auth(view):
+    """Function requires user authentication.
+
+    """
     def wrap(request, *args, **kwargs):
         if request.user.is_authenticated:
             return view(request, *args, **kwargs)
@@ -45,14 +55,17 @@ def basicauth(view):
             auth = request.META['HTTP_AUTHORIZATION'].split()
             if len(auth) == 2:
                 if auth[0].lower() == "basic":
-                    uname, passwd = base64.b64decode(auth[1]).decode("utf8").split(':')
-                    user = authenticate(username=uname, password=passwd)
+                    username, password = base64.b64decode(auth[1])\
+                                               .decode("utf8")\
+                                               .split(':')
+                    user = authenticate(username=username, password=password)
                     if user is not None and user.is_active:
                         request.user = user
                         return view(request, *args, **kwargs)
 
         response = HttpResponse()
         response.status_code = 401
+        # TODO(austin) This should be a env var
         response['WWW-Authenticate'] = 'Basic realm="Wallaby VO"'
         return response
     return wrap

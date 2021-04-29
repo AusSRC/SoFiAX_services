@@ -9,19 +9,71 @@ import matplotlib.pyplot as plt
 from io import BytesIO, StringIO
 from astropy.io import fits
 from django.utils.safestring import mark_safe
+from api.utils.fields import PostgresDecimalField
 
 
 matplotlib.use('Agg')
 
 
-class Detection(models.Model):
+# ------------------------------------------------------------------------------
+# Astronomy data tables
+
+
+class Run(models.Model):
     id = models.BigAutoField(primary_key=True)
-    instance = models.ForeignKey('Instance', models.DO_NOTHING)
-    run = models.ForeignKey('Run', models.DO_NOTHING)
+    name = models.TextField()
+    sanity_thresholds = models.JSONField()
+
+    def __str__(self):
+        return f"{self.name}"
+
+    class Meta:
+        managed = False
+        db_table = 'run'
+        unique_together = (('name', 'sanity_thresholds'),)
+
+
+class Instance(models.Model):
+    """Automatically generated Django model from the WALLABY database.
+
+    """
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, models.DO_NOTHING)
+    filename = models.TextField()
+    boundary = models.TextField()
+    run_date = models.DateTimeField()
+    flag_log = models.BinaryField(blank=True, null=True)
+    reliability_plot = models.BinaryField(blank=True, null=True)
+    log = models.BinaryField(blank=True, null=True)
+    parameters = models.JSONField()
+    return_code = models.IntegerField(null=True)
+    version = models.CharField(max_length=512, blank=True, null=True)
+    stdout = models.BinaryField(blank=True, null=True)
+    stderr = models.BinaryField(blank=True, null=True)
+
+    def __unicode__(self):
+        return f"{str(self.id)}"
+
+    def __str__(self):
+        return f"{str(self.id)}"
+
+    class Meta:
+        managed = False
+        db_table = 'instance'
+        unique_together = (('run', 'filename', 'boundary'),)
+
+
+class Detection(models.Model):
+    """Auto-generated Django model for WALLABY detection table.
+
+    """
+    id = models.BigAutoField(primary_key=True)
+    instance = models.ForeignKey(Instance, models.DO_NOTHING)
+    run = models.ForeignKey(Run, models.DO_NOTHING)
     name = models.TextField(blank=True, null=True)
-    x = models.DecimalField(max_digits=65535, decimal_places=12)
-    y = models.DecimalField(max_digits=65535, decimal_places=12)
-    z = models.DecimalField(max_digits=65535, decimal_places=12)
+    x = PostgresDecimalField()
+    y = PostgresDecimalField()
+    z = PostgresDecimalField()
     x_min = models.IntegerField(blank=True, null=True)
     x_max = models.IntegerField(blank=True, null=True)
     y_min = models.IntegerField(blank=True, null=True)
@@ -29,39 +81,40 @@ class Detection(models.Model):
     z_min = models.IntegerField(blank=True, null=True)
     z_max = models.IntegerField(blank=True, null=True)
     n_pix = models.IntegerField(blank=True, null=True)
-    f_min = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    f_max = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    f_sum = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    rel = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    rms = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    w20 = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    w50 = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell_maj = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell_min = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell_pa = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell3s_maj = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell3s_min = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ell3s_pa = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    kin_pa = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    err_x = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    err_y = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    err_z = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    err_f_sum = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    ra = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    dec = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    freq = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
+    f_min = PostgresDecimalField(blank=True, null=True)
+    f_max = PostgresDecimalField(blank=True, null=True)
+    f_sum = PostgresDecimalField(blank=True, null=True)
+    rel = PostgresDecimalField(blank=True, null=True)
+    rms = PostgresDecimalField(blank=True, null=True)
+    w20 = PostgresDecimalField(blank=True, null=True)
+    w50 = PostgresDecimalField(blank=True, null=True)
+    ell_maj = PostgresDecimalField(blank=True, null=True)
+    ell_min = PostgresDecimalField(blank=True, null=True)
+    ell_pa = PostgresDecimalField(blank=True, null=True)
+    ell3s_maj = PostgresDecimalField(blank=True, null=True)
+    ell3s_min = PostgresDecimalField(blank=True, null=True)
+    ell3s_pa = PostgresDecimalField(blank=True, null=True)
+    kin_pa = PostgresDecimalField(blank=True, null=True)
+    err_x = PostgresDecimalField(blank=True, null=True)
+    err_y = PostgresDecimalField(blank=True, null=True)
+    err_z = PostgresDecimalField(blank=True, null=True)
+    err_f_sum = PostgresDecimalField(blank=True, null=True)
+    ra = PostgresDecimalField(blank=True, null=True)
+    dec = PostgresDecimalField(blank=True, null=True)
+    freq = PostgresDecimalField(blank=True, null=True)
     flag = models.IntegerField(blank=True, null=True)
-    l = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    b = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    v_rad = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    v_opt = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
-    v_app = models.DecimalField(max_digits=65535, decimal_places=12, blank=True, null=True)
+    l = PostgresDecimalField(blank=True, null=True)  # noqa
+    b = PostgresDecimalField(blank=True, null=True)
+    v_rad = PostgresDecimalField(blank=True, null=True)
+    v_opt = PostgresDecimalField(blank=True, null=True)
+    v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
 
     def __str__(self):
         return self.name
 
     def sanity_check(self, detect):
+        # TODO(austin): could pull this out of here by referencing SoFiAX
         if self.id == detect.id:
             raise ValueError('Same detection.')
 
@@ -74,9 +127,11 @@ class Detection(models.Model):
         f2 = detect.f_sum
         flux_threshold = sanity_thresholds['flux']
         diff = abs(f1 - f2) * 100 / ((abs(f1) + abs(f2)) / 2)
-        # gone beyond the % tolerance
+
         if diff > flux_threshold:
-            return False, f"Detections: {self.id}, {detect.id} Var: flux {round(diff, 2)}% > {flux_threshold}%"
+            message = f"Detections: {self.id}, {detect.id} \
+                Var: flux {round(diff, 2)}% > {flux_threshold}%"
+            return False, message
 
         min_extent, max_extent = sanity_thresholds['spatial_extent']
         max1 = self.ell_maj
@@ -124,10 +179,13 @@ class Detection(models.Model):
         sanity = self.run.sanity_thresholds
         sigma = sanity.get('uncertainty_sigma', 5)
 
-        d_space = math.sqrt((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
-        d_space_err = math.sqrt((self.x - detect.x) ** 2 * (self.err_x ** 2 + detect.err_x ** 2) +
-                                (self.y - detect.y) ** 2 * (self.err_y ** 2 + detect.err_y ** 2)) / \
-                      ((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
+        d_space = math.sqrt(
+            (self.x - detect.x) ** 2 + (self.y - detect.y) ** 2
+        )
+        d_space_err = math.sqrt(
+            (self.x - detect.x) ** 2 * (self.err_x ** 2 + detect.err_x ** 2) +
+            (self.y - detect.y) ** 2 * (self.err_y ** 2 + detect.err_y ** 2)) \
+            / ((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
         d_spec = abs(self.z - detect.z)
         d_spec_err = math.sqrt(self.err_z ** 2 + detect.err_z ** 2)
 
@@ -177,7 +235,10 @@ class Detection(models.Model):
             img = img.astype(np.uint8)
             img = cv2.applyColorMap(img, cv2.COLORMAP_HSV)
             img = Image.fromarray(img, 'RGB')
-            img = img.resize((hdu[0].header['NAXIS1']*2, hdu[0].header['NAXIS2']*2), Image.BICUBIC)
+            img = img.resize(
+                (hdu[0].header['NAXIS1'] * 2, hdu[0].header['NAXIS2'] * 2),
+                Image.BICUBIC
+            )
             with BytesIO() as image_file:
                 img.save(image_file, format='PNG')
                 image_data = image_file.getvalue()
@@ -192,37 +253,22 @@ class Detection(models.Model):
         unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
 
 
-class UnresolvedDetection(Detection):
+class Sources(models.Model):
+    """Subset of quality checked detections to include in the
+    final source catalog.
 
-    class Meta:
-        proxy = True
-
-
-class Instance(models.Model):
+    """
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey('Run', models.DO_NOTHING)
-    filename = models.TextField()
-    boundary = models.TextField()  # This field type is a guess.
-    run_date = models.DateTimeField()
-    flag_log = models.BinaryField(blank=True, null=True)
-    reliability_plot = models.BinaryField(blank=True, null=True)
-    log = models.BinaryField(blank=True, null=True)
-    parameters = models.JSONField()  # This field type is a guess.
-    return_code = models.IntegerField(null=True)
-    version = models.CharField(max_length=512, blank=True, null=True)
-    stdout = models.BinaryField(blank=True, null=True)
-    stderr = models.BinaryField(blank=True, null=True)
-
-    def __unicode__(self):
-        return f"{str(self.id)}"
-
-    def __str__(self):
-        return f"{str(self.id)}"
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'instance'
-        unique_together = (('run', 'filename', 'boundary'),)
+        db_table = 'sources'
+
+
+class UnresolvedDetection(Detection):
+    class Meta:
+        proxy = True
 
 
 class Products(models.Model):
@@ -242,20 +288,6 @@ class Products(models.Model):
         unique_together = (('detection',),)
 
 
-class Run(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.TextField()
-    sanity_thresholds = models.JSONField()  # This field type is a guess.
-
-    def __str__(self):
-        return f"{self.name}"
-
-    class Meta:
-        managed = False
-        db_table = 'run'
-        unique_together = (('name', 'sanity_thresholds'),)
-
-
 class SpatialRefSys(models.Model):
     srid = models.IntegerField(primary_key=True)
     auth_name = models.CharField(max_length=256, blank=True, null=True)
@@ -266,3 +298,43 @@ class SpatialRefSys(models.Model):
     class Meta:
         managed = False
         db_table = 'spatial_ref_sys'
+
+
+# ------------------------------------------------------------------------------
+# Quality control tables
+
+class Comments(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    comment = models.TextField()
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    added_at = models.DateTimeField()
+    updated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = 'comments'
+
+
+class Tag(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    tag_name = models.CharField(unique=True, max_length=50)
+    description = models.TextField(blank=True, null=True)
+    added_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'tag'
+
+
+class TagDetection(models.Model):
+    # TODO(austin): force these to be unique together
+    id = models.BigAutoField(primary_key=True)
+    tag = models.ForeignKey(Tag, models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'tag_detection'
+        unique_together = (('tag', 'detection'),)
+
+# ------------------------------------------------------------------------------
