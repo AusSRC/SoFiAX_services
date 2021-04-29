@@ -1,34 +1,33 @@
 version: '3.5'
 
 services:
-  # TODO(austin): point to api subdirectory
-  sofiax_web_app:
-    image: sofiax_web_app
-    container_name: sofiax_web_app
+  sofiax_api:
+    image: sofiax_api
+    container_name: sofiax_api
     env_file: 
-      - web/.env
+      - api/.env
     build:
-      context: web
+      context: api
     volumes:
-      - ./web:/opt/services/sofia_web_app/src
-      - static_volume:/opt/services/sofia_web_app/static
-      - media_volume:/opt/services/sofia_web_app/media
+      - ./api:/opt/services/sofiax_api/src
+      - static_volume:/opt/services/sofiax_api/static
+      - media_volume:/opt/services/sofiax_api/media
     networks:
       - sofiax_network
 
   sofiax_nginx:
     image: sofiax_nginx
-    container_name: sofiax_ngnix
+    container_name: sofiax_nginx
     build:
       context: nginx
     ports:
       - 80:80
       - 443:443
     volumes:
-      - static_volume:/opt/services/sofia_web_app/static
-      - media_volume:/opt/services/sofia_web_app/media
+      - static_volume:/opt/services/sofiax_api/static
+      - media_volume:/opt/services/sofiax_api/media
     depends_on:
-      - sofiax_web_app
+      - sofiax_api
     networks:
       - sofiax_network
 

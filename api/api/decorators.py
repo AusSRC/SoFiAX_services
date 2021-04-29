@@ -8,6 +8,9 @@ from django.contrib.auth import authenticate
 
 
 def action_form(form_class=None):
+    """
+
+    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):

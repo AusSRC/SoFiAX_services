@@ -99,15 +99,13 @@ def detection_products(request):
                 'mask',
                 'channels',
                 'spectrum'
-            )
+            ).first()
 
         if not product:
-            return HttpResponse('products not found.', status=404)
+            return HttpResponse('Products not found.', status=404)
 
-        detect_name = product[0].detection.name
-        run_name = product[0].detection.run.name
-        inst_name = product[0].detection.instance.id
-        name = f"{run_name}_{inst_name}_{detect_name}"
+        detection = product.detection
+        name = f"{detection.run.name}_{detection.instance.id}_{detection.name}"
         name = pathname2url(name.replace(' ', '_'))
 
         fh = io.BytesIO()

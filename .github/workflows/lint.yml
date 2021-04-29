@@ -18,4 +18,3 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}
       - run: pip3 install pycodestyle
       - run: pycodestyle api
-      - run: pycodestyle web/sofiax_web
