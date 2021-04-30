@@ -98,8 +98,8 @@ def detection_products(request):
                 'cube',
                 'mask',
                 'channels',
-                'spectrum'
-            ).first()
+                'spectrum')\
+            .first()
 
         if not product:
             return HttpResponse('Products not found.', status=404)
@@ -131,13 +131,12 @@ def detection_products(request):
             .select_related(
                 'detection',
                 'detection__instance',
-                'detection__run'
-            ).only(
+                'detection__run')\
+            .only(
                 'detection__name',
                 'detection__instance__id',
                 'detection__run__name',
-                product_arg
-            )
+                product_arg)
         if not product:
             return HttpResponse('products not found.', status=404)
 

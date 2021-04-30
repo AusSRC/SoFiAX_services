@@ -145,7 +145,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     def check_action(self, request, queryset):
         detect_list = list(queryset)
         for index, detect_outer in enumerate(detect_list):
-            for detect_inner in detect_list[index+1:]:
+            for detect_inner in detect_list[index + 1:]:
                 if detect_outer.is_match(detect_inner):
                     sanity, msg = detect_outer.sanity_check(detect_inner)
                     if sanity is False:
