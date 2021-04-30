@@ -25,6 +25,8 @@ DATABASE_PORT=5432
 DATABASE=postgres
 ```
 
+You will also need to specify the `DJANGO_ALLOWED_HOSTS` environment variable when deploying this to a production environment.
+
 ### Local
 
 Local deployment can be helpful for developing the services. The local deployment includes the following services:
@@ -58,4 +60,13 @@ SoFiAX_services/web$ docker exec -it sofiax_web_app python sofiax_web/manage.py 
 SoFiAX_services/web$ docker-compose -f local.yml logs
 ```
 
+### Production
 
+To get this working in a production setting you will need to run `python manage.py migrate` and create a user for accessing the admin console. 
+
+
+Once you have successfully migrated and created the superuser, you can deploy the services in detached mode
+
+```
+docker-compose up -d
+```
