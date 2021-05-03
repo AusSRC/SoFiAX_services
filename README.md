@@ -4,8 +4,6 @@ Code for the deployment of database portals.
 
 [![Linting](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml/badge.svg)](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml)
 
-<HR>
-
 ## Deployment
 
 ### Environment variables
@@ -37,22 +35,28 @@ To raise the services run the following
 docker-compose up
 ```
 
-You should access the services at http://localhost and the `nginx` reverse proxy will redirect you to the Django admin page.
+You should access the services at http://localhost and the `nginx` reverse proxy will redirect you to the Django admin page. If you are asked for credential, you can log in to the portal initially with the superuser created (see below).
 
-#### Prepare the services
+#### Migrations
+
+Migrations create the tables that Django requires in the database. The application will not run on an empty database unless migrations are run. With the `init` entrypoint from [`docker-entrypoint.sh`](api/docker-entrypoint.sh) the container will run migrations at startup. You can always run them manually with the following command
 
 ```
-# Run the migrations
-SoFiAX_services/web$ docker exec sofiax_web_app python sofiax_web/manage.py migrate --noinput
-
-
-# Create superuser
-SoFiAX_services/web$ docker exec -it sofiax_web_app python sofiax_web/manage.py createsuperuser
+docker exec sofiax_api python api/manage.py migrate --noinput
 ```
 
-#### Access to logs
+#### Create user
+
+To access the portal you will need user credentials. To create a superuser with full access to the `api` run the following
+
 ```
-SoFiAX_services/web$ docker-compose -f local.yml logs
+docker exec -it sofiax_api python api/manage.py createsuperuser
+```
+
+#### Access logs
+
+```
+docker-compose logs
 ```
 
 ### Production
@@ -67,7 +71,14 @@ To deploy the services in detached mode in a production environment run the foll
 docker-compose up -d
 ```
 
-**NOTE** This will start all containers including the database. If you have targeted an external database then you can run all other services without the database. You will need to remove that dependency from the `docker-compose.yml` file and you can run the following instead
+**NOTE** This will start all containers including the database. If you have targeted an external database then you can run all other services without the database. You will need to remove that dependency from the `docker-compose.yml` file 
+
+```
+depends_on: 
+  - db
+```
+
+and you can run the following instead
 
 ```
 docker-compose start api nginx vo

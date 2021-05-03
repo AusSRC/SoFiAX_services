@@ -56,8 +56,8 @@ services:
       - static_volume:/opt/services/sofiax_api/static
       - media_volume:/opt/services/sofiax_api/media
     depends_on:
-      - sofiax_api
-      - sofiax_vo
+      - api
+      - vo
     networks:
       - sofiax_network
             

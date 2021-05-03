@@ -10,13 +10,6 @@ init () {
   echo "Running migrate"
   python manage.py migrate
 
-  echo "Creating local superuser"
-  python manage.py shell -c """
-from django.contrib.auth import get_user_model
-User = get_user_model()
-User.objects.create_superuser('admin', 'admin@csiro.au', 'admin')
-"""
-
   gunicorn -b :8000 api.wsgi:application
 }
 
