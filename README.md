@@ -25,17 +25,11 @@ DATABASE_PORT=5432
 DATABASE=postgres
 ```
 
-DATABASE_NAME=sofiadb
-DATABASE_USER=admin
-DATABASE_PASSWORD=admin
-DATABASE_HOST=146.118.69.90
-DATABASE_PORT=5432
-
-If you deploy the system locally there is a `db` container that is deployed. If there is no existing database to connect with you can leave database environment variables empty and it will connect with the raised PostgreSQL container.
-
 You will also need to specify the `DJANGO_ALLOWED_HOSTS` environment variable when deploying this to a production environment.
 
 ### Local
+
+If you deploy the system locally there is a `db` container that is also deployed. If there is no existing database to connect with you can leave database environment variables empty and it will connect with the raised PostgreSQL container.
 
 To raise the services run the following
 
@@ -63,11 +57,18 @@ SoFiAX_services/web$ docker-compose -f local.yml logs
 
 ### Production
 
-To get this working in a production setting you will need to run `python manage.py migrate` and create a user for accessing the admin console. 
+There are a few additional configuration steps that are required to deploy the services. The first is to point the services to the appropriate databases. This involves changing the content of [`api/.env`] and [`vo/dsn`](vo/dsn) files.
 
+Next step is to configure the start commmand of the `api` container. There are two options in the [`docker-entrypoint.sh`](api/docker-entrypoint.sh) file: `init` and `start`. If the database has been initalised previously with Django tables then you can change the `command: init` line of the [`docker-compose.yml`](docker-compose.yml) file to `command: start`. Otherwise, it can remain as `init` which will run migration and superuser creation steps.
 
-Once you have successfully migrated and created the superuser, you can deploy the services in detached mode
+To deploy the services in detached mode in a production environment run the following
 
 ```
 docker-compose up -d
+```
+
+**NOTE** This will start all containers including the database. If you have targeted an external database then you can run all other services without the database. You will need to remove that dependency from the `docker-compose.yml` file and you can run the following instead
+
+```
+docker-compose start api nginx vo
 ```

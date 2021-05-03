@@ -1,7 +1,7 @@
 version: '3.5'
 
 services:
-  sofiax_db:
+  db:
     build:
       context: db
     image: sofiax_db
@@ -13,7 +13,7 @@ services:
     networks:
       - sofiax_network
 
-  sofiax_api:
+  api:
     build:
       context: api
     image: sofiax_api
@@ -24,7 +24,7 @@ services:
     env_file: 
       - api/.env
     depends_on: 
-      - sofiax_db
+      - db
     volumes:
       - ./api:/opt/services/sofiax_api/src
       - static_volume:/opt/services/sofiax_api/static
@@ -32,7 +32,7 @@ services:
     networks:
       - sofiax_network
 
-  sofiax_vo:
+  vo:
     build:
       context: vo
     image: sofiax_vo
@@ -44,7 +44,7 @@ services:
     networks:
       - sofiax_network
 
-  sofiax_nginx:
+  nginx:
     build:
       context: nginx
     image: sofiax_nginx
@@ -60,11 +60,6 @@ services:
       - sofiax_vo
     networks:
       - sofiax_network
-
-networks:
-  sofiax_network:
-    name: sofiax_network
-    driver: bridge
             
 networks:
   sofiax_network:
