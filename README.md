@@ -25,16 +25,17 @@ DATABASE_PORT=5432
 DATABASE=postgres
 ```
 
+DATABASE_NAME=sofiadb
+DATABASE_USER=admin
+DATABASE_PASSWORD=admin
+DATABASE_HOST=146.118.69.90
+DATABASE_PORT=5432
+
+If you deploy the system locally there is a `db` container that is deployed. If there is no existing database to connect with you can leave database environment variables empty and it will connect with the raised PostgreSQL container.
+
 You will also need to specify the `DJANGO_ALLOWED_HOSTS` environment variable when deploying this to a production environment.
 
 ### Local
-
-Local deployment can be helpful for developing the services. The local deployment includes the following services:
-
-* `nginx` (reverse proxy)
-* `api` (Django project for interacting with the database)
-* `vo` 
-* `PostgreSQL database`
 
 To raise the services run the following
 

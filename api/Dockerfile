@@ -11,5 +11,6 @@ RUN pip install --upgrade pip && \
 COPY . .
 RUN python manage.py collectstatic --no-input
 
-EXPOSE 8000
-CMD ["gunicorn", "--bind", ":8000", "api.wsgi:application"]
+COPY ./docker-entrypoint.sh /
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
+CMD [ "start" ]

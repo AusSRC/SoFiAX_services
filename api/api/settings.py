@@ -70,11 +70,11 @@ DATABASE_ENGINE = os.environ.get(
     'DATABASE_ENGINE',
     'django.db.backends.postgresql'
 )
-DATABASE_HOST = os.environ.get('DATABASE_HOST')
+DATABASE_HOST = os.environ.get('DATABASE_HOST', 'sofiax_db')
 DATABASE_PORT = os.environ.get('DATABASE_PORT', '5432')
-DATABASE_NAME = os.environ.get('DATABASE_NAME')
+DATABASE_NAME = os.environ.get('DATABASE_NAME', 'sofiadb')
 DATABASE_USER = os.environ.get('DATABASE_USER', 'admin')
-DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD')
+DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD', 'admin')
 
 DATABASES = {
     'default': {
