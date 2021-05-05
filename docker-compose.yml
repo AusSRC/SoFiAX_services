@@ -1,36 +1,37 @@
 version: '3.5'
 
 services:
-  db:
-    build:
-      context: db
-    image: sofiax_db
-    container_name: sofiax_db
-    ports:
-      - 5432:5432
-    env_file:
-      - vo/vo.env
-    networks:
-      - sofiax_network
+  # db:
+  #   build:
+  #     context: db
+  #   image: sofiax_db
+  #   container_name: sofiax_db
+  #   ports:
+  #     - 5432:5432
+  #   env_file:
+  #     - vo/vo.env
+  #   networks:
+  #     - sofiax_network
 
   api:
     build:
       context: api
     image: sofiax_api
     container_name: sofiax_api
-    command: init
+    command: start
     ports:
       - 8000:8000
     env_file: 
       - api/.env
-    depends_on: 
-      - db
     volumes:
       - ./api:/opt/services/sofiax_api/src
       - static_volume:/opt/services/sofiax_api/static
       - media_volume:/opt/services/sofiax_api/media
     networks:
       - sofiax_network
+    # command: init
+    # depends_on: 
+    #   - db
 
   vo:
     build:
