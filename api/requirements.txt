@@ -1,4 +1,5 @@
 astropy==4.2.1
+astroquery==0.4.1
 Django==3.2
 django-split-settings==1.0.1
 gunicorn==20.1.0
