@@ -8,8 +8,6 @@ services:
   #   container_name: sofiax_db
   #   ports:
   #     - 5432:5432
-  #   env_file:
-  #     - vo/vo.env
   #   networks:
   #     - sofiax_network
 
