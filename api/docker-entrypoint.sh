@@ -15,6 +15,9 @@ init () {
 
 # Start the service
 start () {
+  echo "Running migrate sessions"
+  python manage.py migrate sessions   
+  
   gunicorn -b :8000 api.wsgi:application
 }
 
