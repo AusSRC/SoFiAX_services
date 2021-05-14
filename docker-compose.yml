@@ -8,6 +8,8 @@ services:
   #   container_name: sofiax_db
   #   ports:
   #     - 5432:5432
+  #   volumes:
+  #     - /mnt/data/db_data:/var/lib/postgresql/data
   #   networks:
   #     - sofiax_network
 
@@ -42,6 +44,8 @@ services:
       - vo/vo.env
     networks:
       - sofiax_network
+    # depends_on: 
+    #   - db  
 
   nginx:
     build:
