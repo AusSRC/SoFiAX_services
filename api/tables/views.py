@@ -2,7 +2,7 @@ import io
 import tarfile
 from django.http import HttpResponse
 from urllib.request import pathname2url
-from api.utils.io import write_to_tarfile
+from api.utils.io import tarfile_write
 from api.decorators import basic_auth
 from tables.models import Products, Instance, Detection, Run
 
@@ -40,21 +40,23 @@ def instance_products(request):
 
     fh = io.BytesIO()
     with tarfile.open(fileobj=fh, mode='w:gz') as tar:
-        for detection in detections:
-            product = Products.objects.filter(detection=detection).first()
+        for d in detections:
+            name = f"{d.run.name}_{d.instance.id}_{d.name}"
+            name = pathname2url(name.replace(' ', '_'))
+            product = Products.objects.filter(detection=d).first()
             if product is None:
                 return HttpResponse(
-                    f'no products for detection {detection.id}.',
+                    f'no products for detection {d.id}.',
                     status=404
                 )
-            folder = f'{detection.name}'.replace(' ', '_')
-            write_to_tarfile(tar, f'{folder}/moment0.fits', product.moment0)
-            write_to_tarfile(tar, f'{folder}/moment1.fits', product.moment1)
-            write_to_tarfile(tar, f'{folder}/moment2.fits', product.moment2)
-            write_to_tarfile(tar, f'{folder}/cube.fits', product.cube)
-            write_to_tarfile(tar, f'{folder}/mask.fits', product.mask)
-            write_to_tarfile(tar, f'{folder}/channels.fits', product.channels)
-            write_to_tarfile(tar, f'{folder}/spectrum.txt', product.spectrum)
+            folder = f'{d.name}'.replace(' ', '_')
+            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.moment0)
+            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.moment1)
+            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
+            tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
+            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)
+            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spectrum)
 
     data = fh.getvalue()
     size = len(data)
@@ -110,13 +112,13 @@ def detection_products(request):
 
         fh = io.BytesIO()
         with tarfile.open(fileobj=fh, mode='w:gz') as tar:
-            write_to_tarfile(tar, f'{name}_moment0.fits', product.moment0)
-            write_to_tarfile(tar, f'{name}_moment1.fits', product.moment1)
-            write_to_tarfile(tar, f'{name}_moment2.fits', product.moment2)
-            write_to_tarfile(tar, f'{name}_cube.fits', product.cube)
-            write_to_tarfile(tar, f'{name}_mask.fits', product.mask)
-            write_to_tarfile(tar, f'{name}_channels.fits', product.channels)
-            write_to_tarfile(tar, f'{name}_spectrum.txt', product.spectrum)
+            tarfile_write(tar, f'{name}_mom0.fits', product.moment0)
+            tarfile_write(tar, f'{name}_mom1.fits', product.moment1)
+            tarfile_write(tar, f'{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{name}_cube.fits', product.cube)
+            tarfile_write(tar, f'{name}_mask.fits', product.mask)
+            tarfile_write(tar, f'{name}_chan.fits', product.channels)
+            tarfile_write(tar, f'{name}_spec.txt', product.spectrum)
 
         data = fh.getvalue()
         size = len(data)
@@ -190,21 +192,23 @@ def run_products(request):
 
     fh = io.BytesIO()
     with tarfile.open(fileobj=fh, mode='w:gz') as tar:
-        for detection in detections:
-            product = Products.objects.filter(detection=detection).first()
+        for d in detections:
+            name = f"{d.run.name}_{d.instance.id}_{d.name}"
+            name = pathname2url(name.replace(' ', '_'))
+            product = Products.objects.filter(detection=d).first()
             if product is None:
                 return HttpResponse(
-                    f'no products for detection {detection.id}.',
+                    f'no products for detection {d.id}.',
                     status=404
                 )
-            folder = f'{detection.name}'.replace(' ', '_')
-            write_to_tarfile(tar, f'{folder}/moment0.fits', product.moment0)
-            write_to_tarfile(tar, f'{folder}/moment1.fits', product.moment1)
-            write_to_tarfile(tar, f'{folder}/moment2.fits', product.moment2)
-            write_to_tarfile(tar, f'{folder}/cube.fits', product.cube)
-            write_to_tarfile(tar, f'{folder}/mask.fits', product.mask)
-            write_to_tarfile(tar, f'{folder}/channels.fits', product.channels)
-            write_to_tarfile(tar, f'{folder}/spectrum.txt', product.spectrum)
+            folder = f'{d.name}'.replace(' ', '_')
+            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.moment0)
+            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.moment1)
+            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
+            tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
+            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)
+            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spectrum)
 
     data = fh.getvalue()
     size = len(data)

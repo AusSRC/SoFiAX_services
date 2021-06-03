@@ -2,7 +2,7 @@ import io
 import tarfile
 
 
-def write_to_tarfile(tar, filename, content):
+def tarfile_write(tar, filename, content):
     """Helper function for writing content to a tarfile.
 
     """
