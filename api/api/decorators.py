@@ -36,7 +36,7 @@ def action_form(form_class=None):
 
             return TemplateResponse(
                 request,
-                'templates/admin/form_action_confirmation.html',
+                'admin/form_action_confirmation.html',
                 context
             )
 
