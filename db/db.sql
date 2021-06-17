@@ -96,3 +96,19 @@ ALTER TABLE wallaby.instance ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run (
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("instance_id") REFERENCES wallaby.instance ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.products ADD FOREIGN KEY ("detection_id") REFERENCES wallaby.detection ("id") ON DELETE CASCADE;
+
+-- 02/06/2021 --
+-- Update detections table based on new information from WALLABY science team --
+ALTER TABLE wallaby.detection 
+ADD COLUMN wm50 numeric NULL,
+ADD COLUMN x_peak integer NULL,
+ADD COLUMN y_peak integer NULL,
+ADD COLUMN z_peak integer NULL,
+ADD COLUMN ra_peak numeric NULL,
+ADD COLUMN dec_peak numeric NULL,
+ADD COLUMN freq_peak numeric NULL,
+ADD COLUMN l_peak numeric NULL,
+ADD COLUMN b_peak numeric NULL,
+ADD COLUMN v_rad_peak numeric NULL,
+ADD COLUMN v_opt_peak numeric NULL,
+ADD COLUMN v_app_peak numeric NULL;
