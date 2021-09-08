@@ -70,3 +70,7 @@ Once you have successfully migrated and created the superuser, you can deploy th
 ```
 docker-compose up -d
 ```
+
+### Database
+
+Note that the services that are deployed through the code in this repository depend on a database service to be active. The code for deploying the database can be found at [this repository](https://github.com/AusSRC/WALLABY_database).
