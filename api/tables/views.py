@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from urllib.request import pathname2url
 from api.utils.io import tarfile_write
 from api.decorators import basic_auth
-from tables.models import Products, Instance, Detection, Run
+from tables.models import Product, Instance, Detection, Run
 
 
 PRODUCTS = ['moment0', 'moment1', 'moment2',
@@ -43,7 +43,7 @@ def instance_products(request):
         for d in detections:
             name = f"{d.run.name}_{d.instance.id}_{d.name}"
             name = pathname2url(name.replace(' ', '_'))
-            product = Products.objects.filter(detection=d).first()
+            product = Product.objects.filter(detection=d).first()
             if product is None:
                 return HttpResponse(
                     f'no products for detection {d.id}.',
@@ -85,7 +85,7 @@ def detection_products(request):
             return HttpResponse('not a valid detection product.', status=400)
 
     if product_arg is None:
-        product = Products.objects.filter(detection=detect_id)\
+        product = Product.objects.filter(detection=detect_id)\
             .select_related(
                 'detection',
                 'detection__instance',
@@ -129,7 +129,7 @@ def detection_products(request):
         return response
 
     else:
-        product = Products.objects.filter(detection=detect_id)\
+        product = Product.objects.filter(detection=detect_id)\
             .select_related(
                 'detection',
                 'detection__instance',
@@ -195,7 +195,7 @@ def run_products(request):
         for d in detections:
             name = f"{d.run.name}_{d.instance.id}_{d.name}"
             name = pathname2url(name.replace(' ', '_'))
-            product = Products.objects.filter(detection=d).first()
+            product = Product.objects.filter(detection=d).first()
             if product is None:
                 return HttpResponse(
                     f'no products for detection {d.id}.',

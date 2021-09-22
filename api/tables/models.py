@@ -46,8 +46,8 @@ class Instance(models.Model):
     reliability_plot = models.BinaryField(blank=True, null=True)
     log = models.BinaryField(blank=True, null=True)
     parameters = models.JSONField()
-    return_code = models.IntegerField(null=True)
     version = models.CharField(max_length=512, blank=True, null=True)
+    return_code = models.IntegerField(null=True)
     stdout = models.BinaryField(blank=True, null=True)
     stderr = models.BinaryField(blank=True, null=True)
 
@@ -109,6 +109,18 @@ class Detection(models.Model):
     v_opt = PostgresDecimalField(blank=True, null=True)
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
+    wm50 = models.PostgresDecimalField(null=True)
+    x_peak = models.IntegerField(null=True)
+    y_peak = models.IntegerField(null=True)
+    z_peak = models.IntegerField(null=True)
+    ra_peak = models.PostgresDecimalField(null=True)
+    dec_peak = models.PostgresDecimalField(null=True)
+    freq_peak = models.PostgresDecimalField(null=True)
+    l_peak = models.PostgresDecimalField(null=True)
+    b_peak = models.PostgresDecimalField(null=True)
+    v_rad_peak = models.PostgresDecimalField(null=True)
+    v_opt_peak = models.PostgresDecimalField(null=True)
+    v_app_peak = models.PostgresDecimalField(null=True)
 
     def __str__(self):
         return self.name
@@ -253,25 +265,12 @@ class Detection(models.Model):
         unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
 
 
-class Sources(models.Model):
-    """Subset of quality checked detections to include in the
-    final source catalog.
-
-    """
-    id = models.BigAutoField(primary_key=True)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'sources'
-
-
 class UnresolvedDetection(Detection):
     class Meta:
         proxy = True
 
 
-class Products(models.Model):
+class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
     detection = models.ForeignKey(Detection, models.DO_NOTHING)
     cube = models.BinaryField(blank=True, null=True)
@@ -284,8 +283,36 @@ class Products(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'products'
+        db_table = 'product'
         unique_together = (('detection',),)
+
+
+class Source(models.Model):
+    """Subset of quality checked detections to include in the
+    final source catalog.
+
+    """
+    id = models.BigAutoField(primary_key=True)
+    name = models.CharField()
+
+    class Meta:
+        managed = False
+        db_table = 'source'
+        unique_together = (('name', ),)
+
+
+class SourceDetection(models.Model):
+    """Mapping from detections to sources
+
+    """
+    id = models.BigAutoField(primary_key=True)
+    source_id = models.ForeignKey(Source, models.DO_NOTHING)
+    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'source_detection'
+        unique_together = (('detection_id', ),)
 
 
 class SpatialRefSys(models.Model):
@@ -303,22 +330,23 @@ class SpatialRefSys(models.Model):
 # ------------------------------------------------------------------------------
 # Quality control tables
 
-class Comments(models.Model):
+class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    author = models.CharField()
+    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
     added_at = models.DateTimeField()
-    updated_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(blank=True)
 
     class Meta:
         managed = False
-        db_table = 'comments'
+        db_table = 'comment'
 
 
 class Tag(models.Model):
     id = models.BigAutoField(primary_key=True)
     tag_name = models.CharField(unique=True, max_length=50)
-    description = models.TextField(blank=True, null=True)
+    description = models.TextField(null=True)
     added_at = models.DateTimeField()
 
     class Meta:
@@ -329,12 +357,14 @@ class Tag(models.Model):
 class TagDetection(models.Model):
     # TODO(austin): force these to be unique together
     id = models.BigAutoField(primary_key=True)
-    tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    tag_id = models.ForeignKey(Tag, models.DO_NOTHING)
+    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
+    author = models.TextField()
+    added_at = models.DateTimeField()
 
     class Meta:
         managed = False
         db_table = 'tag_detection'
-        unique_together = (('tag', 'detection'),)
+        unique_together = (('tag_id', 'detection_id'),)
 
 # ------------------------------------------------------------------------------
