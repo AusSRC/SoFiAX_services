@@ -306,13 +306,13 @@ class SourceDetection(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    source_id = models.ForeignKey(Source, models.DO_NOTHING)
-    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
+    source = models.ForeignKey(Source, models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
 
     class Meta:
         managed = False
         db_table = 'source_detection'
-        unique_together = (('detection_id', ),)
+        unique_together = (('detection', ),)
 
 
 class SpatialRefSys(models.Model):
@@ -334,7 +334,7 @@ class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField()
-    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
     added_at = models.DateTimeField()
     updated_at = models.DateTimeField(blank=True)
 
@@ -357,14 +357,14 @@ class Tag(models.Model):
 class TagDetection(models.Model):
     # TODO(austin): force these to be unique together
     id = models.BigAutoField(primary_key=True)
-    tag_id = models.ForeignKey(Tag, models.DO_NOTHING)
-    detection_id = models.ForeignKey(Detection, models.DO_NOTHING)
+    tag = models.ForeignKey(Tag, models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
     author = models.TextField()
     added_at = models.DateTimeField()
 
     class Meta:
         managed = False
         db_table = 'tag_detection'
-        unique_together = (('tag_id', 'detection_id'),)
+        unique_together = (('tag', 'detection'),)
 
 # ------------------------------------------------------------------------------
