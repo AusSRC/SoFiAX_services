@@ -275,11 +275,12 @@ class Product(models.Model):
     detection = models.ForeignKey(Detection, models.DO_NOTHING)
     cube = models.BinaryField(blank=True, null=True)
     mask = models.BinaryField(blank=True, null=True)
-    moment0 = models.BinaryField(blank=True, null=True)
-    moment1 = models.BinaryField(blank=True, null=True)
-    moment2 = models.BinaryField(blank=True, null=True)
-    channels = models.BinaryField(blank=True, null=True)
-    spectrum = models.BinaryField(blank=True, null=True)
+    mom0 = models.BinaryField(blank=True, null=True)
+    mom1 = models.BinaryField(blank=True, null=True)
+    mom2 = models.BinaryField(blank=True, null=True)
+    chan = models.BinaryField(blank=True, null=True)
+    snr = models.BinaryField(blank=True, null=True)
+    spec = models.BinaryField(blank=True, null=True)
 
     class Meta:
         managed = False
