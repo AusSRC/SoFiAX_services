@@ -237,11 +237,11 @@ class Detection(models.Model):
             return mark_safe(img_src)
 
     def moment0_image(self):
-        product = self.products_set.only('moment0')
+        product = self.products_set.only('mom0')
         if not product:
             return None
 
-        with fits.open(BytesIO(product[0].moment0)) as hdu:
+        with fits.open(BytesIO(product[0].mom0)) as hdu:
             data = hdu[0].data
             img = 255 * ((data - data.min()) / data.ptp())
             img = img.astype(np.uint8)
@@ -294,7 +294,7 @@ class Source(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField()
+    name = models.CharField(max_length=128)
 
     class Meta:
         managed = False
@@ -334,7 +334,7 @@ class SpatialRefSys(models.Model):
 class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
-    author = models.CharField()
+    author = models.CharField(max_length=128)
     detection = models.ForeignKey(Detection, models.DO_NOTHING)
     added_at = models.DateTimeField()
     updated_at = models.DateTimeField(blank=True)

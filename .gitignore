@@ -106,3 +106,4 @@ venv.bak/
 # other
 secrets
 db
+ssl

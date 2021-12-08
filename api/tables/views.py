@@ -7,8 +7,8 @@ from api.decorators import basic_auth
 from tables.models import Product, Instance, Detection, Run
 
 
-PRODUCTS = ['moment0', 'moment1', 'moment2',
-            'cube', 'mask', 'channels', 'spectrum']
+PRODUCTS = ['mom0', 'mom1', 'mom2',
+            'cube', 'mask', 'chan', 'spec']
 
 
 @basic_auth
@@ -50,9 +50,9 @@ def instance_products(request):
                     status=404
                 )
             folder = f'{d.name}'.replace(' ', '_')
-            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.moment0)
-            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.moment1)
-            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.mom0)
+            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.mom1)
+            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.mom2)
             tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)
@@ -94,13 +94,13 @@ def detection_products(request):
                 'detection__name',
                 'detection__instance__id',
                 'detection__run__name',
-                'moment0',
-                'moment1',
-                'moment2',
+                'mom0',
+                'mom1',
+                'mom2',
                 'cube',
                 'mask',
-                'channels',
-                'spectrum')\
+                'chan',
+                'spec')\
             .first()
 
         if not product:
@@ -112,13 +112,13 @@ def detection_products(request):
 
         fh = io.BytesIO()
         with tarfile.open(fileobj=fh, mode='w:gz') as tar:
-            tarfile_write(tar, f'{name}_mom0.fits', product.moment0)
-            tarfile_write(tar, f'{name}_mom1.fits', product.moment1)
-            tarfile_write(tar, f'{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{name}_mom0.fits', product.mom0)
+            tarfile_write(tar, f'{name}_mom1.fits', product.mom1)
+            tarfile_write(tar, f'{name}_mom2.fits', product.mom2)
             tarfile_write(tar, f'{name}_cube.fits', product.cube)
             tarfile_write(tar, f'{name}_mask.fits', product.mask)
-            tarfile_write(tar, f'{name}_chan.fits', product.channels)
-            tarfile_write(tar, f'{name}_spec.txt', product.spectrum)
+            tarfile_write(tar, f'{name}_chan.fits', product.chan)
+            tarfile_write(tar, f'{name}_spec.txt', product.spec)
 
         data = fh.getvalue()
         size = len(data)
@@ -202,9 +202,9 @@ def run_products(request):
                     status=404
                 )
             folder = f'{d.name}'.replace(' ', '_')
-            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.moment0)
-            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.moment1)
-            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.moment2)
+            tarfile_write(tar, f'{folder}/{name}_mom0.fits', product.mom0)
+            tarfile_write(tar, f'{folder}/{name}_mom1.fits', product.mom1)
+            tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.mom2)
             tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)

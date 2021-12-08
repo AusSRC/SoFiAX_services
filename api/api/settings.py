@@ -10,7 +10,7 @@ DEBUG = bool(os.getenv('DEBUG', False))
 
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS',
-    'localhost 127.0.0.1 0.0.0.0'
+    'localhost 127.0.0.1 0.0.0.0 wallaby.aussrc.org'
 ).split(' ')
 
 SITE_NAME = os.getenv("DJANGO_ADMIN_SITE_NAME", "Application")
