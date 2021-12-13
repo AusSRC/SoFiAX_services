@@ -204,13 +204,13 @@ class Detection(models.Model):
         return d_space <= sigma * d_space_err and d_spec <= sigma * d_spec_err
 
     def spectrum_image(self):
-        product = self.products_set.only('spectrum')
+        product = self.product_set.only('spec')
         if not product:
             return None
 
         x = []
         y = []
-        with StringIO(product[0].spectrum.tobytes().decode('ascii')) as f:
+        with StringIO(product[0].spec.tobytes().decode('ascii')) as f:
             for line in f:
                 li = line.strip()
                 if not li.startswith("#"):
@@ -237,7 +237,7 @@ class Detection(models.Model):
             return mark_safe(img_src)
 
     def moment0_image(self):
-        product = self.products_set.only('mom0')
+        product = self.product_set.only('mom0')
         if not product:
             return None
 
