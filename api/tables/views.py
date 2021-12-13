@@ -55,8 +55,8 @@ def instance_products(request):
             tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.mom2)
             tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
-            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)
-            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spectrum)
+            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.chan)
+            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spec)
 
     data = fh.getvalue()
     size = len(data)
@@ -207,8 +207,8 @@ def run_products(request):
             tarfile_write(tar, f'{folder}/{name}_mom2.fits', product.mom2)
             tarfile_write(tar, f'{folder}/{name}_cube.fits', product.cube)
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
-            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.channels)
-            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spectrum)
+            tarfile_write(tar, f'{folder}/{name}_chan.fits', product.chan)
+            tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spec)
 
     data = fh.getvalue()
     size = len(data)
