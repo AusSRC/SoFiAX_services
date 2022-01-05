@@ -38,10 +38,10 @@ class Instance(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, models.DO_NOTHING)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
     filename = models.TextField()
     boundary = models.TextField()
-    run_date = models.DateTimeField()
+    run_date = models.DateTimeField(auto_now_add=True)
     flag_log = models.BinaryField(blank=True, null=True)
     reliability_plot = models.BinaryField(blank=True, null=True)
     log = models.BinaryField(blank=True, null=True)
@@ -68,8 +68,8 @@ class Detection(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    instance = models.ForeignKey(Instance, models.DO_NOTHING)
-    run = models.ForeignKey(Run, models.DO_NOTHING)
+    instance = models.ForeignKey(Instance, on_delete=models.CASCADE)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
     name = models.TextField(blank=True, null=True)
     x = PostgresDecimalField()
     y = PostgresDecimalField()
@@ -272,7 +272,7 @@ class UnresolvedDetection(Detection):
 
 class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
     cube = models.BinaryField(blank=True, null=True)
     mask = models.BinaryField(blank=True, null=True)
     mom0 = models.BinaryField(blank=True, null=True)
@@ -307,8 +307,8 @@ class SourceDetection(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    source = models.ForeignKey(Source, models.DO_NOTHING)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
 
     class Meta:
         managed = False
@@ -329,14 +329,25 @@ class SpatialRefSys(models.Model):
 
 
 # ------------------------------------------------------------------------------
-# Quality control tables
+# Metadata tables
+
+class RunMetadata(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    repository = models.CharField(max_length=256)
+    branch = models.CharField(max_length=256)
+    version = models.CharField(max_length=32)
+    configuration = models.JSONField()
+    parameters = models.JSONField()
+    added_at = models.DateTimeField(auto_now_add=True)
+
 
 class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=128)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
-    added_at = models.DateTimeField()
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(blank=True)
 
     class Meta:
@@ -348,7 +359,7 @@ class Tag(models.Model):
     id = models.BigAutoField(primary_key=True)
     tag_name = models.CharField(unique=True, max_length=50)
     description = models.TextField(null=True)
-    added_at = models.DateTimeField()
+    added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False
@@ -356,16 +367,31 @@ class Tag(models.Model):
 
 
 class TagDetection(models.Model):
-    # TODO(austin): force these to be unique together
     id = models.BigAutoField(primary_key=True)
-    tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
     author = models.TextField()
-    added_at = models.DateTimeField()
+    added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         managed = False
         db_table = 'tag_detection'
         unique_together = (('tag', 'detection'),)
+
+
+class TagSourceDetection(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    source_detection = models.ForeignKey(
+        SourceDetection,
+        on_delete=models.CASCADE
+    )
+    author = models.TextField()
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'tag_source_detection'
+        unique_together = (('tag', 'source_detection'),)
 
 # ------------------------------------------------------------------------------
