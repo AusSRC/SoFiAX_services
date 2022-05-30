@@ -332,27 +332,13 @@ class SpatialRefSys(models.Model):
 # ------------------------------------------------------------------------------
 # Metadata tables
 
-class RunMetadata(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    repository = models.CharField(max_length=256)
-    branch = models.CharField(max_length=256)
-    version = models.CharField(max_length=32)
-    configuration = models.JSONField()
-    parameters = models.JSONField()
-    added_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        managed = False
-        db_table = 'run_metadata'
-
 
 class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=128)
     detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
-    updated_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -368,19 +354,6 @@ class Tag(models.Model):
     class Meta:
         managed = False
         db_table = 'tag'
-
-
-class TagDetection(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
-    author = models.TextField()
-    added_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        managed = False
-        db_table = 'tag_detection'
-        unique_together = (('tag', 'detection'),)
 
 
 class TagSourceDetection(models.Model):
