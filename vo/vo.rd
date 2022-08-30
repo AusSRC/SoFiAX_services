@@ -32,7 +32,7 @@
       <column name="run_id" type="bigint" unit="" ucd="meta.id" required="True"/>
       <column name="instance_id" type="bigint" unit="" ucd="meta.id" required="True"/>
       <column name="access_url" type="text"  ucd="meta.ref.url;meta.data.datalink" tablehead="Datalink" verbLevel="15" displayHint="type=url"/>
-       <column name="access_format" type="text"  ucd="meta.code.mime"/>
+      <column name="access_format" type="text"  ucd="meta.code.mime"/>
       <column type="double precision" name="x" unit="pix" ucd="pos.cartesian.x"/>
       <column type="double precision" name="y" unit="pix" ucd="pos.cartesian.y"/>
       <column type="double precision" name="z" unit="pix" ucd="pos.cartesian.z"/>
@@ -106,34 +106,34 @@
                   server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
 
                   params = {"id": descriptor.pubDID, "product": "cube"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Cube", semantics="#preview")
 
-                  params = {"id": descriptor.pubDID, "product": "moment0"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  params = {"id": descriptor.pubDID, "product": "mom0"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Moment0", semantics="#preview")
 
-                  params = {"id": descriptor.pubDID, "product": "moment1"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  params = {"id": descriptor.pubDID, "product": "mom1"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Moment1", semantics="#preview")
 
-                  params = {"id": descriptor.pubDID, "product": "moment2"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  params = {"id": descriptor.pubDID, "product": "mom2"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Moment2", semantics="#preview")
 
                   params = {"id": descriptor.pubDID, "product": "mask"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Mask", semantics="#auxiliary")
 
-                  params = {"id": descriptor.pubDID, "product": "channels"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  params = {"id": descriptor.pubDID, "product": "chan"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection Channels", semantics="#auxiliary")
 
-                  params = {"id": descriptor.pubDID, "product": "spectrum"}
-                  url = "{1}/sofiax_detections/detection_products?{0}".format(urlencode(params), server_url)
+                  params = {"id": descriptor.pubDID, "product": "spec"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="SoFiA-2 Detection Spectrum", semantics="#auxiliary")
 
-                  url = "{1}/sofiax_detections/detection_products?id={0}".format(descriptor.pubDID, server_url)
+                  url = "{1}/detection_products?id={0}".format(descriptor.pubDID, server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="application/x-tar", description="SoFiA-2 Detection Products", semantics="#this")
               </code>
            </metaMaker>
@@ -147,7 +147,7 @@
                <code>
                   import os
                   server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
-                  url = "{1}/sofiax_detections/detection_products?id={0}".format(descriptor.pubDID, server_url)
+                  url = "{1}/detection_products?id={0}".format(descriptor.pubDID, server_url)
                   raise WebRedirect(url)
                </code>
             </dataFunction>
@@ -156,11 +156,56 @@
 
 	</service>
 
+   <table id="source" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="name" type="text" unit="" ucd="meta.id"/>
+   </table>
+
+   <table id="source_detection" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="source_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
+      <foreignKey source="source_id" dest="id" inTable="source"/>
+      <foreignKey source="detection_id" dest="id" inTable="detection"/>
+   </table>
+
+   <table id="comment" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="comment" type="text" unit="" ucd="meta.id"/>
+      <column name="author" type="text" unit="" ucd="meta.id"/>
+      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="updated_at" type="timestamp" unit="" ucd="meta.id"/>
+      <foreignKey source="detection_id" dest="id" inTable="detection"/>
+   </table>
+
+   <table id="tag" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="name" type="text" unit="" ucd="meta.id"/>
+      <column name="description" type="text" unit="" ucd="meta.id"/>
+      <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
+   </table>
+
+   <table id="tag_source_detection" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="tag_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="source_detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="author" type="text" unit="" ucd="meta.id"/>
+      <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
+      <foreignKey source="tag_id" dest="id" inTable="tag"/>
+      <foreignKey source="source_detection_id" dest="id" inTable="source_detection"/>
+   </table>
 
    <data id="import">
       <make table="run"/>
       <make table="instance"/>
-      <make table="detection">
+      <make table="detection"/>
+      <make table="source"/>
+      <make table="source_detection"/>
+      <make table="comment"/>
+      <make table="tag"/>
+      <make table="tag_source_detection">
       </make>
    </data>
+
 </resource>
