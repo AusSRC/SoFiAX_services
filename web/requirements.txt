@@ -1,0 +1,16 @@
+astropy
+astroquery
+Django
+django-split-settings
+gunicorn
+matplotlib
+opencv-python
+Pillow
+python-dotenv
+django-extensions
+psycopg2-binary
+django-sslserver
+social-auth-app-django
+social-auth-core
+python-keycloak
+django-environ

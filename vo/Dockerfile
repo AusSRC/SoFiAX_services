@@ -29,9 +29,8 @@ RUN adduser --system gavo && \
     addgroup --system gavo && \
     adduser gavo gavo && \
     adduser `id -nu` gavo &&\
-    mkdir -p "${GAVO_ROOT}" && \
-    sleep 5
-       
+    mkdir -p "${GAVO_ROOT}"
+
 
 RUN gavo init --nodb
 COPY gavo.rc /etc/gavo.rc
