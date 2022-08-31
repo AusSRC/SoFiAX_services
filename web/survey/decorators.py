@@ -66,10 +66,7 @@ def basic_auth(view):
                 auth = request.META['HTTP_AUTHORIZATION'].split()
                 if len(auth) == 2:
                     if auth[0].lower() == "basic":
-                        username, password = base64.b64decode(auth[1])\
-                                                .decode("utf8")\
-                                                .split(':')
-
+                        username, password = base64.b64decode(auth[1]).decode("utf8").split(':')
                         openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
                                                 client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
                                                 realm_name=settings.REALM,
@@ -87,7 +84,7 @@ def basic_auth(view):
                                 user.is_staff = True
                                 user.save()
 
-                                auth_user = UserSocialAuth.objects.create(user=user, 
+                                auth_user = UserSocialAuth.objects.create(user=user,
                                                                           provider='keycloak',
                                                                           uid=username,
                                                                           extra_data=token)
@@ -98,11 +95,11 @@ def basic_auth(view):
 
             response = HttpResponse()
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="Wallaby VO"'
+            response['WWW-Authenticate'] = 'Basic realm="AusSRC VO"'
             return response
         except Exception as e:
             response = HttpResponse(str(e))
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="Wallaby VO"'
+            response['WWW-Authenticate'] = 'Basic realm="AusSRC VO"'
             return response
     return wrap

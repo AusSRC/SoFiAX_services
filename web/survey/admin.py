@@ -128,9 +128,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     actions = ['check_action', 'resolve_action', 'manual_resolve']
 
     def get_actions(self, request):
-        #if request.GET:
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
-        #return None
 
     def get_list_display(self, request):
         if request.GET:
