@@ -83,6 +83,18 @@ class DetectionAdmin(ModelAdmin):
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
+    actions = ['mark_genuine']
+
+    def get_actions(self, request):
+        return super(DetectionAdmin, self).get_actions(request)
+
+    def get_list_display(self, request):
+        if request.GET:
+            return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+                   'w20', 'w50'
+        else:
+            return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+                   'ell_min', 'w20', 'w50'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -95,6 +107,35 @@ class DetectionAdmin(ModelAdmin):
             get_queryset(request).\
             select_related('run')
         return qs.filter(unresolved=False)
+
+    class MarkGenuineDetectionAction(forms.Form):
+        title = 'These detections will be marked as real sources.'
+
+    @action_form(MarkGenuineDetectionAction)
+    def mark_genuine(self, request, queryset, form):
+        try:
+            with transaction.atomic():
+                detect_list = list(queryset.select_for_update())
+                run_set = {detect.run.id for detect in detect_list}
+                if len(run_set) > 1:
+                    messages.error(
+                        request,
+                        "Detections from multiple runs selected"
+                    )
+                    return 0
+
+                # Create source and source detection entries
+                for detection in detect_list:
+                    source = Source.objects.create(name=detection.name)
+                    source_detection = SourceDetection.objects.create(
+                        source=source,
+                        detection=detection
+                    )
+                return len(detect_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    mark_genuine.short_description = 'Mark Genuine Detections'
 
 
 class DetectionAdminInline(ModelAdminInline):
