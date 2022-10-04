@@ -8,7 +8,7 @@ from random import choice
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.decorators import action_form
 from survey.models import Detection, UnresolvedDetection,\
-    Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
+    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
 
 
 class TagAdmin(ModelAdmin):
@@ -78,6 +78,7 @@ class SourceDetectionAdmin(ModelAdmin):
 
 class DetectionAdmin(ModelAdmin):
     model = Detection
+    list_per_page = 20
     list_display = ('id', 'run', 'name', 'x', 'y', 'z',
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
@@ -99,15 +100,16 @@ class DetectionAdmin(ModelAdmin):
 class DetectionAdminInline(ModelAdminInline):
     model = Detection
     list_display = (
-        'name', 'x', 'y', 'z', 'f_sum',
+        'name', 'summary_image', 'x', 'y', 'z', 'f_sum',
         'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
     )
     exclude = [
-        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max',
-        'n_pix', 'f_min', 'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj',
-        'ell3s_min', 'ell3s_pa', 'kin_pa', 'err_x', 'err_y', 'err_z',
-        'err_f_sum', 'ra', 'dec', 'freq', 'flag', 'unresolved', 'instance',
-        'l', 'b', 'v_rad', 'v_opt', 'v_app'
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
+        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
+        'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
+        'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
+        'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
     readonly_fields = list_display
     fk_name = 'run'
@@ -132,10 +134,10 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+            return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
                    'ell_min', 'w20', 'w50', 'moment0_image', 'spectrum_image'
 
     def lookup_allowed(self, lookup, value):
@@ -239,6 +241,8 @@ class UnresolvedDetectionAdminInline(ModelAdminInline):
         'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50'
     )
     exclude = [
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
         'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
         'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
@@ -305,8 +309,9 @@ class InstanceAdminInline(ModelAdminInline):
 class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
-        'id', 'name', 'sanity_thresholds', 'run_catalog',
-        'run_link', 'run_products_download'
+        'id', 'name', 'sanity_thresholds',
+        'run_catalog', 'run_link', 'run_products_download',
+        'run_manual_inspection'
     )
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -317,7 +322,6 @@ class RunAdmin(ModelAdmin):
     def run_products_download(self, obj):
         url = reverse('run_products')
         return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
-
     run_products_download.short_description = 'Products'
 
     def run_catalog(self, obj):
@@ -330,6 +334,12 @@ class RunAdmin(ModelAdmin):
         url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
     run_link.short_description = 'Unresolved Detections'
+
+    def run_manual_inspection(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_detection_changelist')
+        return format_html(f"<a href='{url}?run={obj.id}'>Detections</a>")
+    run_manual_inspection.short_description = 'Manual inspection'
 
 
 class RunAdminInline(ModelAdminInline):

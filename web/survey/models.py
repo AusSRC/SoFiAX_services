@@ -6,6 +6,7 @@ import binascii
 from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from io import BytesIO, StringIO
 from astropy.io import fits
 from django.utils.safestring import mark_safe
@@ -256,6 +257,31 @@ class Detection(models.Model):
                 base_img = binascii.b2a_base64(image_data).decode()
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
                 return mark_safe(img_src)
+
+    def summary_image(self):
+        # TODO(austin): maybe only show the optical counterpart
+        product = self.product_set.only('summary')
+        summary = product[0].summary
+        if summary is None:
+            return None
+
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.set_size_inches(4, 3)
+        img = mpimg.imread(BytesIO(summary))
+        plt.imshow(img)
+        plt.axis('off')
+        plt.tight_layout()
+        ax = plt.gca()
+        ax.set_frame_on(False)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+
+        with BytesIO() as image_data:
+            fig.savefig(image_data, format='png')
+            base_img = binascii.b2a_base64(image_data.getvalue()).decode()
+            img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+            plt.close(fig)
+            return mark_safe(img_src)
 
     class Meta:
         managed = False
