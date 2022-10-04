@@ -295,6 +295,11 @@ class UnresolvedDetection(Detection):
         proxy = True
 
 
+class InternalConflictSource(Detection):
+    class Meta:
+        proxy = True
+
+
 class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
     detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
@@ -343,6 +348,11 @@ class SourceDetection(models.Model):
     class Meta:
         managed = False
         db_table = 'source_detection'
+
+
+class ExternalConflictSource(Source):
+    class Meta:
+        proxy = True
 
 
 class SpatialRefSys(models.Model):

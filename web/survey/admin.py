@@ -1,3 +1,4 @@
+import math
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
@@ -359,6 +360,10 @@ class RunAdmin(ModelAdmin):
         DetectionAdminInline,
         InstanceAdminInline,
     )
+    actions = ['internal_cross_match', 'external_cross_match']
+
+    def get_actions(self, request):
+        return super(RunAdmin, self).get_actions(request)
 
     def run_products_download(self, obj):
         url = reverse('run_products')
@@ -381,6 +386,65 @@ class RunAdmin(ModelAdmin):
         url = reverse(f'admin:{opts.app_label}_detection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>Detections</a>")
     run_manual_inspection.short_description = 'Manual inspection'
+
+    def internal_cross_match(self, request, queryset):
+        """Run the internal cross matching workflow
+
+        """
+        thresh_spat = 90.0
+        thresh_spec = 2e+6
+
+        try:
+            run_list = list(queryset)
+            if len(run_list) != 1:
+                messages.error(
+                    request,
+                    "Only one run can be selected at a time for internal cross matching."
+                )
+                return 0
+            # TODO(austin): check for unresolved detections
+
+            all_run_detections = list(Detection.objects.filter(run_id__in=[r.id for r in run_list]))
+            sd_list = list(SourceDetection.objects.filter(detection_id__in=[d.id for d in all_run_detections]))
+            detections = [Detection.objects.get(id=sd.detection.id) for sd in sd_list]
+            sources = [Source.objects.get(id=sd.source.id) for sd in sd_list]
+
+            # cross match internally
+            matches = []
+            for i in range(len(detections) - 1):
+                for j in range(i + 1, len(detections) - 1):
+                    ra_i = detections[i].ra * math.pi / 180.0
+                    dec_i = detections[i].dec * math.pi / 180.0
+                    ra_j = detections[j].ra * math.pi / 180.0
+                    dec_j = detections[j].dec * math.pi / 180.0
+                    freq_i = detections[i].freq
+                    freq_j = detections[j].freq
+                    r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
+                    if r_spat < thresh_spat and abs(freq_i - freq_j) < thresh_spec:
+                        matches.append((i, j))
+
+            print(matches)
+            messages.info(request, 'Completed internal cross matching')
+            return None
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    internal_cross_match.short_description = 'Internal cross matching'
+
+    def external_cross_match(self, request, queryset):
+        """Run the external cross matching workflow to identify sources
+        that conflict with sources from other survey components.
+
+        """
+        # TODO(austin): are there any unresolved detections or internal conflicts in this run?
+        try:
+            run_list = list(queryset)
+            messages.info(request, 'this has in fact worked')
+            return None
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    external_cross_match.short_description = 'External cross matching'
 
 
 class RunAdminInline(ModelAdminInline):
