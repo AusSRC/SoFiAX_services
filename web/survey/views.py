@@ -21,9 +21,11 @@ def logout_view(request):
     url = settings.LOGOUT_URL + '?redirect_uri=' + urllib.parse.quote(f"https://{request.get_host()}/admin")
     return redirect(url)
 
+
 @basic_auth
 def test(request):
     return HttpResponse('Authorized', status=200)
+
 
 @basic_auth
 def instance_products(request):
