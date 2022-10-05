@@ -239,14 +239,31 @@ class DetectionAdminInline(ModelAdminInline):
 
 class UnresolvedDetectionAdmin(ModelAdmin):
     model = UnresolvedDetection
-    actions = ['check_action', 'resolve_action', 'manual_resolve', 'mark_genuine', 'add_tag', 'add_comment']
+    actions = ['check_action', 'resolve_action', 'manual_resolve', 'add_tag', 'add_comment']
+
+    @admin.display(empty_value='No')
+    def source(self, obj):
+        sd = SourceDetection.objects.filter(detection=obj)
+        if len(sd) == 1:
+            return 'Yes'
+        return 'No'
+
+    @admin.display(empty_value='-')
+    def tags(self, obj):
+        sd = SourceDetection.objects.filter(detection=obj)
+        if len(sd) == 1:
+            tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
+            tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
+            if len(tags) > 0:
+                tag_string = ', '.join([t.name for t in tags])
+                return tag_string
 
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'source', 'tags', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50', 'moment0_image', 'spectrum_image'
         else:
             return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
@@ -344,6 +361,59 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             messages.error(request, str(e))
             return
     check_action.short_description = 'Sanity Check Detections'
+
+    class AddTagForm(forms.Form):
+        title = 'Add tags'
+
+    @add_tag_form(AddTagForm, Tag.objects.all())
+    def add_tag(self, request, queryset):
+        try:
+            # get or create tag
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create == '':
+                    messages.error(request, "No tag selected or created")
+                    return
+                else:
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+            detect_list = list(queryset)
+            for d in detect_list:
+                source_detection = SourceDetection.objects.get(detection=d)
+                TagSourceDetection.objects.create(
+                    source_detection=source_detection,
+                    tag=tag,
+                    author=str(request.user)
+                )
+            return len(detect_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_tag.short_description = 'Add tags'
+
+    class AddCommentForm(forms.Form):
+        title = 'Add comments'
+
+    @add_comment_form(AddCommentForm)
+    def add_comment(self, request, queryset):
+        try:
+            detect_list = list(queryset)
+            comment = str(request.POST['comment'])
+            for d in detect_list:
+                Comment.objects.create(
+                    comment=comment,
+                    author=str(request.user),
+                    detection=d
+                )
+            return len(detect_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_comment.short_description = 'Add comments'
 
 
 class UnresolvedDetectionAdminInline(ModelAdminInline):
