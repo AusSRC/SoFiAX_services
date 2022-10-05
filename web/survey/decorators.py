@@ -10,6 +10,7 @@ from django.contrib.auth.models import User, Group
 from django.core.exceptions import ObjectDoesNotExist
 from social_django.models import UserSocialAuth
 from django.db import transaction
+from survey.models import Tag, Comment
 
 from keycloak import KeycloakOpenID
 
@@ -55,9 +56,6 @@ def action_form(form_class=None):
 
 
 def add_tag_form(form_class=None, tags=None):
-    """
-
-    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):
@@ -65,20 +63,12 @@ def add_tag_form(form_class=None, tags=None):
 
             if 'confirm' in request.POST and request.POST:
                 form = form_class(request.POST)
-                if request.POST['tag_select'] == 'None':
+                if form.is_valid():
+                    obj_count = func(self, request, queryset)
                     self.message_user(
                         request,
-                        "No tags added to selected detections"
+                        '%s objects updated' % obj_count
                     )
-                else:
-                    tag_id = int(request.POST['tag_select'])
-                    tag = tags[tag_id]
-                    if form.is_valid():
-                        obj_count = func(self, request, queryset, str(request.user), tag)
-                        self.message_user(
-                            request,
-                            '%s objects updated' % obj_count
-                        )
                 return None
 
             context = dict(
@@ -104,9 +94,6 @@ def add_tag_form(form_class=None, tags=None):
 
 
 def add_comment_form(form_class=None):
-    """
-
-    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):
@@ -114,9 +101,8 @@ def add_comment_form(form_class=None):
 
             if 'confirm' in request.POST and request.POST:
                 form = form_class(request.POST)
-                comment = str(request.POST['comment'])
                 if form.is_valid():
-                    obj_count = func(self, request, queryset, str(request.user), comment)
+                    obj_count = func(self, request, queryset)
                     self.message_user(
                         request,
                         '%s objects updated' % obj_count
