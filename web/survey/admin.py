@@ -80,18 +80,25 @@ class SourceDetectionAdmin(ModelAdmin):
 class DetectionAdmin(ModelAdmin):
     model = Detection
     list_per_page = 10
-    list_display = ('id', 'run', 'name', 'x', 'y', 'z',
+    list_display = ('id', 'source', 'run', 'name', 'x', 'y', 'z',
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
     actions = ['mark_genuine', 'add_tag', 'add_comment']
+
+    @admin.display(empty_value='No')
+    def source(self, obj):
+        sd = SourceDetection.objects.filter(detection=obj)
+        if len(sd) == 1:
+            return 'Yes'
+        return 'No'
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'run', 'source', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50'
         else:
             return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
