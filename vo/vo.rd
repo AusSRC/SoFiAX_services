@@ -8,6 +8,11 @@
    <table id="run" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
       <column name="name" type="text" unit="" ucd="meta.id"/>
+
+      <meta name="_associatedDatalinkService">
+         <meta name="serviceId">run_dl</meta>
+         <meta name="idColumn">id</meta>
+      </meta>
    </table>
 
    <table id="instance" onDisk="True" adql="True">
@@ -75,9 +80,69 @@
 
    </table>
 
+   <service id="run_dl" allowed="dlget,dlmeta">
+      <meta name="title">Run Datalink</meta>
+      <meta name="dlget.description">Run Datalink</meta>
+		<datalinkCore>
+           <descriptorGenerator>
+            <setup>
+              <code>
+                 class CustomDescriptor(ProductDescriptor):
+                     def __init__(self, id):
+                        super(ProductDescriptor, self).__init__()
+                        self.pubDID = id
+                        self.mime = ""
+                        self.accref = ""
+                        self.accessPath = ""
+                        self.access_url = ""
+                        self.suppressAutoLinks = True
+                 </code>
+             </setup>
+            <code>
+               return CustomDescriptor(pubDID)
+            </code>
+          </descriptorGenerator>
+
+           <metaMaker>
+              <code>
+                  import os
+                  from urllib.parse import urlencode
+
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+
+                  params = {"id": descriptor.pubDID}
+                  url = "{1}/catalog?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/xml", description="Run Catalog", semantics="#preview")
+
+                  params = {"id": descriptor.pubDID}
+                  url = "{1}/run_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="application/x-tar", description="Run Products", semantics="#preview")
+
+              </code>
+           </metaMaker>
+
+            <dataFunction>
+               <setup>
+                  <code>
+                     from gavo.svcs import WebRedirect
+                  </code>
+               </setup>
+               <code>
+                  import os
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  url = "{1}/catalog?id={0}".format(descriptor.pubDID, server_url)
+                  raise WebRedirect(url)
+               </code>
+            </dataFunction>
+
+		</datalinkCore>
+
+	</service>
+
+
 	<service id="dl" allowed="dlget,dlmeta">
-		<meta name="title">Wallaby Detections Datalink</meta>
-        <meta name="dlget.description">Wallaby Detections Datalink</meta>
+		<meta name="title">Detections Datalink</meta>
+        <meta name="dlget.description">Detections Datalink</meta>
 		<datalinkCore>
            <descriptorGenerator>
             <setup>

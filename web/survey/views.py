@@ -345,6 +345,7 @@ def _build_catalog(detections, date, version):
     return cat
 
 
+@basic_auth
 def run_catalog(request):
     if not request.user.is_authenticated:
         return HttpResponse('Unauthorized', status=401)
