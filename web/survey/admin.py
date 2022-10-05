@@ -93,12 +93,22 @@ class DetectionAdmin(ModelAdmin):
             return 'Yes'
         return 'No'
 
+    @admin.display(empty_value='-')
+    def tags(self, obj):
+        sd = SourceDetection.objects.filter(detection=obj)
+        if len(sd) == 1:
+            tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
+            tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
+            if len(tags) > 0:
+                tag_string = ', '.join([t.name for t in tags])
+                return tag_string
+
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'source', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'run', 'source', 'tags', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50'
         else:
             return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
