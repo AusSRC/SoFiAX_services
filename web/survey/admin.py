@@ -471,9 +471,16 @@ class RunAdmin(ModelAdmin):
                     "Only one run can be selected at a time for internal cross matching."
                 )
                 return 0
-            # TODO(austin): check for unresolved detections
+            run = run_list[0]
+            all_run_detections = list(Detection.objects.filter(run=run))
 
-            all_run_detections = list(Detection.objects.filter(run_id__in=[r.id for r in run_list]))
+            if any([d.unresolved for d in all_run_detections]):
+                messages.error(
+                    request,
+                    'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
+                )
+                return 0
+
             sd_list = list(SourceDetection.objects.filter(detection_id__in=[d.id for d in all_run_detections]))
             detections = [Detection.objects.get(id=sd.detection.id) for sd in sd_list]
             sources = [Source.objects.get(id=sd.source.id) for sd in sd_list]
@@ -491,8 +498,18 @@ class RunAdmin(ModelAdmin):
                     r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
                     if r_spat < thresh_spat and abs(freq_i - freq_j) < thresh_spec:
                         matches.append((i, j))
-
-            print(matches)
+                        d1 = detections[i]
+                        d1.unresolved = True
+                        d1.save()
+                        d2 = detections[j]
+                        d2.unresolved = True
+                        d2.save()
+            print('The following pairs of detections have been marked as unresolved:')
+            for match in matches:
+                id_1, id_2 = match
+                d1 = detections[id_1]
+                d2 = detections[id_2]
+                print(f'{d1.name}, {d2.name}')
             messages.info(request, 'Completed internal cross matching')
             return None
         except Exception as e:
