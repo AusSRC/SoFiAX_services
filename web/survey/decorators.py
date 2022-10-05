@@ -38,12 +38,103 @@ def action_form(form_class=None):
                 title=form_class.title,
                 action=func.__name__,
                 opts=self.model._meta,
-                queryset=queryset, form=form,
+                queryset=queryset,
+                form=form,
                 action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
 
             return TemplateResponse(
                 request,
                 'admin/form_action_confirmation.html',
+                context
+            )
+
+        wrapper.short_description = form_class.title
+
+        return wrapper
+    return decorator
+
+
+def add_tag_form(form_class=None, tags=None):
+    """
+
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, request, queryset):
+            form = form_class()
+
+            if 'confirm' in request.POST and request.POST:
+                form = form_class(request.POST)
+                if request.POST['tag_select'] == 'None':
+                    self.message_user(
+                        request,
+                        "No tags added to selected detections"
+                    )
+                else:
+                    tag_id = int(request.POST['tag_select'])
+                    tag = tags[tag_id]
+                    if form.is_valid():
+                        obj_count = func(self, request, queryset, str(request.user), tag)
+                        self.message_user(
+                            request,
+                            '%s objects updated' % obj_count
+                        )
+                return None
+
+            context = dict(
+                self.admin_site.each_context(request),
+                title=form_class.title,
+                action=func.__name__,
+                opts=self.model._meta,
+                tags=tags,
+                queryset=queryset,
+                form=form,
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
+
+            return TemplateResponse(
+                request,
+                'admin/form_add_tag.html',
+                context
+            )
+
+        wrapper.short_description = form_class.title
+
+        return wrapper
+    return decorator
+
+
+def add_comment_form(form_class=None):
+    """
+
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, request, queryset):
+            form = form_class()
+
+            if 'confirm' in request.POST and request.POST:
+                form = form_class(request.POST)
+                comment = str(request.POST['comment'])
+                if form.is_valid():
+                    obj_count = func(self, request, queryset, str(request.user), comment)
+                    self.message_user(
+                        request,
+                        '%s objects updated' % obj_count
+                    )
+                return None
+
+            context = dict(
+                self.admin_site.each_context(request),
+                title=form_class.title,
+                action=func.__name__,
+                opts=self.model._meta,
+                queryset=queryset,
+                form=form,
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
+
+            return TemplateResponse(
+                request,
+                'admin/form_add_comment.html',
                 context
             )
 

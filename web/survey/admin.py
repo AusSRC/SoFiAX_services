@@ -7,7 +7,7 @@ from django.db import transaction
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
-from survey.decorators import action_form
+from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
 
@@ -79,12 +79,12 @@ class SourceDetectionAdmin(ModelAdmin):
 
 class DetectionAdmin(ModelAdmin):
     model = Detection
-    list_per_page = 20
+    list_per_page = 10
     list_display = ('id', 'run', 'name', 'x', 'y', 'z',
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
-    actions = ['mark_genuine']
+    actions = ['mark_genuine', 'add_tag', 'add_comment']
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
@@ -112,7 +112,6 @@ class DetectionAdmin(ModelAdmin):
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
 
-    @action_form(MarkGenuineDetectionAction)
     def mark_genuine(self, request, queryset, form):
         try:
             with transaction.atomic():
@@ -138,8 +137,48 @@ class DetectionAdmin(ModelAdmin):
             return
     mark_genuine.short_description = 'Mark Genuine Detections'
 
+    class AddTagForm(forms.Form):
+        title = 'Add tags'
+
+    @add_tag_form(AddTagForm, Tag.objects.all())
+    def add_tag(self, request, queryset, user, tag):
+        try:
+            detect_list = list(queryset)
+            for d in detect_list:
+                source_detection = SourceDetection.objects.get(detection=d)
+                TagSourceDetection.objects.create(
+                    source_detection=source_detection,
+                    tag=tag,
+                    author=user
+                )
+            return len(detect_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_tag.short_description = 'Add tags'
+
+    class AddCommentForm(forms.Form):
+        title = 'Add comments'
+
+    @add_comment_form(AddCommentForm)
+    def add_comment(self, request, queryset, user, comment):
+        try:
+            detect_list = list(queryset)
+            for d in detect_list:
+                Comment.objects.create(
+                    comment=comment,
+                    author=user,
+                    detection=d
+                )
+            return len(detect_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_comment.short_description = 'Add comments'
+
 
 class DetectionAdminInline(ModelAdminInline):
+    # TODO(austin): probably want to show tags if there are any?
     model = Detection
     list_display = (
         'name', 'summary_image', 'x', 'y', 'z', 'f_sum',
@@ -273,7 +312,6 @@ class UnresolvedDetectionAdmin(ModelAdmin):
         except Exception as e:
             messages.error(request, str(e))
             return
-
     check_action.short_description = 'Sanity Check Detections'
 
 
