@@ -264,15 +264,20 @@ class UnresolvedDetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
+    @admin.display(empty_value='-')
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'source', 'tags', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
                    'ell_min', 'w20', 'w50', 'moment0_image', 'spectrum_image'
 
     def lookup_allowed(self, lookup, value):
