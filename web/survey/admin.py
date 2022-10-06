@@ -1,4 +1,5 @@
 import math
+import logging
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
@@ -10,6 +11,9 @@ from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 class TagAdmin(ModelAdmin):
@@ -103,15 +107,20 @@ class DetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
+    @admin.display(empty_value='-')
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'source', 'tags', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'run', 'source', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50'
         else:
-            return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
                    'ell_min', 'w20', 'w50'
 
     def detection_products_download(self, obj):
@@ -129,7 +138,7 @@ class DetectionAdmin(ModelAdmin):
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
 
-    def mark_genuine(self, request, queryset, form):
+    def mark_genuine(self, request, queryset):
         try:
             with transaction.atomic():
                 detect_list = list(queryset.select_for_update())
@@ -148,7 +157,8 @@ class DetectionAdmin(ModelAdmin):
                         source=source,
                         detection=detection
                     )
-                return len(detect_list)
+                messages.info(request, f"Marked {len(detect_list)} detections as sources.")
+                return
         except Exception as e:
             messages.error(request, str(e))
             return
@@ -258,15 +268,20 @@ class UnresolvedDetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
+    @admin.display(empty_value='-')
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'source', 'tags', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'summary_image', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
                    'ell_min', 'w20', 'w50', 'moment0_image', 'spectrum_image'
 
     def lookup_allowed(self, lookup, value):
@@ -345,14 +360,19 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             detect_list = list(queryset)
             for index, detect_outer in enumerate(detect_list):
                 for detect_inner in detect_list[index + 1:]:
-                    print(detect_outer.id, detect_inner.id)
+                    logging.info(f'Detections: {detect_outer.id}, {detect_inner.id}')
                     if detect_outer.is_match(detect_inner):
+                        logging.info('Passed is_match test')
                         sanity, msg = detect_outer.sanity_check(detect_inner)
                         if sanity is False:
-                            messages.info(request, msg)
+                            logging.info('Sanity check has failed')
+                            messages.error(request, msg)
                         else:
+                            logging.info('Passed sanity_check test')
                             messages.info(request, "sanity passed")
+                        return
                     else:
+                        # TODO(austin): could probably keep both of these sources if not match...
                         msg = f"Detections {detect_inner.id}, {detect_outer.id} are not in the same spacial and spectral range"  # noqa
                         messages.error(request, msg)
                         return
