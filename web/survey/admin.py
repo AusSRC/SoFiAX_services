@@ -129,7 +129,7 @@ class DetectionAdmin(ModelAdmin):
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
 
-    def mark_genuine(self, request, queryset, form):
+    def mark_genuine(self, request, queryset):
         try:
             with transaction.atomic():
                 detect_list = list(queryset.select_for_update())
@@ -148,7 +148,8 @@ class DetectionAdmin(ModelAdmin):
                         source=source,
                         detection=detection
                     )
-                return len(detect_list)
+                messages.info(request, f"Marked {len(detect_list)} detections as sources.")
+                return
         except Exception as e:
             messages.error(request, str(e))
             return
