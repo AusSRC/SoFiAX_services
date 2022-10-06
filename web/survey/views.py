@@ -169,7 +169,7 @@ def detection_products(request):
 
         content_type = 'image/fits'
         ext = "fits"
-        if product_arg == "spectrum":
+        if product_arg == "spec":
             content_type = "text/plain"
             ext = "txt"
 
