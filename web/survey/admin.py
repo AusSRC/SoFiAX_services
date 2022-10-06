@@ -361,7 +361,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             for index, detect_outer in enumerate(detect_list):
                 for detect_inner in detect_list[index + 1:]:
                     logging.info(f'Detections: {detect_outer.id}, {detect_inner.id}')
-                    # if detect_outer.is_match(detect_inner):
+                    if detect_outer.is_match(detect_inner):
                         logging.info('Passed is_match test')
                         sanity, msg = detect_outer.sanity_check(detect_inner)
                         if sanity is False:
