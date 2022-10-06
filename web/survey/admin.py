@@ -1,4 +1,5 @@
 import math
+import logging
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
@@ -10,6 +11,9 @@ from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 class TagAdmin(ModelAdmin):
@@ -356,14 +360,19 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             detect_list = list(queryset)
             for index, detect_outer in enumerate(detect_list):
                 for detect_inner in detect_list[index + 1:]:
-                    print(detect_outer.id, detect_inner.id)
-                    if detect_outer.is_match(detect_inner):
+                    logging.info(f'Detections: {detect_outer.id}, {detect_inner.id}')
+                    # if detect_outer.is_match(detect_inner):
+                        logging.info('Passed is_match test')
                         sanity, msg = detect_outer.sanity_check(detect_inner)
                         if sanity is False:
-                            messages.info(request, msg)
+                            logging.info('Sanity check has failed')
+                            messages.error(request, msg)
                         else:
+                            logging.info('Passed sanity_check test')
                             messages.info(request, "sanity passed")
+                        return
                     else:
+                        # TODO(austin): could probably keep both of these sources if not match...
                         msg = f"Detections {detect_inner.id}, {detect_outer.id} are not in the same spacial and spectral range"  # noqa
                         messages.error(request, msg)
                         return

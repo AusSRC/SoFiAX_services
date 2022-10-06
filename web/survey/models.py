@@ -3,6 +3,7 @@ import math
 import cv2
 import numpy as np
 import binascii
+import logging
 from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,6 +15,7 @@ from survey.utils.fields import PostgresDecimalField
 
 
 matplotlib.use('Agg')
+logging.basicConfig(level=logging.INFO)
 
 
 # ------------------------------------------------------------------------------
@@ -127,6 +129,7 @@ class Detection(models.Model):
         return self.name
 
     def sanity_check(self, detect):
+        logging.info(f'Running sanity check between detections {self.id} and {detect.id}')
         if self.id == detect.id:
             return False, 'Same detection.'
 
@@ -139,6 +142,8 @@ class Detection(models.Model):
         f2 = detect.f_sum
         flux_threshold = sanity_thresholds['flux']
         diff = abs(f1 - f2) * 100 / ((abs(f1) + abs(f2)) / 2)
+        logging.info(f'Flux comparison: {f1} vs {f2}. Difference: {diff}')
+        logging.info(f'Flux threshold: {flux_threshold}')
 
         if diff > flux_threshold:
             message = f"Detections: {self.id}, {detect.id} \
@@ -179,6 +184,7 @@ class Detection(models.Model):
         return True, None
 
     def is_match(self, detect):
+        logging.info(f'Checking if detections {self.id} and {detect.id} are matches')
         if self.id == detect.id:
             raise ValueError('Same detection.')
 
@@ -190,16 +196,22 @@ class Detection(models.Model):
 
         sanity = self.run.sanity_thresholds
         sigma = sanity.get('uncertainty_sigma', 5)
+        logging.info(f'Allowed uncertainty: {sigma}')
 
         d_space = math.sqrt(
             (self.x - detect.x) ** 2 + (self.y - detect.y) ** 2
         )
+        logging.info(f'Spatial separation: {d_space}')
         d_space_err = math.sqrt(
             (self.x - detect.x) ** 2 * (self.err_x ** 2 + detect.err_x ** 2) +
             (self.y - detect.y) ** 2 * (self.err_y ** 2 + detect.err_y ** 2)) \
             / ((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
+        logging.info(f'Spatial separation error: {d_space_err}')
         d_spec = abs(self.z - detect.z)
+        logging.info(f'Spectral separation: {d_spec}')
         d_spec_err = math.sqrt(self.err_z ** 2 + detect.err_z ** 2)
+        logging.info(f'Spectral separation error: {d_spec_err}')
+        logging.info(f'Spatial and spectral tests passing: ({d_space <= sigma * d_space_err}, {d_spec <= sigma * d_spec_err})')
 
         return d_space <= sigma * d_space_err and d_spec <= sigma * d_spec_err
 
