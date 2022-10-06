@@ -5,7 +5,7 @@ from django.conf import settings
 
 from survey.views import detection_products, instance_products, \
     run_products, run_catalog, \
-    logout_view, test
+    logout_view, test, summary_image
 
 admin.site.site_header = settings.SITE_HEADER
 admin.site.site_title = settings.SITE_TITLE
@@ -15,6 +15,7 @@ admin.autodiscover()
 
 urlpatterns = [
     path('test', test, name='test'),
+    path('summary_image', summary_image, name='summary_image'),
     path('detection_products', detection_products, name='detection_products'),
     path('instance_products', instance_products, name='instance_products'),
     path('run_products', run_products, name='run_products'),

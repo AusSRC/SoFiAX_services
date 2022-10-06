@@ -103,15 +103,20 @@ class DetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
+    @admin.display(empty_value='-')
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'source', 'tags', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'run', 'source', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50'
         else:
-            return 'id', 'run', 'summary_image', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
+            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
                    'ell_min', 'w20', 'w50'
 
     def detection_products_download(self, obj):

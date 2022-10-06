@@ -258,7 +258,7 @@ class Detection(models.Model):
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
                 return mark_safe(img_src)
 
-    def summary_image(self):
+    def summary_image(self, size=(3, 2)):
         # TODO(austin): maybe only show the optical counterpart
         product = self.product_set.only('summary')
         summary = product[0].summary
@@ -266,7 +266,7 @@ class Detection(models.Model):
             return None
 
         fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.set_size_inches(4, 3)
+        fig.set_size_inches(*size)
         img = mpimg.imread(BytesIO(summary))
         plt.imshow(img)
         plt.axis('off')

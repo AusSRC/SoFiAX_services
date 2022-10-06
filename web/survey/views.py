@@ -28,6 +28,17 @@ def test(request):
 
 
 @basic_auth
+def summary_image(request):
+    detection_id = request.GET.get('id', None)
+    if detection_id is None:
+        return HttpResponse('No summary image found', status=200)
+    else:
+        d = Detection.objects.get(id=detection_id)
+        img = d.summary_image(size=(12, 9))
+        return HttpResponse(img, status=200)
+
+
+@basic_auth
 def instance_products(request):
     """Download products for all detections of an instance
     from the Admin portal.
