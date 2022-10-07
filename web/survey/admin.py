@@ -222,7 +222,7 @@ class DetectionAdminInline(ModelAdminInline):
     # TODO(austin): probably want to show tags if there are any?
     model = Detection
     list_display = (
-        'name', 'summary_image', 'x', 'y', 'z', 'f_sum',
+        'name', 'x', 'y', 'z', 'f_sum',
         'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
     )
     exclude = [

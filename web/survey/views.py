@@ -293,7 +293,6 @@ def _build_detection(detection):
     return det
 
 
-# TODO(austin): linting on this stuff
 def _build_catalog(detections, date, version):
     cat = \
         f'<?xml version="1.0" ?>\n' \
