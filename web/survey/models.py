@@ -1,4 +1,3 @@
-from django.db import models
 import math
 import cv2
 import numpy as np
@@ -10,6 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from io import BytesIO, StringIO
 from astropy.io import fits
+from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
 from survey.utils.fields import PostgresDecimalField
 
@@ -362,9 +363,17 @@ class SourceDetection(models.Model):
         db_table = 'source_detection'
 
 
-class ExternalConflictSource(Source):
+class ExternalConflict(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    conflict_source_detection_ids = ArrayField(
+        models.IntegerField()
+    )
+
     class Meta:
-        proxy = True
+        managed = False
+        db_table = 'external_conflict'
 
 
 class SpatialRefSys(models.Model):
