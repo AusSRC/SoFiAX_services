@@ -1,3 +1,4 @@
+import re
 import math
 import time
 import logging
@@ -593,7 +594,7 @@ class RunAdmin(ModelAdmin):
             sources = [Source.objects.get(id=sd.source.id) for sd in sd_list]
 
             # cross match internally
-            print('The following pairs of detections have been marked as unresolved:')
+            logging.info('The following pairs of detections have been marked as unresolved:')
             matches = []
             for i in range(len(detections) - 1):
                 for j in range(i + 1, len(detections) - 1):
@@ -606,7 +607,7 @@ class RunAdmin(ModelAdmin):
                         d1.save()
                         d2.unresolved = True
                         d2.save()
-                        print(f'{d1.name}, {d2.name}')
+                        logging.info(f'{d1.name}, {d2.name}')
             messages.info(request, 'Completed internal cross matching')
             return None
         except Exception as e:
@@ -665,7 +666,7 @@ class RunAdmin(ModelAdmin):
                         conflict_source_detection_ids=matches
                     )
             end = time.time()
-            print("External cross matching duration:", end-start)
+            logging.info("External cross matching duration:", end-start)
             messages.info(request, 'Completed external cross matching')
             return None
         except Exception as e:
@@ -673,12 +674,71 @@ class RunAdmin(ModelAdmin):
             return
     external_cross_match.short_description = 'External cross matching'
 
+    class ReleaseSourceForm(forms.Form):
+        title = 'Release sources for selected runs. Created WALLABY source names and adds new tag to all sources.'
+
+    def _release_name(self, name):
+        """Release name from detection name
+
+        """
+        parts = re.split('[+-]', name.replace('SoFiA', 'WALLABY'))
+        return re.search('[+-]', name).group().join(
+            list(map(lambda x: x.split('.')[0], parts))
+        )
+
+    @add_tag_form(ReleaseSourceForm)
     def release_sources(self, request, queryset):
-        """Create releases for a given run. Needs for there to be no internal or external conflicts.
+        """Create releases for a given run. This will update source names to be
+        official WALLABY release names and create a new tag for all sources.
+
+        Needs for there to be no internal or external conflicts.
 
         """
         try:
-            pass
+            # Get or create tag
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create == '':
+                    messages.error(request, "No tag selected or created")
+                    return
+                else:
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+                    pass
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+
+            for run in queryset:
+                logging.info(f"Preparing release for run {run.name}")
+                run_detections = Detection.objects.filter(run=run)
+                if any([d.unresolved for d in run_detections]):
+                    messages.error(
+                        request,
+                        'There cannot be any unresolved detections when creating release source names.'
+                    )
+                    return 0
+                if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
+                    messages.error(
+                        request,
+                        'There cannot be any external conflicts when creating release source names.'
+                    )
+                    return 0
+
+                # Updating source names and tagging
+                run_source_detections = SourceDetection.objects.filter(detection_id__in=[d.id for d in run_detections])
+                for sd in run_source_detections:
+                    TagSourceDetection.objects.create(
+                        tag=tag,
+                        source_detection=sd
+                    )
+                    source = sd.source
+                    new_name = self._release_name(source.name)
+                    logging.info(f"Replacing source name {source.name} -> {new_name}")
+                    source.name = new_name
+                    source.save()
+            return len(queryset)
         except Exception as e:
             messages.error(request, str(e))
             return
@@ -748,18 +808,18 @@ class ExternalConflictAdmin(ModelAdmin):
 
                 # Delete current source and source detection
                 sd_existing = SourceDetection.objects.get(detection=detection)
-                print(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
+                logging.info(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
                 sd_existing.source.delete()
                 sd_existing.delete()
 
                 # Add to existing source
                 source = Source.objects.get(id=sd_id)
-                print(f"Creating new source detection for detection {detection} and existing source {source}")
+                logging.info(f"Creating new source detection for detection {detection} and existing source {source}")
                 SourceDetection.objects.create(
                     source=source,
                     detection=detection
                 )
-                print("Conflict resolved")
+                logging.info("Conflict resolved")
                 conflict.delete()
             return len(queryset)
         except Exception as e:
@@ -780,10 +840,10 @@ class ExternalConflictAdmin(ModelAdmin):
 
                 # Delete current source and source detection
                 sd_existing = SourceDetection.objects.get(detection=detection)
-                print(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
+                logging.info(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
                 sd_existing.source.delete()
                 sd_existing.delete()
-                print("Conflict resolved")
+                logging.info("Conflict resolved")
                 conflict.delete()
             return len(queryset)
         except Exception as e:

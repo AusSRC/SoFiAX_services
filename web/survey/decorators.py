@@ -55,7 +55,7 @@ def action_form(form_class=None):
     return decorator
 
 
-def add_tag_form(form_class=None):
+def add_tag_form(form_class=None, tags=Tag.objects.all()):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):
@@ -77,6 +77,7 @@ def add_tag_form(form_class=None):
                 action=func.__name__,
                 opts=self.model._meta,
                 queryset=queryset,
+                tags=tags,
                 form=form,
                 action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
 
