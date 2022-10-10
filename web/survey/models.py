@@ -276,7 +276,8 @@ class Detection(models.Model):
         product = self.product_set.only('summary')
         summary = product[0].summary
         if summary is None:
-            return None
+            # construct summary image from mom0, mom1 and spectra
+            return self.moment0_image()
 
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.set_size_inches(*size)
