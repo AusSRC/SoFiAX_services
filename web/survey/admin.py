@@ -637,7 +637,7 @@ class RunAdmin(ModelAdmin):
                     "Only one run can be selected at a time for internal cross matching."
                 )
                 return 0
-            if any([d.unresolved for d in all_run_detections]):
+            if any([d.unresolved for d in run_detections]):
                 messages.error(
                     request,
                     'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
@@ -654,11 +654,16 @@ class RunAdmin(ModelAdmin):
                 ).exclude(
                     run=run
                 )
+                matches = []
                 for d_ext in close_detections:
-                    matches = []
                     if self._is_match(d, d_ext):
                         matches.append(SourceDetection.objects.get(detection=d_ext).id)
-                    print(len(matches))
+                if matches:
+                    ExternalConflict.objects.get_or_create(
+                        run=run,
+                        detection=d,
+                        conflict_source_detection_ids=matches
+                    )
             end = time.time()
             print("External cross matching duration:", end-start)
             messages.info(request, 'Completed external cross matching')
@@ -695,9 +700,18 @@ class RunAdminInline(ModelAdminInline):
 
 class ExternalConflictAdmin(ModelAdmin):
     model = ExternalConflict
-    list_display = ('id', 'detection_id', 'conflict_source_detection_ids')
+    list_display = ['id', 'run', 'detection_name', 'summary' , 'conflict_source_detection_ids']
     fields = list_display
     readonly_fields = fields
+
+    @admin.display(empty_value='-')
+    def detection_name(self, obj):
+        return obj.detection.name
+
+    @admin.display(empty_value='-')
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.detection.id}' target='_blank'>{obj.detection.summary_image()}</a>")
 
 
 admin.site.register(Run, RunAdmin)
