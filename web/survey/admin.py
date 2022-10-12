@@ -113,7 +113,7 @@ class DetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'run', 'source', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+            return 'id', 'run', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
                    'w20', 'w50'
         else:
             return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
@@ -628,10 +628,31 @@ class RunAdmin(ModelAdmin):
         """
         thresh_spat = 90.0
         thresh_spec = 2e+6
-        auto_delete = False
-        auto_rename = False
         thresh_spat_auto = 5.0
         thresh_spec_auto = 0.05e+6
+
+        # TODO: pull survey component information out of this
+        survey_components = {
+            'Pre-phase2': ['Hydra_DR1', 'Hydra_DR2', 'NGC4636_DR1', 'Norma_DR1'],
+            'Phase2-NGC5044_DR1': ['NGC5044_4'],
+            'Phase2-NGC5044_DR2': [
+                '198-13_198-19_204-17',
+                '198-19_204-17_204-22',
+                '198-13_a',
+                '198-13_r',
+                '198-13',
+                '198-13_198_19'
+                '198_19_r',
+                '198_19_b',
+                '204-22_b',
+                '204-22_l',
+                '204-22',
+                '204-17_204-22',
+                '204-17_a',
+                '204-17_l',
+            ],
+            'Phase2-Other': ['Vela', 'NGC4808']
+        }
 
         SEARCH_THRESHOLD = 1.0
 
@@ -674,13 +695,24 @@ class RunAdmin(ModelAdmin):
                 )
                 matches = []
                 for d_ext in close_detections:
-                    # first auto-delete check
+                    # Auto-delete check on lower threshold values
                     if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                        sd = SourceDetection.objects.get(detection=d)
-                        sd.source.delete()
-                        sd.delete()
-                    # otherwise mark for manual resolution
+                        # Logic: delete if in same survey component or reassign to existing source otherwise.
+                        for runs in survey_components.values():
+                            if set([d.run.name, d_ext.run_name]).issubset(set(runs)):
+                                logging.info(f"Found {d.name} and {d_ext.name} from the same survey component. Deleting new detection.")
+                                sd = SourceDetection.objects.get(detection=d)
+                                sd.source.delete()
+                                sd.delete()
+                            else:
+                                logging.info(f"Found {d.name} and {d_ext.name} from different survey components. Adding detection to existing source.")
+                                sd = SourceDetection.objects.get(detection=d)
+                                sd_new = SourceDetection.objects.get(detection=d_ext)
+                                sd.source = sd_new.source
+                                sd.source.delete()
+                    # Otherwise mark for manual resolution
                     if self.is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
+                        # TODO: report the survey component information when there is a match
                         matches.append(SourceDetection.objects.get(detection=d_ext).id)
                 if matches:
                     logging.info(f"Matches identified between detection {d.name} and the following source_detection object ids {matches}")
