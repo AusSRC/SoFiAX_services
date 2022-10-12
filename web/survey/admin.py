@@ -135,7 +135,7 @@ class DetectionAdmin(ModelAdmin):
         qs = super(DetectionAdmin, self).\
             get_queryset(request).\
             select_related('run')
-        return qs.filter(unresolved=False)
+        return qs.filter(unresolved=True, n_pix__gte=300, rel__gte=0.7)
 
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
@@ -246,7 +246,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False)
+        return qs.filter(unresolved=True, n_pix__gte=300, rel__gte=0.7)
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
@@ -558,12 +558,16 @@ class RunAdmin(ModelAdmin):
         """Check if two detections are a match based on spatial and spectral separation.
 
         """
-        ra_i = d1.ra * math.pi / 180.0
-        dec_i = d1.dec * math.pi / 180.0
-        ra_j = d2.ra * math.pi / 180.0
-        dec_j = d2.dec * math.pi / 180.0
-        r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
-        if r_spat < thresh_spat and abs(d1.freq - d2.freq) < thresh_spec:
+        try:
+            ra_i = d1.ra * math.pi / 180.0
+            dec_i = d1.dec * math.pi / 180.0
+            ra_j = d2.ra * math.pi / 180.0
+            dec_j = d2.dec * math.pi / 180.0
+            r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
+            r_spec = abs(d1.freq - d2.freq)
+        except Exception as e:
+            raise Exception("Math error")
+        if r_spat < thresh_spat and r_spec < thresh_spec:
             return True
         return False
 
@@ -580,7 +584,12 @@ class RunAdmin(ModelAdmin):
                 )
                 return 0
             run = run_list[0]
-            all_run_detections = list(Detection.objects.filter(run=run))
+            all_run_detections = Detection.objects.filter(
+                run=run,
+                unresolved=False,
+                n_pix__gte=300,
+                rel__gte=0.7
+            )
 
             if any([d.unresolved for d in all_run_detections]):
                 messages.error(
@@ -623,6 +632,17 @@ class RunAdmin(ModelAdmin):
         to ignore the external matches that are more recent than the first detection)
 
         """
+        thresh_spat = 90.0   # Spatial threshold in arcsec (90 arcsec ~ 3 * beam size)
+        thresh_spec = 2e+6   # Spectral threshold in Hz (2 MHz ~ 400 km/s)
+
+        auto_delete = False         # Auto-delete sources fulfulling the following thresholds?
+                                    # This will create a list of new sources to be deleted, but
+                                    # only if the matching existing one is from one of the
+                                    # listed survey components.
+        auto_rename = False         # Auto-rename sources fulfulling the following thresholds?
+        thresh_spat_auto = 5.0      # Spatial threshold for auto-deletion (or renaming)
+        thresh_spec_auto = 0.05e+6  # Spectral threshold for auto-deletion (or renaming)
+
         SEARCH_THRESHOLD = 1.0
 
         try:
@@ -630,7 +650,9 @@ class RunAdmin(ModelAdmin):
             run = run_list[0]
             run_detections = Detection.objects.filter(
                 run=run,
-                id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
+                n_pix__gte=300,
+                rel__gte=0.7,
+                id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
             )
             if len(run_list) != 1:
                 messages.error(
@@ -648,7 +670,12 @@ class RunAdmin(ModelAdmin):
             # Measure external cross matching duration
             start = time.time()
             for d in run_detections:
+                # TODO: Fix this threshold for the poles
+                # Do filter with delta RA (cosine factor)
+                # Calculate search threshold for Dec
                 close_detections = Detection.objects.filter(
+                    n_pix__gte=300,
+                    rel__gte=0.7,
                     id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
@@ -657,16 +684,23 @@ class RunAdmin(ModelAdmin):
                 )
                 matches = []
                 for d_ext in close_detections:
-                    if self._is_match(d, d_ext):
+                    # first auto-delete check
+                    if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
+                        sd = SourceDetection.objects.get(detection=d)
+                        sd.source.delete()
+                        sd.delete()
+                    # otherwise mark for manual resolution
+                    if self.is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                         matches.append(SourceDetection.objects.get(detection=d_ext).id)
                 if matches:
+                    logging.info(f"Matches identified between detection {d.name} and the following source_detection object ids {matches}")
                     ExternalConflict.objects.get_or_create(
                         run=run,
                         detection=d,
                         conflict_source_detection_ids=matches
                     )
             end = time.time()
-            logging.info("External cross matching duration:", end-start)
+            logging.info(f"External cross matching duration: {round(end - start, 2)} seconds")
             messages.info(request, 'Completed external cross matching')
             return None
         except Exception as e:
