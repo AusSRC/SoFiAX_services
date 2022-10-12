@@ -144,39 +144,32 @@ def basic_auth(view):
                 if len(auth) == 2:
                     if auth[0].lower() == "basic":
                         username, password = base64.b64decode(auth[1]).decode("utf8").split(':')
-                        openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
-                                                client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
-                                                realm_name=settings.REALM,
-                                                client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET)
-                        token = openid.token(username, password)
-                        userinfo = openid.userinfo(token['access_token'])
-                        username = userinfo['preferred_username']
                         try:
-                            user = User.objects.get(username=username)
-                        except ObjectDoesNotExist:
-                            with transaction.atomic():
-                                user = User.objects.create_user(username, userinfo['email'])
-                                group = Group.objects.get(name='Basic')
-                                user.groups.add(group)
-                                user.is_staff = True
-                                user.save()
+                            token = None
+                            openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
+                                                    client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
+                                                    realm_name=settings.REALM,
+                                                    client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET)
+                            token = openid.token(username, password)
+                        finally:
+                            try:
+                                # Basic Auth does not carry the token around so end session
+                                if token:
+                                    openid.logout(token['refresh_token'])
+                            except:
+                                pass
 
-                                auth_user = UserSocialAuth.objects.create(user=user,
-                                                                          provider='keycloak',
-                                                                          uid=username,
-                                                                          extra_data=token)
-                                auth_user.save()
-
-                        request.user = user
-                        return view(request, *args, **kwargs)
+                        response = view(request, *args, **kwargs)
+                        response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
+                        return response
 
             response = HttpResponse()
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC VO"'
+            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
             return response
         except Exception as e:
             response = HttpResponse(str(e))
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC VO"'
+            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
             return response
     return wrap
