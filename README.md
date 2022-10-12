@@ -32,7 +32,7 @@ You will also need to specify the `DJANGO_ALLOWED_HOSTS` environment variable wh
 Local deployment can be helpful for developing the services. The local deployment includes the following services:
 
 * `nginx` (reverse proxy)
-* `api` (Django project for interacting with the database)
+* `survey` (Django project for interacting with the database)
 * `vo` 
 * `PostgreSQL database`
 

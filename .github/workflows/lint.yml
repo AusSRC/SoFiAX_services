@@ -17,5 +17,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}
       - run: pip3 install pycodestyle
-      - run: pycodestyle web/survey
+      - run: pycodestyle web/survey --ignore=E501,E226,E722,E741,W504,E221
 
