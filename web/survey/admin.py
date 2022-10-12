@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.forms import forms
 from django.db import transaction
+from django.utils.safestring import mark_safe
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
@@ -86,18 +87,11 @@ class SourceDetectionAdmin(ModelAdmin):
 class DetectionAdmin(ModelAdmin):
     model = Detection
     list_per_page = 10
-    list_display = ('id', 'source', 'run', 'name', 'x', 'y', 'z',
+    list_display = ('id', 'run', 'name', 'x', 'y', 'z',
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
     actions = ['mark_genuine', 'add_tag', 'add_comment']
-
-    @admin.display(empty_value='No')
-    def source(self, obj):
-        sd = SourceDetection.objects.filter(detection=obj)
-        if len(sd) == 1:
-            return 'Yes'
-        return 'No'
 
     @admin.display(empty_value=None)
     def tags(self, obj):
@@ -135,7 +129,7 @@ class DetectionAdmin(ModelAdmin):
         qs = super(DetectionAdmin, self).\
             get_queryset(request).\
             select_related('run')
-        return qs.filter(unresolved=True, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
@@ -246,7 +240,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=True, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
@@ -632,16 +626,12 @@ class RunAdmin(ModelAdmin):
         to ignore the external matches that are more recent than the first detection)
 
         """
-        thresh_spat = 90.0   # Spatial threshold in arcsec (90 arcsec ~ 3 * beam size)
-        thresh_spec = 2e+6   # Spectral threshold in Hz (2 MHz ~ 400 km/s)
-
-        auto_delete = False         # Auto-delete sources fulfulling the following thresholds?
-                                    # This will create a list of new sources to be deleted, but
-                                    # only if the matching existing one is from one of the
-                                    # listed survey components.
-        auto_rename = False         # Auto-rename sources fulfulling the following thresholds?
-        thresh_spat_auto = 5.0      # Spatial threshold for auto-deletion (or renaming)
-        thresh_spec_auto = 0.05e+6  # Spectral threshold for auto-deletion (or renaming)
+        thresh_spat = 90.0
+        thresh_spec = 2e+6
+        auto_delete = False
+        auto_rename = False
+        thresh_spat_auto = 5.0
+        thresh_spec_auto = 0.05e+6
 
         SEARCH_THRESHOLD = 1.0
 
