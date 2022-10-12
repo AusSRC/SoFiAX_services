@@ -1,4 +1,4 @@
-from django.db import models
+import io
 import math
 import cv2
 import numpy as np
@@ -8,8 +8,14 @@ from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from matplotlib.patches import Ellipse
 from io import BytesIO, StringIO
+import astropy.units as u
 from astropy.io import fits
+from astropy.wcs import WCS
+from astropy.visualization import PercentileInterval
+from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
 from survey.utils.fields import PostgresDecimalField
 
@@ -244,7 +250,7 @@ class Detection(models.Model):
         with BytesIO() as image_data:
             fig.savefig(image_data, format='png')
             base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-            img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+            img_src = f'<img src=\"data:image/pngbase64,{base_img}\">'
             plt.close(fig)
             return mark_safe(img_src)
 
@@ -267,15 +273,96 @@ class Detection(models.Model):
                 img.save(image_file, format='PNG')
                 image_data = image_file.getvalue()
                 base_img = binascii.b2a_base64(image_data).decode()
-                img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+                img_src = f'<img src=\"data:image/pngbase64,{base_img}\">'
                 return mark_safe(img_src)
 
     def summary_image(self, size=(3, 2)):
         # TODO(austin): maybe only show the optical counterpart
-        product = self.product_set.only('summary')
-        summary = product[0].summary
+        products = self.product_set.only('summary')[0]
+        summary = products.summary
+
         if summary is None:
-            return None
+            # construct summary image from mom0, mom1 and spectra
+            fig, ax = plt.subplots(nrows=2, ncols=2)
+            interval = PercentileInterval(95.0)
+            interval2 = PercentileInterval(90.0)
+
+            # Open moment 0 image
+            with io.BytesIO() as buf:
+                buf.write(products.mom0)
+                buf.seek(0)
+                hdu_mom0 = fits.open(buf)[0]
+                wcs = WCS(hdu_mom0.header)
+                mom0 = hdu_mom0.data
+
+            # Open moment 1 image
+            with io.BytesIO() as buf:
+                buf.write(products.mom1)
+                buf.seek(0)
+                hdu_mom1 = fits.open(buf)[0]
+                mom1 = hdu_mom1.data
+
+            # Spectrum
+            with io.BytesIO() as buf:
+                buf.write(b''.join(products.spec))
+                buf.seek(0)
+                spectrum = np.loadtxt(buf, dtype="float", comments="#", unpack=True)
+
+            # Extract coordinate information
+            nx = hdu_mom0.header["NAXIS1"]
+            ny = hdu_mom0.header["NAXIS2"]
+            clon, clat = wcs.all_pix2world(nx/2, ny/2, 0)
+            tmp1, tmp3 = wcs.all_pix2world(0, ny/2, 0)
+            tmp2, tmp4 = wcs.all_pix2world(nx, ny/2, 0)
+            width = np.rad2deg(math.acos(math.sin(np.deg2rad(tmp3)) * math.sin(np.deg2rad(tmp4)) + math.cos(np.deg2rad(tmp3)) * math.cos(np.deg2rad(tmp4)) * math.cos(np.deg2rad(tmp1 - tmp2))))
+            tmp1, tmp3 = wcs.all_pix2world(nx/2, 0, 0)
+            tmp2, tmp4 = wcs.all_pix2world(nx/2, ny, 0)
+            height = np.rad2deg(math.acos(math.sin(np.deg2rad(tmp3)) * math.sin(np.deg2rad(tmp4)) + math.cos(np.deg2rad(tmp3)) * math.cos(np.deg2rad(tmp4)) * math.cos(np.deg2rad(tmp1 - tmp2))))
+
+            # Plot moment 0
+            ax2 = plt.subplot(2, 2, 1, projection=wcs)
+            ax2.imshow(mom0, origin="lower")
+            ax2.grid(color="grey", ls="solid")
+            ax2.set_xlabel("Right ascension (J2000)")
+            ax2.set_ylabel("Declination (J2000)")
+            ax2.tick_params(axis="x", which="both", left=False, right=False)
+            ax2.tick_params(axis="y", which="both", top=False, bottom=False)
+            e = Ellipse((5, 5), 5, 5, 0, edgecolor='peru', facecolor='peru')
+            ax2.add_patch(e)
+
+            # Plot moment 1
+            bmin, bmax = interval.get_limits(mom1)
+            ax3 = plt.subplot(2, 2, 3, projection=wcs)
+            ax3.imshow(hdu_mom1.data, origin="lower", vmin=bmin, vmax=bmax, cmap=plt.get_cmap("gist_rainbow"))
+            ax3.grid(color="grey", ls="solid")
+            ax3.set_xlabel("Right ascension (J2000)")
+            ax3.set_ylabel("Declination (J2000)")
+            ax3.tick_params(axis="x", which="both", left=False, right=False)
+            ax3.tick_params(axis="y", which="both", top=False, bottom=False)
+
+            # Plot spectrum
+            xaxis = spectrum[1] / 1e+6
+            data  = 1000.0 * np.nan_to_num(spectrum[2])
+            xmin = np.nanmin(xaxis)
+            xmax = np.nanmax(xaxis)
+            ymin = np.nanmin(data)
+            ymax = np.nanmax(data)
+            ymin -= 0.1 * (ymax - ymin)
+            ymax += 0.1 * (ymax - ymin)
+            ax4 = plt.subplot(2, 2, 4)
+            ax4.step(xaxis, data, where="mid", color="royalblue")
+            ax4.set_xlabel("Frequency (MHz)")
+            ax4.set_ylabel("Flux density (mJy)")
+            ax4.grid(True)
+            ax4.set_xlim([xmin, xmax])
+            ax4.set_ylim([ymin, ymax])
+
+            with BytesIO() as image_data:
+                fig.savefig(image_data, format='png')
+                base_img = binascii.b2a_base64(image_data.getvalue()).decode()
+                img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+                plt.close()
+                return mark_safe(img_src)
 
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.set_size_inches(*size)
@@ -362,9 +449,17 @@ class SourceDetection(models.Model):
         db_table = 'source_detection'
 
 
-class ExternalConflictSource(Source):
+class ExternalConflict(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    conflict_source_detection_ids = ArrayField(
+        models.IntegerField()
+    )
+
     class Meta:
-        proxy = True
+        managed = False
+        db_table = 'external_conflict'
 
 
 class SpatialRefSys(models.Model):

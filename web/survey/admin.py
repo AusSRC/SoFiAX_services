@@ -1,4 +1,6 @@
+import re
 import math
+import time
 import logging
 from django.contrib import admin, messages
 from django.urls import reverse
@@ -9,7 +11,7 @@ from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.decorators import action_form, add_tag_form, add_comment_form
-from survey.models import Detection, UnresolvedDetection,\
+from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
 
 
@@ -97,7 +99,7 @@ class DetectionAdmin(ModelAdmin):
             return 'Yes'
         return 'No'
 
-    @admin.display(empty_value='-')
+    @admin.display(empty_value=None)
     def tags(self, obj):
         sd = SourceDetection.objects.filter(detection=obj)
         if len(sd) == 1:
@@ -107,7 +109,7 @@ class DetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
-    @admin.display(empty_value='-')
+    @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
         return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
@@ -167,7 +169,7 @@ class DetectionAdmin(ModelAdmin):
     class AddTagForm(forms.Form):
         title = 'Add tags'
 
-    @add_tag_form(AddTagForm, Tag.objects.all())
+    @add_tag_form(AddTagForm)
     def add_tag(self, request, queryset):
         try:
             # get or create tag
@@ -222,7 +224,7 @@ class DetectionAdminInline(ModelAdminInline):
     # TODO(austin): probably want to show tags if there are any?
     model = Detection
     list_display = (
-        'name', 'summary_image', 'x', 'y', 'z', 'f_sum',
+        'name', 'x', 'y', 'z', 'f_sum',
         'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
     )
     exclude = [
@@ -258,7 +260,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             return 'Yes'
         return 'No'
 
-    @admin.display(empty_value='-')
+    @admin.display(empty_value=None)
     def tags(self, obj):
         sd = SourceDetection.objects.filter(detection=obj)
         if len(sd) == 1:
@@ -268,7 +270,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
                 tag_string = ', '.join([t.name for t in tags])
                 return tag_string
 
-    @admin.display(empty_value='-')
+    @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
         return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
@@ -385,7 +387,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     class AddTagForm(forms.Form):
         title = 'Add tags'
 
-    @add_tag_form(AddTagForm, Tag.objects.all())
+    @add_tag_form(AddTagForm)
     def add_tag(self, request, queryset):
         try:
             # get or create tag
@@ -512,14 +514,14 @@ class RunAdmin(ModelAdmin):
     list_display = (
         'id', 'name', 'sanity_thresholds',
         'run_catalog', 'run_link', 'run_products_download',
-        'run_manual_inspection'
+        'run_manual_inspection', 'external_conflicts'
     )
     inlines = (
         UnresolvedDetectionAdminInline,
         DetectionAdminInline,
         InstanceAdminInline,
     )
-    actions = ['internal_cross_match', 'external_cross_match']
+    actions = ['internal_cross_match', 'external_cross_match', 'release_sources']
 
     def get_actions(self, request):
         return super(RunAdmin, self).get_actions(request)
@@ -546,13 +548,29 @@ class RunAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?run={obj.id}'>Detections</a>")
     run_manual_inspection.short_description = 'Manual inspection'
 
+    def external_conflicts(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_externalconflict_changelist')
+        return format_html(f"<a href='{url}?run={obj.id}'>Conflicts</a>")
+    external_conflicts.short_description = 'External conflicts'
+
+    def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
+        """Check if two detections are a match based on spatial and spectral separation.
+
+        """
+        ra_i = d1.ra * math.pi / 180.0
+        dec_i = d1.dec * math.pi / 180.0
+        ra_j = d2.ra * math.pi / 180.0
+        dec_j = d2.dec * math.pi / 180.0
+        r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
+        if r_spat < thresh_spat and abs(d1.freq - d2.freq) < thresh_spec:
+            return True
+        return False
+
     def internal_cross_match(self, request, queryset):
         """Run the internal cross matching workflow
 
         """
-        thresh_spat = 90.0
-        thresh_spec = 2e+6
-
         try:
             run_list = list(queryset)
             if len(run_list) != 1:
@@ -576,30 +594,20 @@ class RunAdmin(ModelAdmin):
             sources = [Source.objects.get(id=sd.source.id) for sd in sd_list]
 
             # cross match internally
+            logging.info('The following pairs of detections have been marked as unresolved:')
             matches = []
             for i in range(len(detections) - 1):
                 for j in range(i + 1, len(detections) - 1):
-                    ra_i = detections[i].ra * math.pi / 180.0
-                    dec_i = detections[i].dec * math.pi / 180.0
-                    ra_j = detections[j].ra * math.pi / 180.0
-                    dec_j = detections[j].dec * math.pi / 180.0
-                    freq_i = detections[i].freq
-                    freq_j = detections[j].freq
-                    r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
-                    if r_spat < thresh_spat and abs(freq_i - freq_j) < thresh_spec:
+                    d1 = detections[i]
+                    d2 = detections[j]
+                    if self._is_match(d1, d2):
                         matches.append((i, j))
                         d1 = detections[i]
                         d1.unresolved = True
                         d1.save()
-                        d2 = detections[j]
                         d2.unresolved = True
                         d2.save()
-            print('The following pairs of detections have been marked as unresolved:')
-            for match in matches:
-                id_1, id_2 = match
-                d1 = detections[id_1]
-                d2 = detections[id_2]
-                print(f'{d1.name}, {d2.name}')
+                        logging.info(f'{d1.name}, {d2.name}')
             messages.info(request, 'Completed internal cross matching')
             return None
         except Exception as e:
@@ -611,16 +619,130 @@ class RunAdmin(ModelAdmin):
         """Run the external cross matching workflow to identify sources
         that conflict with sources from other survey components.
 
+        NOTE: current external matching looks forward and backward in time (potentially need
+        to ignore the external matches that are more recent than the first detection)
+
         """
-        # TODO(austin): are there any unresolved detections or internal conflicts in this run?
+        SEARCH_THRESHOLD = 1.0
+
         try:
             run_list = list(queryset)
-            messages.info(request, 'this has in fact worked')
+            run = run_list[0]
+            run_detections = Detection.objects.filter(
+                run=run,
+                id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
+            )
+            if len(run_list) != 1:
+                messages.error(
+                    request,
+                    "Only one run can be selected at a time for internal cross matching."
+                )
+                return 0
+            if any([d.unresolved for d in run_detections]):
+                messages.error(
+                    request,
+                    'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
+                )
+                return 0
+
+            # Measure external cross matching duration
+            start = time.time()
+            for d in run_detections:
+                close_detections = Detection.objects.filter(
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                    ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
+                    dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                ).exclude(
+                    run=run
+                )
+                matches = []
+                for d_ext in close_detections:
+                    if self._is_match(d, d_ext):
+                        matches.append(SourceDetection.objects.get(detection=d_ext).id)
+                if matches:
+                    ExternalConflict.objects.get_or_create(
+                        run=run,
+                        detection=d,
+                        conflict_source_detection_ids=matches
+                    )
+            end = time.time()
+            logging.info("External cross matching duration:", end-start)
+            messages.info(request, 'Completed external cross matching')
             return None
         except Exception as e:
             messages.error(request, str(e))
             return
     external_cross_match.short_description = 'External cross matching'
+
+    class ReleaseSourceForm(forms.Form):
+        title = 'Release sources for selected runs. Created WALLABY source names and adds new tag to all sources.'
+
+    def _release_name(self, name):
+        """Release name from detection name
+
+        """
+        parts = re.split('[+-]', name.replace('SoFiA', 'WALLABY'))
+        return re.search('[+-]', name).group().join(
+            list(map(lambda x: x.split('.')[0], parts))
+        )
+
+    @add_tag_form(ReleaseSourceForm)
+    def release_sources(self, request, queryset):
+        """Create releases for a given run. This will update source names to be
+        official WALLABY release names and create a new tag for all sources.
+
+        Needs for there to be no internal or external conflicts.
+
+        """
+        try:
+            # Get or create tag
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create == '':
+                    messages.error(request, "No tag selected or created")
+                    return
+                else:
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+                    pass
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+
+            for run in queryset:
+                logging.info(f"Preparing release for run {run.name}")
+                run_detections = Detection.objects.filter(run=run)
+                if any([d.unresolved for d in run_detections]):
+                    messages.error(
+                        request,
+                        'There cannot be any unresolved detections when creating release source names.'
+                    )
+                    return 0
+                if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
+                    messages.error(
+                        request,
+                        'There cannot be any external conflicts when creating release source names.'
+                    )
+                    return 0
+
+                # Updating source names and tagging
+                run_source_detections = SourceDetection.objects.filter(detection_id__in=[d.id for d in run_detections])
+                for sd in run_source_detections:
+                    TagSourceDetection.objects.create(
+                        tag=tag,
+                        source_detection=sd
+                    )
+                    source = sd.source
+                    new_name = self._release_name(source.name)
+                    logging.info(f"Replacing source name {source.name} -> {new_name}")
+                    source.name = new_name
+                    source.save()
+            return len(queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    release_sources.short_description = 'Release sources'
 
 
 class RunAdminInline(ModelAdminInline):
@@ -636,10 +758,161 @@ class RunAdminInline(ModelAdminInline):
     run_products_download.short_description = 'Products'
 
 
+class ExternalConflictAdmin(ModelAdmin):
+    model = ExternalConflict
+    list_display = ['id', 'detection_name', 'summary', 'description', 'compare']
+    actions = ['add_to_existing_source', 'delete_new_source', 'add_tag', 'add_comment']
+
+    @admin.display(empty_value=None)
+    def detection_name(self, obj):
+        return obj.detection.name
+
+    @admin.display(empty_value=None)
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.detection.id}' target='_blank'>{obj.detection.summary_image()}</a>")
+
+    @admin.display(empty_value='NA')
+    def description(self, obj):
+        # TODO: show survey component.
+        if len(obj.conflict_source_detection_ids) == 1:
+            sd = SourceDetection.objects.get(id=obj.conflict_source_detection_ids[0])
+            return f"Single conflict with existing source '{sd.source.name}' from run '{sd.detection.run.name}'"
+
+    @admin.display(empty_value=None)
+    def compare(self, obj):
+        if len(obj.conflict_source_detection_ids) == 1:
+            url = reverse('summary_image')
+            sd = SourceDetection.objects.get(id=obj.conflict_source_detection_ids[0])
+            return format_html(f"<a href='{url}?id={sd.detection.id}' target='_blank'>{sd.detection.summary_image()}</a>")
+        else:
+            return None
+
+    class AddToExistingSourceForm(forms.Form):
+        title = 'Adding the following detections to existing sources'
+
+    @action_form(AddToExistingSourceForm)
+    def add_to_existing_source(self, request, queryset, form):
+        """The case where there has been a released source in a different survey component.
+        The new detection must be added to the existing source and the newly created source
+        and source detection instances can be deleted.
+
+        """
+        try:
+            for conflict in queryset:
+                detection = conflict.detection
+                sds = conflict.conflict_source_detection_ids
+                if len(sds) != 1:
+                    messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
+                sd_id = sds[0]
+
+                # Delete current source and source detection
+                sd_existing = SourceDetection.objects.get(detection=detection)
+                logging.info(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
+                sd_existing.source.delete()
+                sd_existing.delete()
+
+                # Add to existing source
+                source = Source.objects.get(id=sd_id)
+                logging.info(f"Creating new source detection for detection {detection} and existing source {source}")
+                SourceDetection.objects.create(
+                    source=source,
+                    detection=detection
+                )
+                logging.info("Conflict resolved")
+                conflict.delete()
+            return len(queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_to_existing_source.short_description = 'Add detection to existing source'
+
+    def delete_new_source(self, request, queryset):
+        """Case where there is an existing released source in the same survey component.
+        New source and source detection instances can be deleted (detection effectively discarded).
+        Does not matter if there are multiple source matches from other runs.
+
+        """
+        try:
+            for conflict in queryset:
+                sds = conflict.conflict_source_detection_ids
+                sd_id = sds[0]
+
+                # Delete current source and source detection
+                sd_existing = SourceDetection.objects.get(detection=detection)
+                logging.info(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
+                sd_existing.source.delete()
+                sd_existing.delete()
+                logging.info("Conflict resolved")
+                conflict.delete()
+            return len(queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    delete_new_source.short_description = 'Delete new source'
+
+    class AddTagForm(forms.Form):
+        title = 'Add tags'
+
+    @add_tag_form(AddTagForm)
+    def add_tag(self, request, queryset):
+        try:
+            # get or create tag
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create == '':
+                    messages.error(request, "No tag selected or created")
+                    return
+                else:
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+            conflict_list = list(queryset)
+            for c in conflict_list:
+                d = c.detection
+                source_detection = SourceDetection.objects.get(detection=d)
+                TagSourceDetection.objects.create(
+                    source_detection=source_detection,
+                    tag=tag,
+                    author=str(request.user)
+                )
+            return len(conflict_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_tag.short_description = 'Add tags'
+
+    class AddCommentForm(forms.Form):
+        title = 'Add comments'
+
+    @add_comment_form(AddCommentForm)
+    def add_comment(self, request, queryset):
+        try:
+            detect_list = list(queryset)
+            comment = str(request.POST['comment'])
+            conflict_list = list(queryset)
+            for c in conflict_list:
+                d = c.detection
+                Comment.objects.create(
+                    comment=comment,
+                    author=str(request.user),
+                    detection=d
+                )
+            return len(conflict_list)
+        except Exception as e:
+            messages.error(request, str(e))
+            return
+    add_comment.short_description = 'Add comments'
+
+
 admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
+admin.site.register(ExternalConflict, ExternalConflictAdmin)
 admin.site.register(SourceDetection, SourceDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)

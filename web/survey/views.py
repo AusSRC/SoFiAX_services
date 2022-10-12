@@ -44,10 +44,6 @@ def instance_products(request):
     from the Admin portal.
 
     """
-    # TODO(austin): This check could be wrapped as a decorator
-    if not request.user.is_authenticated:
-        return HttpResponse('Unauthorized', status=401)
-
     instance_id = request.GET.get('id', None)
     if not instance_id:
         return HttpResponse('id does not exist.', status=400)
@@ -197,9 +193,6 @@ def run_products(request):
     from the Admin portal.
 
     """
-    if not request.user.is_authenticated:
-        return HttpResponse('Unauthorized', status=401)
-
     run_id = request.GET.get('id', None)
     if not run_id:
         return HttpResponse('id does not exist.', status=400)
@@ -293,7 +286,6 @@ def _build_detection(detection):
     return det
 
 
-# TODO(austin): linting on this stuff
 def _build_catalog(detections, date, version):
     cat = \
         f'<?xml version="1.0" ?>\n' \
@@ -358,9 +350,6 @@ def _build_catalog(detections, date, version):
 
 @basic_auth
 def run_catalog(request):
-    if not request.user.is_authenticated:
-        return HttpResponse('Unauthorized', status=401)
-
     run_id = request.GET.get('id', None)
     if not run_id:
         return HttpResponse('id does not exist.', status=400)
