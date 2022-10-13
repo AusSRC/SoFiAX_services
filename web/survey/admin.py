@@ -641,9 +641,10 @@ class RunAdmin(ModelAdmin):
                 '198-13_a',
                 '198-13_r',
                 '198-13',
-                '198-13_198_19'
-                '198_19_r',
-                '198_19_b',
+                '198-19_198-13',
+                '198-19',
+                '198-19_r',
+                '198-19_b',
                 '204-22_b',
                 '204-22_l',
                 '204-22',
@@ -684,43 +685,48 @@ class RunAdmin(ModelAdmin):
                 # TODO: Fix this threshold for the poles
                 # Do filter with delta RA (cosine factor)
                 # Calculate search threshold for Dec
-                close_detections = Detection.objects.filter(
-                    n_pix__gte=300,
-                    rel__gte=0.7,
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
-                    ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
-                    dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
-                ).exclude(
-                    run=run
-                )
-                matches = []
-                for d_ext in close_detections:
-                    # Auto-delete check on lower threshold values
-                    if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                        # Logic: delete if in same survey component or reassign to existing source otherwise.
-                        for runs in survey_components.values():
-                            if set([d.run.name, d_ext.run_name]).issubset(set(runs)):
-                                logging.info(f"Found {d.name} and {d_ext.name} from the same survey component. Deleting new detection.")
+                for d in run_detections:
+                    close_detections = Detection.objects.filter(
+                        n_pix__gte=300,
+                        rel__gte=0.7,
+                        id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                        ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
+                        dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                    ).exclude(
+                        run=run
+                    )
+                    manual_matches = []
+                    for d_ext in list(set(close_detections)):
+                        # Auto-delete check on lower threshold values
+                        if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
+                            # Logic: delete if in same survey component or reassign to existing source otherwise.
+                            delete = False
+                            for runs in survey_components.values():
+                                if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
+                                    delete = True
+                            if delete:
+                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to delete")
                                 sd = SourceDetection.objects.get(detection=d)
                                 sd.source.delete()
                                 sd.delete()
                             else:
-                                logging.info(f"Found {d.name} and {d_ext.name} from different survey components. Adding detection to existing source.")
+                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to rename")
                                 sd = SourceDetection.objects.get(detection=d)
                                 sd_new = SourceDetection.objects.get(detection=d_ext)
                                 sd.source = sd_new.source
                                 sd.source.delete()
-                    # Otherwise mark for manual resolution
-                    if self.is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                        # TODO: report the survey component information when there is a match
-                        matches.append(SourceDetection.objects.get(detection=d_ext).id)
-                if matches:
-                    logging.info(f"Matches identified between detection {d.name} and the following source_detection object ids {matches}")
-                    ExternalConflict.objects.get_or_create(
-                        run=run,
-                        detection=d,
-                        conflict_source_detection_ids=matches
-                    )
+                            continue
+                        # Otherwise mark for manual resolution
+                        elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
+                            # TODO: report the survey component information when there is a match
+                            manual_matches.append(SourceDetection.objects.get(detection=d_ext).id)
+                    if manual_matches:
+                        logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}]")
+                        ExternalConflict.objects.get_or_create(
+                            run=run,
+                            detection=d,
+                            conflict_source_detection_ids=manual_matches
+                        )
             end = time.time()
             logging.info(f"External cross matching duration: {round(end - start, 2)} seconds")
             messages.info(request, 'Completed external cross matching')
