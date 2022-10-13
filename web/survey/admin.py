@@ -651,6 +651,7 @@ class RunAdmin(ModelAdmin):
                 '204-17_204-22',
                 '204-17_a',
                 '204-17_l',
+                '204-17',
             ],
             'Phase2-Other': ['Vela', 'NGC4808']
         }
