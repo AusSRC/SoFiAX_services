@@ -2,12 +2,12 @@ import re
 import math
 import time
 import logging
+import threading
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
 from django.forms import forms
 from django.db import transaction
-from django.utils.safestring import mark_safe
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
@@ -149,7 +149,7 @@ class DetectionAdmin(ModelAdmin):
                 # Create source and source detection entries
                 for detection in detect_list:
                     source = Source.objects.create(name=detection.name)
-                    source_detection = SourceDetection.objects.create(
+                    SourceDetection.objects.create(
                         source=source,
                         detection=detection
                     )
@@ -618,18 +618,18 @@ class RunAdmin(ModelAdmin):
             return
     internal_cross_match.short_description = 'Internal cross matching'
 
-    def external_cross_match(self, request, queryset):
-        """Run the external cross matching workflow to identify sources
-        that conflict with sources from other survey components.
-
-        NOTE: current external matching looks forward and backward in time (potentially need
-        to ignore the external matches that are more recent than the first detection)
+    def _external_cross_match_function(self, request, queryset):
+        """Run in thread.
 
         """
+        logging.info("Running external cross matching function in thread")
+
+        # Threshold values
         thresh_spat = 90.0
         thresh_spec = 2e+6
         thresh_spat_auto = 5.0
         thresh_spec_auto = 0.05e+6
+        SEARCH_THRESHOLD = 1.0
 
         # TODO: pull survey component information out of this
         survey_components = {
@@ -656,81 +656,92 @@ class RunAdmin(ModelAdmin):
             'Phase2-Other': ['Vela', 'NGC4808']
         }
 
-        SEARCH_THRESHOLD = 1.0
-
-        try:
-            run_list = list(queryset)
-            run = run_list[0]
-            run_detections = Detection.objects.filter(
-                run=run,
-                n_pix__gte=300,
-                rel__gte=0.7,
-                id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
+        run_list = list(queryset)
+        run = run_list[0]
+        run_detections = Detection.objects.filter(
+            run=run,
+            n_pix__gte=300,
+            rel__gte=0.7,
+            id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
+        )
+        if len(run_list) != 1:
+            messages.error(
+                request,
+                "Only one run can be selected at a time for internal cross matching."
             )
-            if len(run_list) != 1:
-                messages.error(
-                    request,
-                    "Only one run can be selected at a time for internal cross matching."
-                )
-                return 0
-            if any([d.unresolved for d in run_detections]):
-                messages.error(
-                    request,
-                    'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
-                )
-                return 0
+            return 0
+        if any([d.unresolved for d in run_detections]):
+            messages.error(
+                request,
+                'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
+            )
+            return 0
 
-            # Measure external cross matching duration
-            start = time.time()
+        start = time.time()
+        for d in run_detections:
+            # TODO: Fix this threshold for the poles
+            # Do filter with delta RA (cosine factor)
+            # Calculate search threshold for Dec
             for d in run_detections:
-                # TODO: Fix this threshold for the poles
-                # Do filter with delta RA (cosine factor)
-                # Calculate search threshold for Dec
-                for d in run_detections:
-                    close_detections = Detection.objects.filter(
-                        n_pix__gte=300,
-                        rel__gte=0.7,
-                        id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
-                        ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
-                        dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
-                    ).exclude(
-                        run=run
+                close_detections = Detection.objects.filter(
+                    n_pix__gte=300,
+                    rel__gte=0.7,
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                    ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
+                    dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                ).exclude(
+                    run=run
+                )
+                manual_matches = []
+                for d_ext in list(set(close_detections)):
+                    # Auto-delete check on lower threshold values
+                    if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
+                        # Logic: delete if in same survey component or reassign to existing source otherwise.
+                        delete = False
+                        for runs in survey_components.values():
+                            if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
+                                delete = True
+                        if delete:
+                            logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to delete")
+                            # Transactions
+                            sd = SourceDetection.objects.get(detection=d)
+                            sd.source.delete()
+                            sd.delete()
+                        else:
+                            logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to rename")
+                            # Transactions
+                            sd = SourceDetection.objects.get(detection=d)
+                            sd_new = SourceDetection.objects.get(detection=d_ext)
+                            sd.source = sd_new.source
+                            sd.source.delete()
+                        continue
+                    # Otherwise mark for manual resolution
+                    elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
+                        # TODO: report the survey component information when there is a match
+                        manual_matches.append(SourceDetection.objects.get(detection=d_ext).id)
+                if manual_matches:
+                    logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}]")
+                    ExternalConflict.objects.get_or_create(
+                        run=run,
+                        detection=d,
+                        conflict_source_detection_ids=manual_matches
                     )
-                    manual_matches = []
-                    for d_ext in list(set(close_detections)):
-                        # Auto-delete check on lower threshold values
-                        if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                            # Logic: delete if in same survey component or reassign to existing source otherwise.
-                            delete = False
-                            for runs in survey_components.values():
-                                if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
-                                    delete = True
-                            if delete:
-                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to delete")
-                                sd = SourceDetection.objects.get(detection=d)
-                                sd.source.delete()
-                                sd.delete()
-                            else:
-                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to rename")
-                                sd = SourceDetection.objects.get(detection=d)
-                                sd_new = SourceDetection.objects.get(detection=d_ext)
-                                sd.source = sd_new.source
-                                sd.source.delete()
-                            continue
-                        # Otherwise mark for manual resolution
-                        elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
-                            # TODO: report the survey component information when there is a match
-                            manual_matches.append(SourceDetection.objects.get(detection=d_ext).id)
-                    if manual_matches:
-                        logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}]")
-                        ExternalConflict.objects.get_or_create(
-                            run=run,
-                            detection=d,
-                            conflict_source_detection_ids=manual_matches
-                        )
-            end = time.time()
-            logging.info(f"External cross matching duration: {round(end - start, 2)} seconds")
-            messages.info(request, 'Completed external cross matching')
+        end = time.time()
+        logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
+        messages.info(request, 'Completed external cross matching')
+
+    def external_cross_match(self, request, queryset):
+        """Run the external cross matching workflow to identify sources
+        that conflict with sources from other survey components.
+
+        NOTE: current external matching looks forward and backward in time (potentially need
+        to ignore the external matches that are more recent than the first detection)
+
+        """
+        try:
+            cross_match_thread = threading.Thread(target=self._external_cross_match_function, args=(request, queryset,))
+            cross_match_thread.start()
+            messages.info(request, 'External cross matching started')
             return None
         except Exception as e:
             messages.error(request, str(e))
