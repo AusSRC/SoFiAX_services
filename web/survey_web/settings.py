@@ -8,7 +8,7 @@ environ.Env.read_env()
 
 # ---------------------------------------------------------------------------------------
 # Deployment settings
-
+LOCAL = bool(env('LOCAL', default=False))
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 DEBUG = env('DEBUG')
@@ -58,10 +58,9 @@ AUTHENTICATION_BACKENDS = (
 )
 
 ## Social Auth
-
 LOGIN_URL = '/oauth/login/keycloak'
 LOGIN_REDIRECT_URL = '/admin'
-LOGOUT_URL = 'logout'
+LOGOUT_URL = env('LOGOUT_URL', default='/logout')
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -82,7 +81,6 @@ SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = env('PUBLIC_KEY')
 CLIENT_AUTH = env('CLIENT_AUTH')
 SOCIAL_AUTH_KEYCLOAK_AUTHORIZATION_URL=env('AUTHORIZATION_URL')
 SOCIAL_AUTH_KEYCLOAK_ACCESS_TOKEN_URL=env('ACCESS_TOKEN_URL')
-LOGOUT_URL = env('LOGOUT_URL')
 ID_KEY = env('ID_KEY')
 ## End Social Auth
 

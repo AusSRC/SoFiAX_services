@@ -19,9 +19,15 @@ urlpatterns = [
     path('detection_products', detection_products, name='detection_products'),
     path('instance_products', instance_products, name='instance_products'),
     path('run_products', run_products, name='run_products'),
-    path('catalog', run_catalog, name='run_catalog'),
-    path('admin/login/', RedirectView.as_view(url=settings.LOGIN_URL, permanent=True, query_string=True)),
-    path('admin/logout/', logout_view, name="logout_view"),
+    path('catalog', run_catalog, name='run_catalog')
+]
+
+# settings.LOCAL=(TRUE|FALSE) - use django admin authentication | use keycloak authentication
+if settings.LOCAL is False:
+    urlpatterns.append(path('admin/login/', RedirectView.as_view(url=settings.LOGIN_URL, permanent=True, query_string=True)))
+    urlpatterns.append(path('admin/logout/', logout_view, name="logout_view"))
+
+urlpatterns += [
     path('', RedirectView.as_view(url=reverse_lazy('admin:index'))),
     path('admin/', admin.site.urls),
     path('oauth/', include('social_django.urls', namespace="social")),
