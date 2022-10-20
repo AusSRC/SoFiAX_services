@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
+from django.contrib import messages
 from django.utils.html import format_html
 from django.conf import settings
 from django.utils.safestring import mark_safe
@@ -410,6 +411,10 @@ def inspect_detection_view(request):
             detection = Detection.objects.get(id=int(detection_id))
         current_idx = list(detections_to_resolve).index(detection)
 
+        if len(detections_to_resolve) == 0:
+            messages.info(request, "All detections for this run have been resolved")
+            return HttpResponseRedirect('/admin/survey/run')
+
         # Show image
         product = Product.objects.get(detection=detection)
         img_src = summary_image_WALLABY(product, size=(8, 6))
@@ -446,7 +451,38 @@ def inspect_detection_view(request):
         )
         current_idx = list(detections_to_resolve).index(detection)
         if 'Submit' in body['action']:
-            print('submit form action clicked')
+            # get or create tag
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create != '':
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+            source_detection = SourceDetection.objects.get(detection=detection)
+            TagSourceDetection.objects.create(
+                source_detection=source_detection,
+                tag=tag,
+                author=str(request.user)
+            )
+
+            # Add comment
+            comment = str(request.POST['comment'])
+            if comment != '':
+                Comment.objects.create(
+                    comment=comment,
+                    author=str(request.user),
+                    detection=detection
+                )
+
+            # Next
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
@@ -460,19 +496,19 @@ def inspect_detection_view(request):
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Mark Genuine' in body['action']:
-            # with transaction.atomic():
-            #     source = Source.objects.create(name=detection.name)
-            #     SourceDetection.objects.create(
-            #         source=source,
-            #         detection=detection
-            #     )
+            with transaction.atomic():
+                source = Source.objects.create(name=detection.name)
+                SourceDetection.objects.create(
+                    source=source,
+                    detection=detection
+                )
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
                 new_idx = len(detections_to_resolve) - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
         if 'Delete' in body['action']:
-            # detection.delete()
+            detection.delete()
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
