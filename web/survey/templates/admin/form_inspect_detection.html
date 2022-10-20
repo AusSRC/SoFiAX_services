@@ -7,8 +7,20 @@
     <h4>{{ subsubheading }}</h4>
     <br><hr><br>
     {{ image }}
+    <table>
+        <tr>
+            {% for key, value in properties.items %}
+            <td>{{ key }}</td>
+            {% endfor %}
+        </tr>
+        <tr>
+            {% for key, value in properties.items %}
+            <td>{{ value }}</td>
+            {% endfor %}
+        </tr>
+    </table>
 
-    <form name="submit" method="post">
+    <form style='padding: 2px' name="submit" method="post">
         {% csrf_token %}
         <br><hr><br>
 
@@ -37,8 +49,6 @@
         <input type="hidden" name="run_id" value={{ run_id }}>
         <input name='action' id='submit' type="submit" value="Submit">
     </form>
-    <br><hr><br>
-    <h2>Other actions</h2>
     <div style='display: table'>
         <form style='padding: 2px; display: table-cell' method="post">
             {% csrf_token %}

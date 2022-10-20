@@ -430,11 +430,22 @@ def inspect_detection_view(request):
                 description += ', '.join([t.name for t in tags])
         description += ', '.join(Comment.objects.filter(detection=detection))
 
+        properties = {
+            'x': detection.x,
+            'y': detection.y,
+            'z': detection.z,
+            'f_sum': detection.f_sum,
+            'ell_maj': detection.ell_maj,
+            'ell_min': detection.ell_min,
+            'w20': detection.w20,
+            'w50': detection.w50,
+        }
         # Form content
         params = {
             'title': detection.name,
             'subheading': description,
             'subsubheading': f'{current_idx}/{len(detections_to_resolve)} detections to resolve.',
+            'properties': properties,
             'run_id': run_id,
             'detection_id': detection.id,
             'image': mark_safe(img_src),
