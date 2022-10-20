@@ -537,9 +537,8 @@ class RunAdmin(ModelAdmin):
     run_link.short_description = 'Unresolved Detections'
 
     def run_manual_inspection(self, obj):
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_detection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Detections</a>")
+        url = f"{reverse('inspect_detection')}?run_id={obj.id}"
+        return format_html(f"<a href='{url}'>Detections</a>")
     run_manual_inspection.short_description = 'Manual inspection'
 
     def external_conflicts(self, obj):

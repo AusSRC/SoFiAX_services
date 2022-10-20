@@ -446,10 +446,16 @@ def inspect_detection_view(request):
         )
         current_idx = list(detections_to_resolve).index(detection)
         if 'Next' in body['action']:
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx + 1].id}"
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Previous' in body['action']:
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx -1].id}"
+            new_idx = current_idx - 1
+            if new_idx <= 0:
+                new_idx = 0
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Mark Genuine' in body['action']:
             print('mark genuine')
