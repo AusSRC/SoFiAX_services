@@ -410,16 +410,21 @@ def inspect_detection_view(request):
             messages.info(request, "All detections for this run have been resolved")
             return HttpResponseRedirect('/admin/survey/run')
 
-        detection = detections_to_resolve[0]
+        detection_id = request.GET.get('detection_id', None)
+        if detection_id is None:
+            # Should only be the case when entering the manual inspection view
+            detection = detections_to_resolve[0]
+        else:
+            detection = Detection.objects.get(id=detection_id)
         current_idx = list(detections_to_resolve).index(detection)
 
         # Show image
         product = Product.objects.get(detection=detection)
         img_src = summary_image_WALLABY(product, size=(8, 6))
-        sd = SourceDetection.objects.get(detection=detection)
+        sd = SourceDetection.objects.filter(detection=detection)
         description = ''
         if sd:
-            tag_sd = TagSourceDetection.objects.filter(source_detection=sd)
+            tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
             if tag_sd:
                 tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
                 description += ', '.join([t.name for t in tags])
@@ -476,12 +481,7 @@ def inspect_detection_view(request):
                     author=str(request.user),
                     detection=detection
                 )
-
-            # Next
-            new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = len(detections_to_resolve) - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx].id}"
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1

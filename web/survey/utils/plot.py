@@ -17,6 +17,7 @@ def summary_image_WALLABY(products, size=(3, 2)):
     if summary is None:
         # construct summary image from mom0, mom1 and spectra
         fig, ax = plt.subplots(nrows=2, ncols=2)
+        fig.set_size_inches(*size)
         interval = PercentileInterval(95.0)
         interval2 = PercentileInterval(90.0)
 
@@ -89,6 +90,16 @@ def summary_image_WALLABY(products, size=(3, 2)):
         ax4.grid(True)
         ax4.set_xlim([xmin, xmax])
         ax4.set_ylim([ymin, ymax])
+
+        # attempt to open DSS image
+        if products.plot is not None:
+            optical = mpimg.imread(io.BytesIO(products.plot))
+            ax1 = plt.subplot(2, 2, 2)
+            ax1.set_frame_on(False)
+            ax1.get_xaxis().set_visible(False)
+            ax1.get_yaxis().set_visible(False)
+            ax1.autoscale(enable=True, tight=True)
+            ax1.imshow(optical)
 
         with io.BytesIO() as image_data:
             fig.savefig(image_data, format='png')
