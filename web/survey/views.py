@@ -392,7 +392,6 @@ def inspect_detection_view(request):
     # Handle GET request
     if request.method == 'GET':
         run_id = request.GET.get('run_id', None)
-        detection_id = request.GET.get('detection_id', None)
         if not run_id:
             raise Exception('Run not selected or does not exist.')
         try:
@@ -404,21 +403,20 @@ def inspect_detection_view(request):
             run=run,
             n_pix__gte=300,
             rel__gte=0.7
+        ).exclude(
+            id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
         )
-        if not detection_id:
-            detection = detections_to_resolve[0]
-        else:
-            detection = Detection.objects.get(id=int(detection_id))
-        current_idx = list(detections_to_resolve).index(detection)
-
         if len(detections_to_resolve) == 0:
             messages.info(request, "All detections for this run have been resolved")
             return HttpResponseRedirect('/admin/survey/run')
 
+        detection = detections_to_resolve[0]
+        current_idx = list(detections_to_resolve).index(detection)
+
         # Show image
         product = Product.objects.get(detection=detection)
         img_src = summary_image_WALLABY(product, size=(8, 6))
-        sd = SourceDetection.objects.filter(detection=detection)
+        sd = SourceDetection.objects.get(detection=detection)
         description = ''
         if sd:
             tag_sd = TagSourceDetection.objects.filter(source_detection=sd)
@@ -448,6 +446,8 @@ def inspect_detection_view(request):
             run=run,
             n_pix__gte=300,
             rel__gte=0.7
+        ).exclude(
+            id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
         )
         current_idx = list(detections_to_resolve).index(detection)
         if 'Submit' in body['action']:
