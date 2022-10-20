@@ -1,15 +1,22 @@
 import io
+import json
 import tarfile
+import binascii
 import urllib.parse
-from django.http import HttpResponse
 from urllib.request import pathname2url
+import matplotlib.pyplot as plt
 from survey.utils.io import tarfile_write
+from survey.utils.plot import summary_image_WALLABY
 from survey.decorators import basic_auth
-from survey.models import Product, Instance, Detection, Run
+from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, SourceDetection, Comment
+from django.urls import reverse
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
+from django.utils.html import format_html
 from django.conf import settings
+from django.utils.safestring import mark_safe
+from django.http import HttpResponseRedirect
 
 
 PRODUCTS = ['mom0', 'mom1', 'mom2',
@@ -377,3 +384,77 @@ def run_catalog(request):
     response['Content-Disposition'] = f'attachment; filename={name}'
     response['Content-Length'] = len(cat)
     return response
+
+
+# TODO: require superuser status
+def inspect_detection_view(request):
+    # Handle GET request
+    if request.method == 'GET':
+        run_id = request.GET.get('run_id', None)
+        detection_id = request.GET.get('detection_id', None)
+        if not run_id:
+            raise Exception('Run not selected or does not exist.')
+        try:
+            run_id = int(run_id)
+        except ValueError:
+            return HttpResponse('Run id is not an integer.', status=400)
+        run = Run.objects.get(id=run_id)
+        detections_to_resolve = Detection.objects.filter(
+            run=run,
+            n_pix__gte=300,
+            rel__gte=0.7
+        )
+        if not detection_id:
+            detection = detections_to_resolve[0]
+        else:
+            detection = Detection.objects.get(id=int(detection_id))
+        current_idx = list(detections_to_resolve).index(detection)
+
+        # Show image
+        product = Product.objects.get(detection=detection)
+        img_src = summary_image_WALLABY(product, size=(8, 6))
+        sd = SourceDetection.objects.filter(detection=detection)
+        description = ''
+        if sd:
+            tag_sd = TagSourceDetection.objects.filter(source_detection=sd)
+            if tag_sd:
+                tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                description += ', '.join([t.name for t in tags])
+        description += ', '.join(Comment.objects.filter(detection=detection))
+
+        # Form content
+        params = {
+            'title': detection.name,
+            'subheading': description,
+            'subsubheading': f'{current_idx}/{len(detections_to_resolve)} detections to resolve.',
+            'run_id': run_id,
+            'detection_id': detection_id,
+            'image': mark_safe(img_src),
+            'tags': Tag.objects.all(),
+        }
+        return render(request, 'admin/form_inspect_detection.html', params)
+
+    # Handle POST
+    elif request.method == 'POST':
+        body = dict(request.POST)
+        run = Run.objects.get(id=int(body['run_id'][0]))
+        detection = Detection.objects.get(id=int(body['detection_id'][0]))
+        detections_to_resolve = Detection.objects.filter(
+            run=run,
+            n_pix__gte=300,
+            rel__gte=0.7
+        )
+        current_idx = list(detections_to_resolve).index(detection)
+        if 'Next' in body['action']:
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx + 1].id}"
+            return HttpResponseRedirect(url)
+        if 'Previous' in body['action']:
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx -1].id}"
+            return HttpResponseRedirect(url)
+        if 'Mark Genuine' in body['action']:
+            print('mark genuine')
+        if 'Delete' in body['action']:
+            print('delete')
+        return HttpResponse('OK', status=200)
+    else:
+        raise Exception('What is this request...')
