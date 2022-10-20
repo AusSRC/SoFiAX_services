@@ -466,12 +466,14 @@ def inspect_detection_view(request):
                     )
             else:
                 tag = Tag.objects.get(id=int(tag_select))
-            source_detection = SourceDetection.objects.get(detection=detection)
-            TagSourceDetection.objects.create(
-                source_detection=source_detection,
-                tag=tag,
-                author=str(request.user)
-            )
+            sd_queryset = SourceDetection.objects.filter(detection=detection)
+            if sd_queryset:
+                source_detection = sd_queryset[0]
+                TagSourceDetection.objects.create(
+                    source_detection=source_detection,
+                    tag=tag,
+                    author=str(request.user)
+                )
 
             # Add comment
             comment = str(request.POST['comment'])
