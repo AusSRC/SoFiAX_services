@@ -18,6 +18,7 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
 from survey.utils.fields import PostgresDecimalField
+from survey.utils.plot import summary_image_WALLABY
 
 
 matplotlib.use('Agg')
@@ -275,6 +276,13 @@ class Detection(models.Model):
                 base_img = binascii.b2a_base64(image_data).decode()
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
                 return mark_safe(img_src)
+
+    def summary_image(self):
+        products = self.product_set.only('spec')
+        if not products:
+            return None
+        return summary_image_WALLABY(products[0])
+
 
     class Meta:
         managed = False

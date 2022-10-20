@@ -9,14 +9,14 @@ from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, SourceDetection, Comment
+from django.db import transaction
 from django.urls import reverse
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.utils.html import format_html
 from django.conf import settings
 from django.utils.safestring import mark_safe
-from django.http import HttpResponseRedirect
 
 
 PRODUCTS = ['mom0', 'mom1', 'mom2',
@@ -428,7 +428,7 @@ def inspect_detection_view(request):
             'subheading': description,
             'subsubheading': f'{current_idx}/{len(detections_to_resolve)} detections to resolve.',
             'run_id': run_id,
-            'detection_id': detection_id,
+            'detection_id': detection.id,
             'image': mark_safe(img_src),
             'tags': Tag.objects.all(),
         }
@@ -445,6 +445,8 @@ def inspect_detection_view(request):
             rel__gte=0.7
         )
         current_idx = list(detections_to_resolve).index(detection)
+        if 'Submit' in body['action']:
+            print('submit form action clicked')
         if 'Next' in body['action']:
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
@@ -458,9 +460,24 @@ def inspect_detection_view(request):
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Mark Genuine' in body['action']:
-            print('mark genuine')
+            # with transaction.atomic():
+            #     source = Source.objects.create(name=detection.name)
+            #     SourceDetection.objects.create(
+            #         source=source,
+            #         detection=detection
+            #     )
+
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
         if 'Delete' in body['action']:
-            print('delete')
+            # detection.delete()
+
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
         return HttpResponse('OK', status=200)
     else:
         raise Exception('What is this request...')

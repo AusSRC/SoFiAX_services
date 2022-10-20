@@ -507,7 +507,7 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'sanity_thresholds',
-        'run_catalog', 'run_link', 'run_products_download',
+        'run_catalog', 'run_unresolved_detections', 'run_detections', 'run_products_download',
         'run_manual_inspection', 'external_conflicts'
     )
     inlines = (
@@ -530,11 +530,17 @@ class RunAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?id={obj.id}'>Catalog</a>")
     run_catalog.short_description = 'Catalog'
 
-    def run_link(self, obj):
+    def run_unresolved_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
-    run_link.short_description = 'Unresolved Detections'
+    run_unresolved_detections.short_description = 'Unresolved Detections'
+
+    def run_detections(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_detection_changelist')
+        return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
+    run_detections.short_description = 'Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
