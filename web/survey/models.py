@@ -1,4 +1,3 @@
-import io
 import math
 import cv2
 import numpy as np
@@ -7,13 +6,8 @@ import logging
 from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from matplotlib.patches import Ellipse
 from io import BytesIO, StringIO
-import astropy.units as u
 from astropy.io import fits
-from astropy.wcs import WCS
-from astropy.visualization import PercentileInterval
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
@@ -282,7 +276,6 @@ class Detection(models.Model):
         if not products:
             return None
         return summary_image_WALLABY(products[0])
-
 
     class Meta:
         managed = False

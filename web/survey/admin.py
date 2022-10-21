@@ -565,7 +565,7 @@ class RunAdmin(ModelAdmin):
             r_spat = 3600.0 * (180.0 / math.pi) * math.acos(math.sin(dec_i) * math.sin(dec_j) + math.cos(dec_i) * math.cos(dec_j) * math.cos(ra_i - ra_j))
             r_spec = abs(d1.freq - d2.freq)
         except Exception as e:
-            raise Exception("Math error")
+            raise Exception(f"Math error {e}")
         if r_spat < thresh_spat and r_spec < thresh_spec:
             return True
         return False
@@ -599,7 +599,6 @@ class RunAdmin(ModelAdmin):
 
             sd_list = list(SourceDetection.objects.filter(detection_id__in=[d.id for d in all_run_detections]))
             detections = [Detection.objects.get(id=sd.detection.id) for sd in sd_list]
-            sources = [Source.objects.get(id=sd.source.id) for sd in sd_list]
 
             # cross match internally
             logging.info('The following pairs of detections have been marked as unresolved:')
@@ -693,6 +692,9 @@ class RunAdmin(ModelAdmin):
             )
             manual_matches = []
             for d_ext in list(set(close_detections)):
+                sd = SourceDetection.objects.get(detection=d)
+                sd_ext = SourceDetection.objects.get(detection=d_ext)
+
                 # Auto-delete check on lower threshold values
                 if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                     # Logic: delete if in same survey component or reassign to existing source otherwise.
@@ -701,23 +703,28 @@ class RunAdmin(ModelAdmin):
                         if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
                             delete = True
                     if delete:
-                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to delete")
-                        # Transactions
-                        sd = SourceDetection.objects.get(detection=d)
-                        sd.source.delete()
+                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to delete")
+                        # TODO: Transactions
+                        if sd.source != sd_ext.source:
+                            logging.info(f'Detections belong to different sources. Deleting source {sd.source.name}.')
+                            sd.source.delete()
                         sd.delete()
                     else:
-                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {SourceDetection.objects.get(detection=d_ext).id}) [{d_ext.run}] to rename")
-                        # Transactions
-                        sd = SourceDetection.objects.get(detection=d)
-                        sd_new = SourceDetection.objects.get(detection=d_ext)
-                        sd.source = sd_new.source
-                        sd.source.delete()
+                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to rename")
+                        # TODO: Transactions
+                        if sd.source != sd_ext.source:
+                            # This should always be the case in theory since sd.source should have a SoFiA
+                            # name whereas sd_ext.source will have a WALLABY name.
+                            logging.info(f'Renaming source for detection {d.name} to {sd_ext.source.name}. Deleting old source {sd.source.name}.')
+                            old_source = sd.source
+                            sd.source = sd_ext.source
+                            sd.save()
+                            old_source.delete()
                     continue
                 # Otherwise mark for manual resolution
                 elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
                     # TODO: report the survey component information when there is a match
-                    manual_matches.append(SourceDetection.objects.get(detection=d_ext).id)
+                    manual_matches.append(sd_ext.id)
             if manual_matches:
                 logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}]")
                 ExternalConflict.objects.get_or_create(
@@ -908,6 +915,7 @@ class ExternalConflictAdmin(ModelAdmin):
         """
         try:
             for conflict in queryset:
+                detection = conflict.detection
                 sds = conflict.conflict_source_detection_ids
                 sd_id = sds[0]
 
@@ -964,7 +972,6 @@ class ExternalConflictAdmin(ModelAdmin):
     @add_comment_form(AddCommentForm)
     def add_comment(self, request, queryset):
         try:
-            detect_list = list(queryset)
             comment = str(request.POST['comment'])
             conflict_list = list(queryset)
             for c in conflict_list:

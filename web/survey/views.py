@@ -1,22 +1,17 @@
 import io
-import json
 import tarfile
-import binascii
 import urllib.parse
 import logging
 from urllib.request import pathname2url
-import matplotlib.pyplot as plt
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment
-from django.db import transaction
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.contrib import messages
-from django.utils.html import format_html
 from django.conf import settings
 from django.utils.safestring import mark_safe
 
@@ -469,44 +464,43 @@ def inspect_detection_view(request):
         )
         current_idx = list(detections_to_resolve).index(detection)
         if 'Submit' in body['action']:
-            with transaction.atomic():
-                logging.info(f'Marking detection {detection.name} as a real source.')
-                source = Source.objects.create(name=detection.name)
-                sd = SourceDetection.objects.create(
-                    source=source,
-                    detection=detection
+            logging.info(f'Marking detection {detection.name} as a real source.')
+            source, _ = Source.objects.get_or_create(name=detection.name)
+            sd = SourceDetection.objects.create(
+                source=source,
+                detection=detection
+            )
+
+            # get or create tag
+            tag = None
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create != '':
+                    logging.info(f'Creating new tag: {tag_create}')
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+                logging.info(f'Retrieving tag: {tag.name}')
+            if tag is not None:
+                logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
+                TagSourceDetection.objects.create(
+                    source_detection=sd,
+                    tag=tag,
+                    author=str(request.user)
                 )
 
-                # get or create tag
-                tag = None
-                tag_select = request.POST['tag_select']
-                tag_create = str(request.POST['tag_create'])
-                if tag_select == 'None':
-                    if tag_create != '':
-                        logging.info(f'Creating new tag: {tag_create}')
-                        tag = Tag.objects.create(
-                            name=tag_create
-                        )
-                else:
-                    tag = Tag.objects.get(id=int(tag_select))
-                    logging.info(f'Retrieving tag: {tag.name}')
-                if tag is not None:
-                    logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
-                    TagSourceDetection.objects.create(
-                        source_detection=sd,
-                        tag=tag,
-                        author=str(request.user)
-                    )
-
-                # Add comment
-                comment = str(request.POST['comment'])
-                if comment != '':
-                    logging.info(f'Adding comment {comment} to detection {detection.name}')
-                    Comment.objects.create(
-                        comment=comment,
-                        author=str(request.user),
-                        detection=detection
-                    )
+            # Add comment
+            comment = str(request.POST['comment'])
+            if comment != '':
+                logging.info(f'Adding comment {comment} to detection {detection.name}')
+                Comment.objects.create(
+                    comment=comment,
+                    author=str(request.user),
+                    detection=detection
+                )
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
                 new_idx = len(detections_to_resolve) - 1
