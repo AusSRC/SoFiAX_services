@@ -524,20 +524,6 @@ def inspect_detection_view(request):
                 new_idx = 0
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
-        if 'Mark Genuine' in body['action']:
-            with transaction.atomic():
-                logging.info(f'Marking detection {detection.name} as a real source.')
-                source = Source.objects.create(name=detection.name)
-                SourceDetection.objects.create(
-                    source=source,
-                    detection=detection
-                )
-
-            new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = len(detections_to_resolve) - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
-            return HttpResponseRedirect(url)
         if 'Delete' in body['action']:
             logging.info(f'Deleting detection {detection.name}.')
             detection.delete()
