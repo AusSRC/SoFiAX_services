@@ -3,6 +3,7 @@ import json
 import tarfile
 import binascii
 import urllib.parse
+import logging
 from urllib.request import pathname2url
 import matplotlib.pyplot as plt
 from survey.utils.io import tarfile_write
@@ -20,6 +21,7 @@ from django.conf import settings
 from django.utils.safestring import mark_safe
 
 
+logging.basicConfig(level=logging.INFO)
 PRODUCTS = ['mom0', 'mom1', 'mom2',
             'cube', 'mask', 'chan', 'spec']
 
@@ -467,34 +469,48 @@ def inspect_detection_view(request):
         )
         current_idx = list(detections_to_resolve).index(detection)
         if 'Submit' in body['action']:
-            # get or create tag
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            if tag_select == 'None':
-                if tag_create != '':
-                    tag = Tag.objects.create(
-                        name=tag_create
-                    )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-            sd_queryset = SourceDetection.objects.filter(detection=detection)
-            if sd_queryset:
-                source_detection = sd_queryset[0]
-                TagSourceDetection.objects.create(
-                    source_detection=source_detection,
-                    tag=tag,
-                    author=str(request.user)
-                )
-
-            # Add comment
-            comment = str(request.POST['comment'])
-            if comment != '':
-                Comment.objects.create(
-                    comment=comment,
-                    author=str(request.user),
+            with transaction.atomic():
+                logging.info(f'Marking detection {detection.name} as a real source.')
+                source = Source.objects.create(name=detection.name)
+                sd = SourceDetection.objects.create(
+                    source=source,
                     detection=detection
                 )
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx].id}"
+
+                # get or create tag
+                tag = None
+                tag_select = request.POST['tag_select']
+                tag_create = str(request.POST['tag_create'])
+                if tag_select == 'None':
+                    if tag_create != '':
+                        logging.info(f'Creating new tag: {tag_create}')
+                        tag = Tag.objects.create(
+                            name=tag_create
+                        )
+                else:
+                    tag = Tag.objects.get(id=int(tag_select))
+                    logging.info(f'Retrieving tag: {tag.name}')
+                if tag is not None:
+                    logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
+                    TagSourceDetection.objects.create(
+                        source_detection=sd,
+                        tag=tag,
+                        author=str(request.user)
+                    )
+
+                # Add comment
+                comment = str(request.POST['comment'])
+                if comment != '':
+                    logging.info(f'Adding comment {comment} to detection {detection.name}')
+                    Comment.objects.create(
+                        comment=comment,
+                        author=str(request.user),
+                        detection=detection
+                    )
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
@@ -510,6 +526,7 @@ def inspect_detection_view(request):
             return HttpResponseRedirect(url)
         if 'Mark Genuine' in body['action']:
             with transaction.atomic():
+                logging.info(f'Marking detection {detection.name} as a real source.')
                 source = Source.objects.create(name=detection.name)
                 SourceDetection.objects.create(
                     source=source,
@@ -520,13 +537,19 @@ def inspect_detection_view(request):
             if new_idx >= len(detections_to_resolve) - 1:
                 new_idx = len(detections_to_resolve) - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
         if 'Delete' in body['action']:
+            logging.info(f'Deleting detection {detection.name}.')
             detection.delete()
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
                 new_idx = len(detections_to_resolve) - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
-        return HttpResponse('OK', status=200)
+            return HttpResponseRedirect(url)
+        messages.warning(request, "Selected action that should not exist.")
+        url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx].id}"
+        return HttpResponseRedirect(url)
     else:
-        raise Exception('What is this request...')
+        messages.warning(request, "Error, returning to run.")
+        return HttpResponseRedirect('/admin/survey/run')
