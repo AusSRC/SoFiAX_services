@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
 from survey.decorators import basic_auth
-from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, SourceDetection, Comment
+from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment
 from django.db import transaction
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
