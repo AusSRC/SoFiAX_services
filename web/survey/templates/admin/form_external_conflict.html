@@ -8,6 +8,7 @@
     <div style="display: flex">
         <div style="flex: 50%">
             <h3>{{ name }}</h3>
+            <h4>{{ description }}</h4>
             {{ image }}
             <table>
                 <tr>
@@ -24,6 +25,7 @@
         </div>
         <div style="flex: 50%">
             <h3>{{ conflict_name }}</h3>
+            <h4>{{ conflict_description }}</h4>
             {{ conflict_image }}
             <table>
                 <tr>
@@ -65,26 +67,32 @@
         <br><hr><br>
 
         <!-- functionality -->
-        <input type="hidden" name="detection_id" value={{ detection_id }}>
+        <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
         <input type="hidden" name="run_id" value={{ run_id }}>
         <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Submit">
     </form>
     <div style='display: table'>
         <form style='padding: 2px; display: table-cell' method="post">
             {% csrf_token %}
-            <input type="hidden" name="detection_id" value={{ detection_id }}>
+            <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
             <input name='action' id='previous' type="submit" value="Previous">
         </form>
         <form style='padding: 2px; display: table-cell' method="post">
             {% csrf_token %}
-            <input type="hidden" name="detection_id" value={{ detection_id }}>
+            <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
-            <input name='action' style='background-color: rgba(255, 0, 0, 0.729);' id='delete' type="submit" value="Delete">
+            <input name='action' id='add_to_existing' type="submit" value="Add to existing">
         </form>
         <form style='padding: 2px; display: table-cell' method="post">
             {% csrf_token %}
-            <input type="hidden" name="detection_id" value={{ detection_id }}>
+            <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
+            <input type="hidden" name="run_id" value={{ run_id }}>
+            <input name='action' id='delete' type="submit" value="Delete">
+        </form>
+        <form style='padding: 2px; display: table-cell' method="post">
+            {% csrf_token %}
+            <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
             <input name='action' id='next' type="submit" value="Next">
         </form>
