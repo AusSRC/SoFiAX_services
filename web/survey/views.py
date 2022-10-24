@@ -6,7 +6,7 @@ from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
 from survey.decorators import basic_auth
-from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment
+from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
@@ -428,14 +428,14 @@ def inspect_detection_view(request):
         description += ', '.join(Comment.objects.filter(detection=detection))
 
         properties = {
-            'x': detection.x,
-            'y': detection.y,
-            'z': detection.z,
-            'f_sum': detection.f_sum,
-            'ell_maj': detection.ell_maj,
-            'ell_min': detection.ell_min,
-            'w20': detection.w20,
-            'w50': detection.w50,
+            'x': round(detection.x, 2),
+            'y': round(detection.y, 2),
+            'z': round(detection.z, 2),
+            'f_sum': round(detection.f_sum, 2),
+            'ell_maj': round(detection.ell_maj, 2),
+            'ell_min': round(detection.ell_min, 2),
+            'w20': round(detection.w20, 2),
+            'w50': round(detection.w50, 2),
         }
         # Form content
         params = {
@@ -449,6 +449,182 @@ def inspect_detection_view(request):
             'tags': Tag.objects.all(),
         }
         return render(request, 'admin/form_inspect_detection.html', params)
+
+    # Handle POST
+    elif request.method == 'POST':
+        body = dict(request.POST)
+        run = Run.objects.get(id=int(body['run_id'][0]))
+        detection = Detection.objects.get(id=int(body['detection_id'][0]))
+        detections_to_resolve = Detection.objects.filter(
+            run=run,
+            n_pix__gte=300,
+            rel__gte=0.7
+        ).exclude(
+            id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
+        )
+        current_idx = list(detections_to_resolve).index(detection)
+        if 'Submit' in body['action']:
+            logging.info(f'Marking detection {detection.name} as a real source.')
+            source, _ = Source.objects.get_or_create(name=detection.name)
+            sd = SourceDetection.objects.create(
+                source=source,
+                detection=detection
+            )
+
+            # get or create tag
+            tag = None
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if tag_select == 'None':
+                if tag_create != '':
+                    logging.info(f'Creating new tag: {tag_create}')
+                    tag = Tag.objects.create(
+                        name=tag_create
+                    )
+            else:
+                tag = Tag.objects.get(id=int(tag_select))
+                logging.info(f'Retrieving tag: {tag.name}')
+            if tag is not None:
+                logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
+                TagSourceDetection.objects.create(
+                    source_detection=sd,
+                    tag=tag,
+                    author=str(request.user)
+                )
+
+            # Add comment
+            comment = str(request.POST['comment'])
+            if comment != '':
+                logging.info(f'Adding comment {comment} to detection {detection.name}')
+                Comment.objects.create(
+                    comment=comment,
+                    author=str(request.user),
+                    detection=detection
+                )
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Next' in body['action']:
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Previous' in body['action']:
+            new_idx = current_idx - 1
+            if new_idx <= 0:
+                new_idx = 0
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Delete' in body['action']:
+            logging.info(f'Deleting detection {detection.name}.')
+            detection.delete()
+
+            new_idx = current_idx + 1
+            if new_idx >= len(detections_to_resolve) - 1:
+                new_idx = len(detections_to_resolve) - 1
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            return HttpResponseRedirect(url)
+        messages.warning(request, "Selected action that should not exist.")
+        url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx].id}"
+        return HttpResponseRedirect(url)
+    else:
+        messages.warning(request, "Error, returning to run.")
+        return HttpResponseRedirect('/admin/survey/run')
+
+
+# TODO: require superuser status
+def external_conflict_view(request):
+    # Handle GET request
+    if request.method == 'GET':
+        run_id = request.GET.get('run_id', None)
+        if not run_id:
+            raise Exception('Run not selected or does not exist.')
+        try:
+            run_id = int(run_id)
+        except ValueError:
+            return HttpResponse('Run id is not an integer.', status=400)
+        run = Run.objects.get(id=run_id)
+        detections = Detection.objects.filter(run=run)
+        conflicts = ExternalConflict.objects.filter(
+            detection_id__in=[d.id for d in detections]
+        )
+
+        if len(conflicts) == 0:
+            messages.info(request, "All external conflicts for this run have been resolved")
+            return HttpResponseRedirect('/admin/survey/run')
+
+        external_conflict_id = request.GET.get('external_conflict_id', None)
+        if external_conflict_id is None:
+            # Should only be the case when entering the manual inspection view
+            conflict = conflicts[0]
+        else:
+            conflict = ExternalConflict.objects.get(id=external_conflict_id)
+        current_idx = list(conflicts).index(conflict)
+        conflict_sd_ids = conflict.conflict_source_detection_ids
+        if len(conflict_sd_ids) == 1:
+            # Show image
+            product = Product.objects.get(detection=conflict.detection)
+            img_src = summary_image_WALLABY(product, size=(6, 4))
+            sd = SourceDetection.objects.filter(detection=conflict.detection)
+            description = ''
+            if sd:
+                tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
+                if tag_sd:
+                    tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                    description += ', '.join([t.name for t in tags])
+            description += ', '.join(Comment.objects.filter(detection=conflict.detection))
+            properties = {
+                'x': round(conflict.detection.x, 2),
+                'y': round(conflict.detection.y, 2),
+                'z': round(conflict.detection.z, 2),
+                'f_sum': round(conflict.detection.f_sum, 2),
+                'ell_maj': round(conflict.detection.ell_maj, 2),
+                'ell_min': round(conflict.detection.ell_min, 2),
+                'w20': round(conflict.detection.w20, 2),
+                'w50': round(conflict.detection.w50, 2)
+            }
+
+            # Show conflict
+            c_detection = SourceDetection.objects.get(id=conflict_sd_ids[0]).detection
+            c_product = Product.objects.get(detection=c_detection)
+            c_img_src = summary_image_WALLABY(product, size=(6, 4))
+            c_sd = SourceDetection.objects.filter(detection=c_detection)
+            c_description = ''
+            if c_sd:
+                tag_sd = TagSourceDetection.objects.filter(source_detection=c_sd[0])
+                if tag_sd:
+                    tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                    c_description += ', '.join([t.name for t in tags])
+            c_description += ', '.join(Comment.objects.filter(detection=c_detection))
+            c_properties = {
+                'x': round(c_detection.x, 2),
+                'y': round(c_detection.y, 2),
+                'z': round(c_detection.z, 2),
+                'f_sum': round(c_detection.f_sum, 2),
+                'ell_maj': round(c_detection.ell_maj, 2),
+                'ell_min': round(c_detection.ell_min, 2),
+                'w20': round(c_detection.w20, 2),
+                'w50': round(c_detection.w50, 2)
+            }
+            # Form content
+            params = {
+                'subheading': f'{current_idx}/{len(conflicts)} conflicts to resolve.',
+                'name': conflict.detection.name,
+                'image': mark_safe(img_src),
+                'properties': properties,
+                'conflict_name': c_sd[0].source.name,
+                'conflict_image': mark_safe(c_img_src),
+                'conflict_properties': c_properties,
+                'run_id': run_id,
+                'detection_id': conflict.detection.id,
+                'tags': Tag.objects.all(),
+            }
+            return render(request, 'admin/form_external_conflict.html', params)
+        elif len(conflict_sd_ids) > 1:
+            messages.warning(request, "No view has been developed to handle more than one conflict yet...")
 
     # Handle POST
     elif request.method == 'POST':

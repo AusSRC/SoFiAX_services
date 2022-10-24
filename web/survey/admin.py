@@ -508,7 +508,7 @@ class RunAdmin(ModelAdmin):
     list_display = (
         'id', 'name', 'sanity_thresholds',
         'run_catalog', 'run_unresolved_detections', 'run_detections', 'run_products_download',
-        'run_manual_inspection', 'external_conflicts'
+        'run_manual_inspection', 'run_external_conflicts'
     )
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -547,11 +547,10 @@ class RunAdmin(ModelAdmin):
         return format_html(f"<a href='{url}'>Detections</a>")
     run_manual_inspection.short_description = 'Manual inspection'
 
-    def external_conflicts(self, obj):
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_externalconflict_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Conflicts</a>")
-    external_conflicts.short_description = 'External conflicts'
+    def run_external_conflicts(self, obj):
+        url = f"{reverse('external_conflict')}?run_id={obj.id}"
+        return format_html(f"<a href='{url}'>Conflicts</a>")
+    run_external_conflicts.short_description = 'External conflicts'
 
     def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
         """Check if two detections are a match based on spatial and spectral separation.
@@ -992,7 +991,6 @@ admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
-admin.site.register(ExternalConflict, ExternalConflictAdmin)
 admin.site.register(SourceDetection, SourceDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
