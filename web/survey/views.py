@@ -610,6 +610,7 @@ def external_conflict_view(request):
             }
             # Form content
             params = {
+                'title': conflict.detection.name,
                 'subheading': f'{current_idx + 1}/{len(conflicts)} conflicts to resolve.',
                 'name': conflict.detection.name,
                 'description': description,
@@ -663,11 +664,11 @@ def external_conflict_view(request):
             # Add comment
             comment = str(request.POST['comment'])
             if comment != '':
-                logging.info(f'Adding comment {comment} to detection {detection.name}')
+                logging.info(f'Adding comment {comment} to detection {conflict.detection.name}')
                 Comment.objects.create(
                     comment=comment,
                     author=str(request.user),
-                    detection=detection
+                    detection=conflict.detection
                 )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
@@ -712,7 +713,7 @@ def external_conflict_view(request):
             new_source = Source.objects.get(id=sd_id)
             old_source = sd_existing.source
             sd_existing.source = new_source
-            old.source.delete()
+            old_source.delete()
             logging.info("Conflict resolved")
             conflict.delete()
 
