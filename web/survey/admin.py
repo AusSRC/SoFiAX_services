@@ -777,21 +777,29 @@ class RunAdmin(ModelAdmin):
             # Get or create tag
             tag_select = request.POST['tag_select']
             tag_create = str(request.POST['tag_create'])
+            tag_description = str(request.POST['tag_description'])
             if tag_select == 'None':
                 if tag_create == '':
                     messages.error(request, "No tag selected or created")
                     return
                 else:
+                    if tag_description == '':
+                        tag_description = None
                     tag = Tag.objects.create(
-                        name=tag_create
+                        name=tag_create,
+                        description=description
                     )
-                    pass
             else:
                 tag = Tag.objects.get(id=int(tag_select))
 
             for run in queryset:
                 logging.info(f"Preparing release for run {run.name}")
-                run_detections = Detection.objects.filter(run=run)
+                run_detections = Detection.objects.filter(
+                    run=run,
+                    n_pix__gte=300,
+                    rel__gte=0.7,
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
+                )
                 if any([d.unresolved for d in run_detections]):
                     messages.error(
                         request,
@@ -810,7 +818,8 @@ class RunAdmin(ModelAdmin):
                 for sd in run_source_detections:
                     TagSourceDetection.objects.create(
                         tag=tag,
-                        source_detection=sd
+                        source_detection=sd,
+                        author=str(request.user)
                     )
                     source = sd.source
                     new_name = self._release_name(source.name)
