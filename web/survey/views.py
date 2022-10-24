@@ -712,8 +712,9 @@ def external_conflict_view(request):
             logging.info(f"Deleting source {sd_existing.source.name} and updating source detection")
             new_source = Source.objects.get(id=sd_id)
             old_source = sd_existing.source
-            sd_existing.source = new_source
-            old_source.delete()
+            if old_source != new_source:
+                sd_existing.source = new_source
+                old_source.delete()
             logging.info("Conflict resolved")
             conflict.delete()
 
