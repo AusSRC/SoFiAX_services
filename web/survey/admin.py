@@ -574,6 +574,7 @@ class RunAdmin(ModelAdmin):
 
         """
         try:
+            # TODO: select for update
             run_list = list(queryset)
             if len(run_list) != 1:
                 messages.error(
@@ -652,89 +653,135 @@ class RunAdmin(ModelAdmin):
             ],
             'Phase2-Other': ['Vela', 'NGC4808']
         }
-        run_list = list(queryset)
-        if len(run_list) != 1:
-            messages.error(
-                request,
-                "Only one run can be selected at a time for internal cross matching."
-            )
-            return 0
 
-        run = run_list[0]
-        run_detections = Detection.objects.filter(
-            run=run,
-            n_pix__gte=300,
-            rel__gte=0.7,
-            id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
-        )
-        if any([d.unresolved for d in run_detections]):
-            messages.error(
-                request,
-                'There cannot be any unresolved detections for the run at the time of running internal cross matching.'
-            )
-            return 0
+        try:
+            with transaction.atomic():
+                # Lock all source, source_detection and detection objects
+                Detection.objects.filter(
+                    id__in=SourceDetection.objects.all()
+                ).select_for_update()
 
-        start = time.time()
-        # TODO: Fix this threshold for the poles
-        # Do filter with delta RA (cosine factor)
-        # Calculate search threshold for Dec
-        for d in run_detections:
-            close_detections = Detection.objects.filter(
-                n_pix__gte=300,
-                rel__gte=0.7,
-                id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
-                ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
-                dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
-            ).exclude(
-                run=run
-            )
-            manual_matches = []
-            for d_ext in list(set(close_detections)):
-                sd = SourceDetection.objects.get(detection=d)
-                sd_ext = SourceDetection.objects.get(detection=d_ext)
-                if 'WALLABY' not in sd_ext.source.name:
-                    continue
+                run_list = list(queryset)
+                if len(run_list) != 1:
+                    logging.error("Only one run can be selected at a time for internal cross matching.")
+                    return 0
 
-                # Auto-delete check on lower threshold values
-                if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                    # Logic: delete if in same survey component or reassign to existing source otherwise.
-                    delete = False
-                    for runs in survey_components.values():
-                        if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
-                            delete = True
-                    if delete:
-                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to delete")
-                        with transaction.atomic():
-                            if sd.source != sd_ext.source:
-                                logging.info(f'Detections belong to different sources. Deleting source {sd.source.name}.')
-                                # sd.source.delete()
-                            # sd.delete()
-                    else:
-                        logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to rename")
-                        with transaction.atomic():
-                            if sd.source != sd_ext.source:
-                                # This should always be the case in theory since sd.source should have a SoFiA
-                                # name whereas sd_ext.source will have a WALLABY name.
-                                logging.info(f'Renaming source for detection {d.name} to {sd_ext.source.name}. Deleting old source {sd.source.name}.')
-                                # old_source = sd.source
-                                # sd.source = sd_ext.source
-                                # sd.save()
-                                # old_source.delete()
-                    continue
-                # Otherwise mark for manual resolution
-                elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
-                    # TODO: report the survey component information when there is a match
-                    manual_matches.append(sd_ext.id)
-            if manual_matches:
-                logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}] to resolve manually")
-                ExternalConflict.objects.get_or_create(
+                run = run_list[0]
+                run_detections = Detection.objects.filter(
                     run=run,
-                    detection=d,
-                    conflict_source_detection_ids=manual_matches
+                    n_pix__gte=300,
+                    rel__gte=0.7,
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
                 )
-        end = time.time()
-        logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
-        messages.info(request, 'Completed external cross matching')
+                if any([d.unresolved for d in run_detections]):
+                    logging.error('There cannot be any unresolved detections for the run at the time of running internal cross matching.')
+                    return 0
+
+                accepted_detections = []
+                external_conflicts = []
+                rename_sources = []
+                auto_resolved_count = 0
+
+                logging.info(f'External cross matching applied to {len(run_detections)} detections')
+                start = time.time()
+                for d in run_detections:
+                    # TODO: Fix this threshold for the poles
+                    # Do filter with delta RA (cosine factor)
+                    # Calculate search threshold for Dec
+                    close_detections = Detection.objects.filter(
+                        n_pix__gte=300,
+                        rel__gte=0.7,
+                        id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                        ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
+                        dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                    ).exclude(
+                        run=run
+                    )
+                    auto_resolved = False
+                    manual_matches = []
+                    for d_ext in list(set(close_detections)):
+                        sd = SourceDetection.objects.get(detection=d)
+                        sd_ext = SourceDetection.objects.get(detection=d_ext)
+                        if 'WALLABY' not in sd_ext.source.name:
+                            continue
+
+                        # Auto-delete check on lower threshold values
+                        if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
+                            # Logic: delete if in same survey component or reassign to existing source otherwise.
+                            delete = False
+                            for runs in survey_components.values():
+                                if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
+                                    delete = True
+                            if delete:
+                                auto_resolved = True
+                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to delete")
+                            else:
+                                auto_resolved = True
+                                logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to rename")
+                                if sd.source != sd_ext.source:
+                                    # This should always be the case in theory since sd.source should have a SoFiA
+                                    # name whereas sd_ext.source will have a WALLABY name.
+                                    logging.info(f'Renaming source for detection {d.name} to {sd_ext.source.name}. Deleting old source {sd.source.name}.')
+                                    rename_sources.append((sd, sd_ext.source))
+                            continue
+                        # Otherwise mark for manual resolution
+                        elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
+                            # TODO: report the survey component information when there is a match
+                            manual_matches.append(sd_ext.id)
+                    if not auto_resolved and not manual_matches:
+                        accepted_detections.append(d)
+                    else:
+                        if manual_matches:
+                            logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}] to resolve manually")
+                            external_conflicts.append({
+                                'run': run,
+                                'detection': d,
+                                'conflict_source_detection_ids': manual_matches
+                            })
+                        elif auto_resolved:
+                            auto_resolved_count += 1
+
+                end = time.time()
+                logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
+                logging.info(f"{len(accepted_detections)} detections to accept")
+                logging.info(f"{auto_resolved_count} detections to automatically resolved")
+                logging.info(f"{len(external_conflicts)} detections to resolve manually")
+
+                # Release name check
+                if set([self._release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
+                    logging.error('External cross matching failed - release name already exists for accepted detection.')
+                    return 0
+
+                # Update check
+                if len(run_detections) != (auto_resolved_count + len(external_conflicts) + len(accepted_detections)):
+                    logging.error('External cross matching failed - not all detections have been accounted for.')
+                    return 0
+
+                start = time.time()
+                logging.info("Writing updates to database")
+                # Accepted sources
+                for d in accepted_detections:
+                    source = SourceDetection.objects.get(d).source
+                    release_name = self._release_name(d.name)
+                    source.name = release_name
+                    source.save()
+
+                # Renaming
+                for (sd, new_source) in rename_sources:
+                    old_source = sd.source
+                    sd.source = new_source
+                    sd.save()
+                    old_source.delete()
+
+                # External conflicts
+                for ex_c in external_conflicts:
+                    ExternalConflict.objects.get_or_create(**ex_c)
+                end = time.time()
+                logging.info(f"Database update completed in {round(end - start, 2)} seconds")
+            logging.info("External cross matching completed")
+        except Exception as e:
+            logging.error(e)
+            return 0
 
     def external_cross_match(self, request, queryset):
         """Run the external cross matching workflow to identify sources
@@ -788,7 +835,7 @@ class RunAdmin(ModelAdmin):
                         tag_description = None
                     tag = Tag.objects.create(
                         name=tag_create,
-                        description=description
+                        description=tag_description
                     )
             else:
                 tag = Tag.objects.get(id=int(tag_select))
