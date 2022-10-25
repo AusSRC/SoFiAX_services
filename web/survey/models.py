@@ -271,11 +271,11 @@ class Detection(models.Model):
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
                 return mark_safe(img_src)
 
-    def summary_image(self):
+    def summary_image(self, size=(3,2)):
         products = self.product_set.only('spec')
         if not products:
             return None
-        return summary_image_WALLABY(products[0])
+        return summary_image_WALLABY(products[0], size=size)
 
     class Meta:
         managed = False

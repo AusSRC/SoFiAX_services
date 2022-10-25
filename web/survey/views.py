@@ -32,7 +32,6 @@ def test(request):
     return HttpResponse('Authorized', status=200)
 
 
-@basic_auth
 def summary_image(request):
     detection_id = request.GET.get('id', None)
     if detection_id is None:

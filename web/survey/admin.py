@@ -608,7 +608,6 @@ class RunAdmin(ModelAdmin):
                     d2 = detections[j]
                     if self._is_match(d1, d2):
                         matches.append((i, j))
-                        d1 = detections[i]
                         d1.unresolved = True
                         d1.save()
                         d2.unresolved = True
@@ -653,8 +652,14 @@ class RunAdmin(ModelAdmin):
             ],
             'Phase2-Other': ['Vela', 'NGC4808']
         }
-
         run_list = list(queryset)
+        if len(run_list) != 1:
+            messages.error(
+                request,
+                "Only one run can be selected at a time for internal cross matching."
+            )
+            return 0
+
         run = run_list[0]
         run_detections = Detection.objects.filter(
             run=run,
@@ -662,12 +667,6 @@ class RunAdmin(ModelAdmin):
             rel__gte=0.7,
             id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
         )
-        if len(run_list) != 1:
-            messages.error(
-                request,
-                "Only one run can be selected at a time for internal cross matching."
-            )
-            return 0
         if any([d.unresolved for d in run_detections]):
             messages.error(
                 request,
@@ -693,6 +692,8 @@ class RunAdmin(ModelAdmin):
             for d_ext in list(set(close_detections)):
                 sd = SourceDetection.objects.get(detection=d)
                 sd_ext = SourceDetection.objects.get(detection=d_ext)
+                if 'WALLABY' not in sd_ext.source.name:
+                    continue
 
                 # Auto-delete check on lower threshold values
                 if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
@@ -703,29 +704,29 @@ class RunAdmin(ModelAdmin):
                             delete = True
                     if delete:
                         logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to delete")
-                        # TODO: Transactions
-                        if sd.source != sd_ext.source:
-                            logging.info(f'Detections belong to different sources. Deleting source {sd.source.name}.')
-                            sd.source.delete()
-                        sd.delete()
+                        with transaction.atomic():
+                            if sd.source != sd_ext.source:
+                                logging.info(f'Detections belong to different sources. Deleting source {sd.source.name}.')
+                                # sd.source.delete()
+                            # sd.delete()
                     else:
                         logging.info(f"Auto match {d.name} - {d_ext.name} (sd: {sd_ext.id}) [{d_ext.run}] to rename")
-                        # TODO: Transactions
-                        if sd.source != sd_ext.source:
-                            # This should always be the case in theory since sd.source should have a SoFiA
-                            # name whereas sd_ext.source will have a WALLABY name.
-                            logging.info(f'Renaming source for detection {d.name} to {sd_ext.source.name}. Deleting old source {sd.source.name}.')
-                            old_source = sd.source
-                            sd.source = sd_ext.source
-                            sd.save()
-                            old_source.delete()
+                        with transaction.atomic():
+                            if sd.source != sd_ext.source:
+                                # This should always be the case in theory since sd.source should have a SoFiA
+                                # name whereas sd_ext.source will have a WALLABY name.
+                                logging.info(f'Renaming source for detection {d.name} to {sd_ext.source.name}. Deleting old source {sd.source.name}.')
+                                # old_source = sd.source
+                                # sd.source = sd_ext.source
+                                # sd.save()
+                                # old_source.delete()
                     continue
                 # Otherwise mark for manual resolution
                 elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
                     # TODO: report the survey component information when there is a match
                     manual_matches.append(sd_ext.id)
             if manual_matches:
-                logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}]")
+                logging.info(f"Matches detection {d.name} ({d.id}) and source_detections ({manual_matches}) [{d_ext.run}] to resolve manually")
                 ExternalConflict.objects.get_or_create(
                     run=run,
                     detection=d,
@@ -813,19 +814,25 @@ class RunAdmin(ModelAdmin):
                     )
                     return 0
 
+
                 # Updating source names and tagging
                 run_source_detections = SourceDetection.objects.filter(detection_id__in=[d.id for d in run_detections])
                 for sd in run_source_detections:
-                    TagSourceDetection.objects.create(
-                        tag=tag,
-                        source_detection=sd,
-                        author=str(request.user)
-                    )
-                    source = sd.source
-                    new_name = self._release_name(source.name)
-                    logging.info(f"Replacing source name {source.name} -> {new_name}")
-                    source.name = new_name
-                    source.save()
+                    with transaction.atomic():
+                        source = sd.source
+                        new_name = self._release_name(source.name)
+                        logging.info(f"Replacing source name {source.name} -> {new_name}")
+                        if Source.objects.filter(name=new_name):
+                            others = Source.objects.filter(name=new_name).exclude(id=sd.source.id)
+                            logging.info(f"There is a conflict with existing source {others}")
+                            logging.info(f"Other sources from run: {[sd.detection.run.name for sd in SourceDetection.objects.filter(source_id__in=[s.id for s in others])]}")
+                        # TagSourceDetection.objects.create(
+                        #     tag=tag,
+                        #     source_detection=sd,
+                        #     author=str(request.user)
+                        # )
+                        # source.name = new_name
+                        # source.save()
             return len(queryset)
         except Exception as e:
             messages.error(request, str(e))

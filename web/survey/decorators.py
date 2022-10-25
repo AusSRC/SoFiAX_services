@@ -9,7 +9,6 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ObjectDoesNotExist
 from social_django.models import UserSocialAuth
-from django.db import transaction
 from survey.models import Tag, Comment
 
 from keycloak import KeycloakOpenID
