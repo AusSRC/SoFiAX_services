@@ -658,7 +658,9 @@ class RunAdmin(ModelAdmin):
             with transaction.atomic():
                 # Lock all source, source_detection and detection objects
                 Detection.objects.filter(
-                    id__in=SourceDetection.objects.all()
+                    id__in=SourceDetection.objects.filter(
+                        source_id__in=Source.objects.all()
+                    )
                 ).select_for_update()
 
                 run_list = list(queryset)
@@ -840,47 +842,57 @@ class RunAdmin(ModelAdmin):
             else:
                 tag = Tag.objects.get(id=int(tag_select))
 
-            for run in queryset:
-                logging.info(f"Preparing release for run {run.name}")
-                run_detections = Detection.objects.filter(
-                    run=run,
-                    n_pix__gte=300,
-                    rel__gte=0.7,
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
-                )
-                if any([d.unresolved for d in run_detections]):
-                    messages.error(
-                        request,
-                        'There cannot be any unresolved detections when creating release source names.'
+            with transaction.atomic():
+                for run in queryset:
+                    logging.info(f"Preparing release for run {run.name}")
+                    detections = Detection.objects.filter(
+                        run=run,
+                        n_pix__gte=300,
+                        rel__gte=0.7,
+                        id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                    ).select_for_update()
+                    release_detections = detections.filter(
+                        id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' in sd.source.name],
                     )
-                    return 0
-                if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
-                    messages.error(
-                        request,
-                        'There cannot be any external conflicts when creating release source names.'
+                    delete_detections = detections.filter(
+                        id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'SoFiA' in sd.source.name],
                     )
-                    return 0
+                    if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
+                        messages.error(
+                            request,
+                            'There cannot be any external conflicts when creating release source names.'
+                        )
+                        return 0
+                    if any([d.unresolved for d in release_detections]):
+                        messages.error(
+                            request,
+                            'There cannot be any unresolved detections when releasing sources.'
+                        )
+                        return 0
 
+                    logging.info(f"{len(release_detections)} detections to release, {len(delete_detections)} detections to delete")
 
-                # Updating source names and tagging
-                run_source_detections = SourceDetection.objects.filter(detection_id__in=[d.id for d in run_detections])
-                for sd in run_source_detections:
-                    with transaction.atomic():
-                        source = sd.source
-                        new_name = self._release_name(source.name)
-                        logging.info(f"Replacing source name {source.name} -> {new_name}")
-                        if Source.objects.filter(name=new_name):
-                            others = Source.objects.filter(name=new_name).exclude(id=sd.source.id)
-                            logging.info(f"There is a conflict with existing source {others}")
-                            logging.info(f"Other sources from run: {[sd.detection.run.name for sd in SourceDetection.objects.filter(source_id__in=[s.id for s in others])]}")
-                        # TagSourceDetection.objects.create(
-                        #     tag=tag,
-                        #     source_detection=sd,
-                        #     author=str(request.user)
-                        # )
-                        # source.name = new_name
-                        # source.save()
-            return len(queryset)
+                    # Release sources
+                    release_source_detections = SourceDetection.objects.filter(
+                        detection_id__in=[d.id for d in release_detections]
+                    )
+                    for sd in release_source_detections:
+                        TagSourceDetection.objects.get_or_create(
+                            tag=tag,
+                            source_detection=sd,
+                            author=str(request.user)
+                        )
+
+                    # Delete sources
+                    delete_source_detections = SourceDetection.objects.filter(
+                        detection_id__in=[d.id for d in delete_detections]
+                    )
+                    # for sd in delete_source_detections:
+                    #     source = sd.source
+                    #     if 'SoFiA' in source.name:
+                    #         sd.delete()
+                    #         source.delete()
+                return len(queryset)
         except Exception as e:
             messages.error(request, str(e))
             return
