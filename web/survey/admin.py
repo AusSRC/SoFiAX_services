@@ -112,12 +112,8 @@ class DetectionAdmin(ModelAdmin):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
-        if request.GET:
-            return 'id', 'run', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
-                   'w20', 'w50'
-        else:
-            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
-                   'ell_min', 'w20', 'w50'
+        return 'id', 'run', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
+               'w20', 'w50'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
