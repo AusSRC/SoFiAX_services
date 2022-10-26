@@ -763,7 +763,7 @@ class RunAdmin(ModelAdmin):
                 logging.info("Writing updates to database")
                 # Accepted sources
                 for d in accepted_detections:
-                    source = SourceDetection.objects.get(d).source
+                    source = SourceDetection.objects.get(detection=d).source
                     release_name = self._release_name(d.name)
                     source.name = release_name
                     source.save()
@@ -892,6 +892,8 @@ class RunAdmin(ModelAdmin):
                     #     if 'SoFiA' in source.name:
                     #         sd.delete()
                     #         source.delete()
+
+                    logging.info("Release completed")
                 return len(queryset)
         except Exception as e:
             messages.error(request, str(e))
