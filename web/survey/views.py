@@ -588,7 +588,7 @@ def external_conflict_view(request):
             # Show conflict
             c_detection = SourceDetection.objects.get(id=conflict_sd_ids[0]).detection
             c_product = Product.objects.get(detection=c_detection)
-            c_img_src = summary_image_WALLABY(product, size=(6, 4))
+            c_img_src = summary_image_WALLABY(c_product, size=(6, 4))
             c_sd = SourceDetection.objects.filter(detection=c_detection)
             c_description = ''
             if c_sd:
