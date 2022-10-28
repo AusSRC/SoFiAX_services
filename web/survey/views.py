@@ -5,6 +5,8 @@ import logging
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
+from survey.utils.components import get_survey_component, WALLABY_release_name
+from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
 from django.urls import reverse
@@ -422,7 +424,7 @@ def inspect_detection_view(request):
         if sd:
             tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
             if tag_sd:
-                tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
                 description += ', '.join([t.name for t in tags])
         description += ', '.join([c.comment for c in Comment.objects.filter(detection=detection)])
 
@@ -470,36 +472,10 @@ def inspect_detection_view(request):
                 detection=detection
             )
 
-            # get or create tag
-            tag = None
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            if tag_select == 'None':
-                if tag_create != '':
-                    logging.info(f'Creating new tag: {tag_create}')
-                    tag = Tag.objects.create(
-                        name=tag_create
-                    )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-                logging.info(f'Retrieving tag: {tag.name}')
-            if tag is not None:
-                logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
-                TagSourceDetection.objects.create(
-                    source_detection=sd,
-                    tag=tag,
-                    author=str(request.user)
-                )
+            # add tags and comments if necessary
+            add_tag(request, sd)
+            add_comment(request, detection)
 
-            # Add comment
-            comment = str(request.POST['comment'])
-            if comment != '':
-                logging.info(f'Adding comment {comment} to detection {detection.name}')
-                Comment.objects.create(
-                    comment=comment,
-                    author=str(request.user),
-                    detection=detection
-                )
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
                 new_idx = len(detections_to_resolve) - 1
@@ -571,7 +547,7 @@ def external_conflict_view(request):
             if sd:
                 tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
                 if tag_sd:
-                    tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                    tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
                     description += ', '.join([t.name for t in tags])
             description += ', '.join([c.comment for c in Comment.objects.filter(detection=conflict.detection)])
             properties = {
@@ -594,7 +570,7 @@ def external_conflict_view(request):
             if c_sd:
                 tag_sd = TagSourceDetection.objects.filter(source_detection=c_sd[0])
                 if tag_sd:
-                    tags = Tag.objects.filter(id__in=[tsd.id for tsd in tag_sd])
+                    tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
                     c_description += ', '.join([t.name for t in tags])
             c_description += ', '.join([c.comment for c in Comment.objects.filter(detection=c_detection)])
             c_properties = {
@@ -613,10 +589,12 @@ def external_conflict_view(request):
                 'subheading': f'{current_idx + 1}/{len(conflicts)} conflicts to resolve.',
                 'name': conflict.detection.name,
                 'description': description,
+                'component': get_survey_component(conflict.detection),
                 'image': mark_safe(img_src),
                 'properties': properties,
                 'conflict_name': c_sd[0].source.name,
                 'conflict_description': c_description,
+                'conflict_component': get_survey_component(c_detection),
                 'conflict_image': mark_safe(c_img_src),
                 'conflict_properties': c_properties,
                 'run_id': run_id,
@@ -637,38 +615,26 @@ def external_conflict_view(request):
             detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
         )
         current_idx = list(conflicts).index(conflict)
-        if 'Submit' in body['action']:
+        if 'Add tags and comments' in body['action']:
             sd = SourceDetection.objects.get(detection=conflict.detection)
-            # get or create tag
-            tag = None
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            if tag_select == 'None':
-                if tag_create != '':
-                    logging.info(f'Creating new tag: {tag_create}')
-                    tag = Tag.objects.create(
-                        name=tag_create
-                    )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-                logging.info(f'Retrieving tag: {tag.name}')
-            if tag is not None:
-                logging.info(f'Adding tag {tag.name} to source detection {sd.id}')
-                TagSourceDetection.objects.create(
-                    source_detection=sd,
-                    tag=tag,
-                    author=str(request.user)
-                )
+            sd_conflict = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
 
-            # Add comment
-            comment = str(request.POST['comment'])
-            if comment != '':
-                logging.info(f'Adding comment {comment} to detection {conflict.detection.name}')
-                Comment.objects.create(
-                    comment=comment,
-                    author=str(request.user),
-                    detection=conflict.detection
-                )
+            # Tag conflict source/detection for current run
+            add_tag(request, sd)
+            add_comment(request, conflict.detection)
+
+            # Tag conflict source/detection
+            add_tag(
+                request,
+                sd_conflict,
+                tag_select_input='tag_select_conflict',
+                tag_create_input='tag_create_conflict'
+            )
+            add_comment(
+                request,
+                conflict.detection,
+                comment_input='comment_conflict'
+            )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
@@ -683,13 +649,20 @@ def external_conflict_view(request):
                 new_idx = 0
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
-        if 'Delete' in body['action']:
-            # Delete current source and source detection
-            detection = conflict.detection
-            sd_existing = SourceDetection.objects.get(detection=detection)
-            logging.info(f"Deleting source {sd_existing.source.name} and corresponding source detection with id {sd_existing.id}")
-            sd_existing.source.delete()
-            sd_existing.delete()
+        if 'Keep new source name' in body['action']:
+            # check
+            new_name = WALLABY_release_name(conflict.detection.name)
+            if new_name in [s.name for s in Source.objects.all()]:
+                messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
+                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+                return HttpResponseRedirect(url)
+
+            # Accept new name as an official (and separate) source
+            sd = SourceDetection.objects.get(detection=conflict.detection)
+            source = sd.source
+            source.name = new_name
+            source.save()
+
             logging.info("Conflict resolved")
             conflict.delete()
 
@@ -698,9 +671,20 @@ def external_conflict_view(request):
                 new_idx = len(conflicts) - 1
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
-        if 'Add to existing' in body['action']:
-            logging.info(f'Adding detection {detection.name} to existing source.')
+        if 'Delete detection' in body['action']:
+            # This will just delete the conflict since the actual source detection object
+            # and corresponding source are deleted at release.
+            logging.info("Conflict resolved")
+            conflict.delete()
+
+            new_idx = current_idx + 1
+            if new_idx >= len(conflicts) - 1:
+                new_idx = len(conflicts) - 1
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Copy old source name' in body['action']:
             detection = conflict.detection
+            logging.info(f'Adding detection {detection.name} to existing source.')
             sds = conflict.conflict_source_detection_ids
             if len(sds) != 1:
                 messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
@@ -713,7 +697,6 @@ def external_conflict_view(request):
             old_source = sd_existing.source
             if old_source != new_source:
                 sd_existing.source = new_source
-                old_source.delete()
             logging.info("Conflict resolved")
             conflict.delete()
 

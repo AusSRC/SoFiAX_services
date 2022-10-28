@@ -1,4 +1,3 @@
-import re
 import math
 import time
 import logging
@@ -11,6 +10,7 @@ from django.db import transaction
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
+from survey.utils.components import WALLABY_SURVEY_COMPONENTS, WALLABY_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
@@ -625,31 +625,6 @@ class RunAdmin(ModelAdmin):
         thresh_spec_auto = 0.05e+6
         SEARCH_THRESHOLD = 1.0
 
-        # TODO: pull survey component information out of this
-        survey_components = {
-            'Pre-phase2': ['Hydra_DR1', 'Hydra_DR2', 'NGC4636_DR1', 'Norma_DR1'],
-            'Phase2-NGC5044_DR1': ['NGC5044_4'],
-            'Phase2-NGC5044_DR2': [
-                '198-13_198-19_204-17',
-                '198-19_204-17_204-22',
-                '198-13_a',
-                '198-13_r',
-                '198-13',
-                '198-19_198-13',
-                '198-19',
-                '198-19_r',
-                '198-19_b',
-                '204-22_b',
-                '204-22_l',
-                '204-22',
-                '204-17_204-22',
-                '204-17_a',
-                '204-17_l',
-                '204-17',
-            ],
-            'Phase2-Other': ['Vela', 'NGC4808']
-        }
-
         try:
             with transaction.atomic():
                 # Lock all source, source_detection and detection objects
@@ -707,7 +682,7 @@ class RunAdmin(ModelAdmin):
                         if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                             # Logic: delete if in same survey component or reassign to existing source otherwise.
                             delete = False
-                            for runs in survey_components.values():
+                            for runs in WALLABY_SURVEY_COMPONENTS.values():
                                 if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
                                     delete = True
                             if delete:
@@ -746,7 +721,7 @@ class RunAdmin(ModelAdmin):
                 logging.info(f"{len(external_conflicts)} detections to resolve manually")
 
                 # Release name check
-                if set([self._release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
+                if set([WALLABY_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
                     logging.error('External cross matching failed - release name already exists for accepted detection.')
                     return 0
 
@@ -760,7 +735,7 @@ class RunAdmin(ModelAdmin):
                 # Accepted sources
                 for d in accepted_detections:
                     source = SourceDetection.objects.get(detection=d).source
-                    release_name = self._release_name(d.name)
+                    release_name = WALLABY_release_name(d.name)
                     source.name = release_name
                     source.save()
 
@@ -801,15 +776,6 @@ class RunAdmin(ModelAdmin):
 
     class ReleaseSourceForm(forms.Form):
         title = 'Release sources for selected runs. Created WALLABY source names and adds new tag to all sources.'
-
-    def _release_name(self, name):
-        """Release name from detection name
-
-        """
-        parts = re.split('[+-]', name.replace('SoFiA', 'WALLABY'))
-        return re.search('[+-]', name).group().join(
-            list(map(lambda x: x.split('.')[0], parts))
-        )
 
     @add_tag_form(ReleaseSourceForm)
     def release_sources(self, request, queryset):
