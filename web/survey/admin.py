@@ -10,7 +10,7 @@ from django.db import transaction
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
-from survey.utils.components import wallaby_survey_components, WALLABY_release_name
+from survey.utils.components import wallaby_survey_components, wallaby_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel

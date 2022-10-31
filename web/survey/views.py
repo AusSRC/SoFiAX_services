@@ -5,7 +5,7 @@ import logging
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
-from survey.utils.components import get_survey_component, WALLABY_release_name
+from survey.utils.components import get_survey_component, wallaby_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
