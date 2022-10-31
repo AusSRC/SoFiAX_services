@@ -550,6 +550,8 @@ def external_conflict_view(request):
                     tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
                     description += ', '.join([t.name for t in tags])
             description += ', '.join([c.comment for c in Comment.objects.filter(detection=conflict.detection)])
+            if description == '':
+                description = "No tags or comments"
             properties = {
                 'x': round(conflict.detection.x, 2),
                 'y': round(conflict.detection.y, 2),
@@ -589,12 +591,10 @@ def external_conflict_view(request):
                 'subheading': f'{current_idx + 1}/{len(conflicts)} conflicts to resolve.',
                 'name': conflict.detection.name,
                 'description': description,
-                'component': get_survey_component(conflict.detection),
                 'image': mark_safe(img_src),
                 'properties': properties,
                 'conflict_name': c_sd[0].source.name,
                 'conflict_description': c_description,
-                'conflict_component': get_survey_component(c_detection),
                 'conflict_image': mark_safe(c_img_src),
                 'conflict_properties': c_properties,
                 'run_id': run_id,

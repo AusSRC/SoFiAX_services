@@ -81,7 +81,25 @@ class KinematicModelAdmin(ModelAdmin):
 
 
 class SourceDetectionAdmin(ModelAdmin):
-    list_display = ('source', 'detection', 'added_at')
+    model = SourceDetection
+    list_filter = ['detection__run']
+    list_per_page = 10
+
+    def get_list_display(self, request):
+        return 'source', 'detection_link', 'summary'
+
+    @admin.display(empty_value=None)
+    def detection_link(self, obj):
+        detection_obj = obj.detection
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_detection_changelist')
+        return format_html(f"<a href='{url}{detection_obj.id}' target='_blank'>{detection_obj.name}</a>")
+
+    @admin.display(empty_value=None)
+    def summary(self, obj):
+        detection = obj.detection
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={detection.id}' target='_blank'>{detection.summary_image(size=(8,6))}</a>")
 
 
 class DetectionAdmin(ModelAdmin):
@@ -503,8 +521,9 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'sanity_thresholds',
-        'run_catalog', 'run_unresolved_detections', 'run_detections', 'run_products_download',
-        'run_manual_inspection', 'run_external_conflicts'
+        'run_unresolved_detections', 'run_sources', 'run_detections',
+        'run_manual_inspection', 'run_external_conflicts',
+        # 'run_products_download', 'run_catalog',
     )
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -532,11 +551,17 @@ class RunAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
     run_unresolved_detections.short_description = 'Unresolved Detections'
 
+    def run_sources(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_sourcedetection_changelist')
+        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>View</a>")
+    run_sources.short_description = 'Accepted Sources'
+
     def run_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_detection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
-    run_detections.short_description = 'Detections'
+    run_detections.short_description = 'All Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
