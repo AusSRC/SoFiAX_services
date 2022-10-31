@@ -651,7 +651,7 @@ def external_conflict_view(request):
             return HttpResponseRedirect(url)
         if 'Keep new source name' in body['action']:
             # check
-            new_name = WALLABY_release_name(conflict.detection.name)
+            new_name = wallaby_release_name(conflict.detection.name)
             if new_name in [s.name for s in Source.objects.all()]:
                 messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
                 url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"

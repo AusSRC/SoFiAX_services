@@ -10,7 +10,7 @@ from django.db import transaction
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
-from survey.utils.components import WALLABY_SURVEY_COMPONENTS, WALLABY_release_name
+from survey.utils.components import wallaby_survey_components, WALLABY_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
@@ -707,7 +707,7 @@ class RunAdmin(ModelAdmin):
                         if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                             # Logic: delete if in same survey component or reassign to existing source otherwise.
                             delete = False
-                            for runs in WALLABY_SURVEY_COMPONENTS.values():
+                            for runs in wallaby_survey_components.values():
                                 if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
                                     delete = True
                             if delete:
@@ -746,7 +746,7 @@ class RunAdmin(ModelAdmin):
                 logging.info(f"{len(external_conflicts)} detections to resolve manually")
 
                 # Release name check
-                if set([WALLABY_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
+                if set([wallaby_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
                     logging.error('External cross matching failed - release name already exists for accepted detection.')
                     return 0
 
@@ -760,7 +760,7 @@ class RunAdmin(ModelAdmin):
                 # Accepted sources
                 for d in accepted_detections:
                     source = SourceDetection.objects.get(detection=d).source
-                    release_name = WALLABY_release_name(d.name)
+                    release_name = wallaby_release_name(d.name)
                     source.name = release_name
                     source.save()
 

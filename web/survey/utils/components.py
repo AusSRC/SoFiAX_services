@@ -2,7 +2,7 @@ import re
 from survey.models import Run, Detection
 
 
-WALLABY_SURVEY_COMPONENTS = {
+wallaby_survey_components = {
     'Pre-phase2': ['Hydra_DR1', 'Hydra_DR2', 'NGC4636_DR1', 'Norma_DR1'],
     'Phase2-NGC5044_DR1': ['NGC5044_4'],
     'Phase2-NGC5044_DR2': [
@@ -27,7 +27,7 @@ WALLABY_SURVEY_COMPONENTS = {
 }
 
 
-def WALLABY_release_name(name):
+def wallaby_release_name(name):
     """Release name from detection name
 
     """
@@ -39,7 +39,7 @@ def WALLABY_release_name(name):
 
 def get_survey_component(detection):
     run = detection.run
-    for k, v in WALLABY_SURVEY_COMPONENTS.items():
+    for k, v in wallaby_survey_components.items():
         if run.name in v:
             return k
     raise Exception("Detection and run not found in survey component list.")
