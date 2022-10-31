@@ -864,21 +864,27 @@ class RunAdmin(ModelAdmin):
                         detection_id__in=[d.id for d in release_detections]
                     )
                     for sd in release_source_detections:
-                        TagSourceDetection.objects.get_or_create(
-                            tag=tag,
-                            source_detection=sd,
-                            author=str(request.user)
-                        )
+                        existing = TagSourceDetection.objects.filter(tag=tag, source_detection=sd)
+                        if not existing:
+                            logging.info(f'Creating TagSourceDetection entry for Source {sd.source.name}')
+                            TagSourceDetection.objects.create(
+                                tag=tag,
+                                source_detection=sd,
+                                author=str(request.user)
+                            )
+                        else:
+                            logging.info(f'Tag already created for Source {sd.source.name}')
 
                     # Delete sources
                     delete_source_detections = SourceDetection.objects.filter(
                         detection_id__in=[d.id for d in delete_detections]
                     )
-                    # for sd in delete_source_detections:
-                    #     source = sd.source
-                    #     if 'SoFiA' in source.name:
-                    #         sd.delete()
-                    #         source.delete()
+                    logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
+                    for sd in delete_source_detections:
+                        source = sd.source
+                        if 'SoFiA' in source.name:
+                            sd.delete()
+                            source.delete()
 
                     logging.info("Release completed")
                 return len(queryset)
