@@ -5,7 +5,7 @@ import logging
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
-from survey.utils.components import get_survey_component, wallaby_release_name
+from survey.utils.components import get_survey_component, WALLABY_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
@@ -618,6 +618,7 @@ def external_conflict_view(request):
         if 'Add tags and comments' in body['action']:
             sd = SourceDetection.objects.get(detection=conflict.detection)
             sd_conflict = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
+            original_detection = sd_conflict.detection
 
             # Tag conflict source/detection for current run
             add_tag(request, sd)
@@ -632,7 +633,7 @@ def external_conflict_view(request):
             )
             add_comment(
                 request,
-                conflict.detection,
+                original_detection,
                 comment_input='comment_conflict'
             )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
