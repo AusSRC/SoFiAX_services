@@ -464,7 +464,7 @@ def inspect_detection_view(request):
             id__in=[sd.detection_id for sd in SourceDetection.objects.all()]
         )
         current_idx = list(detections_to_resolve).index(detection)
-        if 'Submit' in body['action']:
+        if 'Accept' in body['action']:
             logging.info(f'Marking detection {detection.name} as a real source.')
             source, _ = Source.objects.get_or_create(name=detection.name)
             sd = SourceDetection.objects.create(
