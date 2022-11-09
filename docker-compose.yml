@@ -40,6 +40,10 @@ services:
       context: vo
     env_file:
       - vo/vo.env
+    volumes:
+      - /var/gavo/state:/var/gavo/state
+      - /var/gavo/cache:/var/gavo/cache
+      - /var/gavo/tmp:/var/gavo/tmp
     ports:
       - 8080:8080
     networks:
