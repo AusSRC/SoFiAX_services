@@ -20,7 +20,7 @@
         </tr>
     </table>
 
-    <form style='padding: 2px' name="submit" method="post">
+    <form style='padding: 2px' method="post">
         {% csrf_token %}
         <br><hr><br>
 
@@ -47,9 +47,15 @@
         <!-- functionality -->
         <input type="hidden" name="detection_id" value={{ detection_id }}>
         <input type="hidden" name="run_id" value={{ run_id }}>
-        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Submit">
+        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Accept">
     </form>
     <div style='display: table'>
+        <form style='padding: 2px; display: table-cell' method="post">
+            {% csrf_token %}
+            <input type="hidden" name="detection_id" value={{ detection_id }}>
+            <input type="hidden" name="run_id" value={{ run_id }}>
+            <input name='action' id='previous' type="submit" value="First">
+        </form>
         <form style='padding: 2px; display: table-cell' method="post">
             {% csrf_token %}
             <input type="hidden" name="detection_id" value={{ detection_id }}>
@@ -67,6 +73,12 @@
             <input type="hidden" name="detection_id" value={{ detection_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
             <input name='action' id='next' type="submit" value="Next">
+        </form>
+        <form style='padding: 2px; display: table-cell' method="post">
+            {% csrf_token %}
+            <input type="hidden" name="detection_id" value={{ detection_id }}>
+            <input type="hidden" name="run_id" value={{ run_id }}>
+            <input name='action' id='next' type="submit" value="Last">
         </form>
     </div>
 {% endblock %}
