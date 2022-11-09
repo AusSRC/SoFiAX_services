@@ -55,12 +55,12 @@
             {% csrf_token %}
             <input type="hidden" name="detection_id" value={{ detection_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
-            <input name='action' id='previous' type="submit" value="First">
+            <input name='action' id='first' type="submit" value="First">
             <input name='action' id='previous' type="submit" value="Previous">
             <input style='width: 50px' type="number" name="index" min="1">
-            <input name='action' id='next' type="submit" value="Go to index">
+            <input name='action' id='go_to_index' type="submit" value="Go to index">
             <input name='action' id='next' type="submit" value="Next">
-            <input name='action' id='next' type="submit" value="Last">
+            <input name='action' id='last' type="submit" value="Last">
         </form>
     </div>
 {% endblock %}

@@ -651,6 +651,19 @@ def external_conflict_view(request):
             )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
+        if 'Go to index' in body['action']:
+            idx = int(request.POST['index'])
+            if idx >= len(conflicts):
+                idx = len(conflicts)
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx-1].id}"
+            return HttpResponseRedirect(url)
+        if 'First' in body['action']:
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[0].id}"
+            return HttpResponseRedirect(url)
+        if 'Last' in body['action']:
+            idx = len(conflicts) - 1
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
+            return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
             if new_idx >= len(conflicts) - 1:
