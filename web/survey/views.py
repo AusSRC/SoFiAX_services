@@ -466,15 +466,15 @@ def inspect_detection_view(request):
         current_idx = list(detections_to_resolve).index(detection)
         if 'Accept' in body['action']:
             logging.info(f'Marking detection {detection.name} as a real source.')
-            # source, _ = Source.objects.get_or_create(name=detection.name)
-            # sd = SourceDetection.objects.create(
-            #     source=source,
-            #     detection=detection
-            # )
+            source, _ = Source.objects.get_or_create(name=detection.name)
+            sd = SourceDetection.objects.create(
+                source=source,
+                detection=detection
+            )
 
-            # # add tags and comments if necessary
-            # add_tag(request, sd)
-            # add_comment(request, detection)
+            # add tags and comments if necessary
+            add_tag(request, sd)
+            add_comment(request, detection)
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
@@ -487,6 +487,12 @@ def inspect_detection_view(request):
         if 'Last' in body['action']:
             idx = len(detections_to_resolve) - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Go to index' in body['action']:
+            idx = int(request.POST['index'])
+            if idx >= len(detections_to_resolve):
+                idx = len(detections_to_resolve)
+            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[idx - 1].id}"
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
