@@ -577,13 +577,13 @@ def external_conflict_view(request):
             }
 
             # Show conflict
-            c_detection = SourceDetection.objects.get(id=conflict_sd_ids[0]).detection
+            c_sd = SourceDetection.objects.get(id=conflict_sd_ids[0])
+            c_detection = c_sd.detection
             c_product = Product.objects.get(detection=c_detection)
             c_img_src = summary_image_WALLABY(c_product, size=(6, 4))
-            c_sd = SourceDetection.objects.filter(detection=c_detection)
             c_description = ''
             if c_sd:
-                tag_sd = TagSourceDetection.objects.filter(source_detection=c_sd[0])
+                tag_sd = TagSourceDetection.objects.filter(source_detection=c_sd)
                 if tag_sd:
                     tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
                     c_description += ', '.join([t.name for t in tags])
@@ -678,6 +678,9 @@ def external_conflict_view(request):
             return HttpResponseRedirect(url)
         if 'Keep new source name' in body['action']:
             # check
+            new_idx = current_idx + 1
+            if new_idx >= len(conflicts) - 1:
+                new_idx = len(conflicts) - 1
             new_name = wallaby_release_name(conflict.detection.name)
             if new_name in [s.name for s in Source.objects.all()]:
                 messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
