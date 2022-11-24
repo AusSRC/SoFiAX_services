@@ -666,7 +666,7 @@ def external_conflict_view(request):
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
-            if new_idx >= len(conflicts) - 1:
+            if new_idx >= len(conflicts):
                 new_idx = len(conflicts) - 1
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
@@ -679,7 +679,7 @@ def external_conflict_view(request):
         if 'Keep new source name' in body['action']:
             # check
             new_idx = current_idx + 1
-            if new_idx >= len(conflicts) - 1:
+            if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
             new_name = wallaby_release_name(conflict.detection.name)
             if new_name in [s.name for s in Source.objects.all()]:
@@ -697,19 +697,23 @@ def external_conflict_view(request):
             conflict.delete()
 
             new_idx = current_idx + 1
-            if new_idx >= len(conflicts) - 1:
+            if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
+            if len(conflicts) == 1:
+                return HttpResponseRedirect('/admin/survey/run')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
-        if 'Delete detection' in body['action']:
+        if 'Delete conflict' in body['action']:
             # This will just delete the conflict since the actual source detection object
             # and corresponding source are deleted at release.
             logging.info("Conflict resolved")
             conflict.delete()
 
             new_idx = current_idx + 1
-            if new_idx >= len(conflicts) - 1:
+            if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
+            if len(conflicts) == 1:
+                return HttpResponseRedirect('/admin/survey/run')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
@@ -731,9 +735,11 @@ def external_conflict_view(request):
             conflict.delete()
 
             new_idx = current_idx + 1
-            if new_idx >= len(conflicts) - 1:
+            if new_idx >= len(conflicts):
                 # TODO: crashes if this is not correct.
                 new_idx = current_idx - 1
+            if len(conflicts) == 1:
+                return HttpResponseRedirect('/admin/survey/run')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         messages.warning(request, "Selected action that should not exist.")
