@@ -478,7 +478,7 @@ def inspect_detection_view(request):
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = len(detections_to_resolve) - 1
+                new_idx = current_idx - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'First' in body['action']:
@@ -497,7 +497,7 @@ def inspect_detection_view(request):
         if 'Next' in body['action']:
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = len(detections_to_resolve) - 1
+                new_idx = current_idx - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Previous' in body['action']:
@@ -512,7 +512,7 @@ def inspect_detection_view(request):
 
             new_idx = current_idx + 1
             if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = len(detections_to_resolve) - 1
+                new_idx = current_idx - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         messages.warning(request, "Selected action that should not exist.")
@@ -606,7 +606,7 @@ def external_conflict_view(request):
                 'description': description,
                 'image': mark_safe(img_src),
                 'properties': properties,
-                'conflict_name': c_sd[0].source.name,
+                'conflict_name': c_sd.source.name,
                 'conflict_description': c_description,
                 'conflict_image': mark_safe(c_img_src),
                 'conflict_properties': c_properties,
@@ -680,7 +680,7 @@ def external_conflict_view(request):
             # check
             new_idx = current_idx + 1
             if new_idx >= len(conflicts) - 1:
-                new_idx = len(conflicts) - 1
+                new_idx = current_idx - 1
             new_name = wallaby_release_name(conflict.detection.name)
             if new_name in [s.name for s in Source.objects.all()]:
                 messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
@@ -698,7 +698,7 @@ def external_conflict_view(request):
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts) - 1:
-                new_idx = len(conflicts) - 1
+                new_idx = current_idx - 1
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Delete detection' in body['action']:
@@ -709,7 +709,7 @@ def external_conflict_view(request):
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts) - 1:
-                new_idx = len(conflicts) - 1
+                new_idx = current_idx - 1
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
@@ -732,7 +732,8 @@ def external_conflict_view(request):
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts) - 1:
-                new_idx = len(conflicts) - 1
+                # TODO: crashes if this is not correct.
+                new_idx = current_idx - 1
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         messages.warning(request, "Selected action that should not exist.")

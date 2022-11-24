@@ -675,8 +675,6 @@ class RunAdmin(ModelAdmin):
 
                 # Detections from run must enter into one of these lists
                 accepted_detections = []
-                delete_sources = []
-                rename_sources = []
                 external_conflicts = []
 
                 logging.info(f'External cross matching applied to {len(run_detections)} detections')
@@ -685,6 +683,8 @@ class RunAdmin(ModelAdmin):
                     auto_rename = False
                     auto_delete = False
                     matches = []
+                    delete_sources = []
+                    rename_sources = []
 
                     # Compare against close detections.
                     # TODO: Fix this threshold for the poles with delta RA (cosine factor)
@@ -715,6 +715,7 @@ class RunAdmin(ModelAdmin):
                                     delete = True
                             if delete:
                                 auto_delete = True
+                                delete_sources.append(d_ext)
                             else:
                                 auto_rename = True
                                 rename_sources.append((sd, sd_ext))
@@ -724,14 +725,15 @@ class RunAdmin(ModelAdmin):
 
                     # Possible action for this detection
                     if auto_delete:
-                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted')
+                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted. Conflict: {delete_sources}')
                     if auto_rename and not auto_delete:
                         if len(rename_sources) > 1:
+                            logging.error(f'Multiple rename sources: {rename_sources}')
                             raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
                         _, sd_ext = rename_sources[0]
                         logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name}')
                     if not auto_rename and not auto_delete and matches:
-                        logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} to resolve manually')
+                        logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
                         for match in matches:
                             external_conflicts.append({
                                 'run': run,
@@ -745,30 +747,30 @@ class RunAdmin(ModelAdmin):
                 end = time.time()
                 logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
-                # # Release name check
-                # if set([wallaby_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
-                #     logging.error('External cross matching failed - release name already exists for accepted detection.')
-                #     return 0
+                # Release name check
+                if set([wallaby_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
+                    logging.error('External cross matching failed - release name already exists for accepted detection.')
+                    return 0
 
-                # logging.info("Writing updates to database")
-                # # Accepted sources
-                # for d in accepted_detections:
-                #     source = SourceDetection.objects.get(detection=d).source
-                #     release_name = wallaby_release_name(d.name)
-                #     source.name = release_name
-                #     source.save()
+                logging.info("Writing updates to database")
+                # Accepted sources
+                for d in accepted_detections:
+                    source = SourceDetection.objects.get(detection=d).source
+                    release_name = wallaby_release_name(d.name)
+                    source.name = release_name
+                    source.save()
 
-                # # Renaming
-                # for (sd, new_source) in rename_sources:
-                #     old_source = sd.source
-                #     sd.source = new_source
-                #     sd.save()
-                #     old_source.delete()
+                # Renaming
+                for (sd, new_source) in rename_sources:
+                    old_source = sd.source
+                    sd.source = new_source
+                    sd.save()
+                    old_source.delete()
 
-                # # External conflicts
-                # for ex_c in external_conflicts:
-                #     ExternalConflict.objects.get_or_create(**ex_c)
-                # logging.info("Updating database complete")
+                # External conflicts
+                for ex_c in external_conflicts:
+                    ExternalConflict.objects.get_or_create(**ex_c)
+                logging.info("Updating database complete")
             logging.info("External cross matching completed")
         except Exception as e:
             logging.error(e)
