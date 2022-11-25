@@ -10,6 +10,7 @@ from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
 from django.urls import reverse
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
@@ -629,26 +630,27 @@ def external_conflict_view(request):
         )
         current_idx = list(conflicts).index(conflict)
         if 'Add tags and comments' in body['action']:
-            sd = SourceDetection.objects.get(detection=conflict.detection)
-            sd_conflict = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
-            original_detection = sd_conflict.detection
+            with transaction.atomic():
+                sd = SourceDetection.objects.get(detection=conflict.detection)
+                sd_conflict = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
+                original_detection = sd_conflict.detection
 
-            # Tag conflict source/detection for current run
-            add_tag(request, sd)
-            add_comment(request, conflict.detection)
+                # Tag conflict source/detection for current run
+                add_tag(request, sd)
+                add_comment(request, conflict.detection)
 
-            # Tag conflict source/detection
-            add_tag(
-                request,
-                sd_conflict,
-                tag_select_input='tag_select_conflict',
-                tag_create_input='tag_create_conflict'
-            )
-            add_comment(
-                request,
-                original_detection,
-                comment_input='comment_conflict'
-            )
+                # Tag conflict source/detection
+                add_tag(
+                    request,
+                    sd_conflict,
+                    tag_select_input='tag_select_conflict',
+                    tag_create_input='tag_create_conflict'
+                )
+                add_comment(
+                    request,
+                    original_detection,
+                    comment_input='comment_conflict'
+                )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
         if 'Go to index' in body['action']:
@@ -677,24 +679,22 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Keep new source name' in body['action']:
-            # check
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = current_idx - 1
-            new_name = wallaby_release_name(conflict.detection.name)
-            if new_name in [s.name for s in Source.objects.all()]:
-                messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
-                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
-                return HttpResponseRedirect(url)
+            with transaction.atomic():
+                # Check against existing sources
+                new_name = wallaby_release_name(conflict.detection.name)
+                if new_name in [s.name for s in Source.objects.all()]:
+                    messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
+                    url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
+                    return HttpResponseRedirect(url)
 
-            # Accept new name as an official (and separate) source
-            sd = SourceDetection.objects.get(detection=conflict.detection)
-            source = sd.source
-            source.name = new_name
-            source.save()
-
-            logging.info("Conflict resolved")
-            conflict.delete()
+                # Accept new name as an official (and separate) source
+                logging.info(f'Adding official name {new_name} to detection {conflict.detection.name}')
+                sd = SourceDetection.objects.get(detection=conflict.detection)
+                source = sd.source
+                source.name = new_name
+                source.save()
+                logging.info("Conflict resolved")
+                conflict.delete()
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
@@ -704,10 +704,24 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Delete conflict' in body['action']:
-            # This will just delete the conflict since the actual source detection object
-            # and corresponding source are deleted at release.
-            logging.info("Conflict resolved")
-            conflict.delete()
+            with transaction.atomic():
+                # Remove any conflicts that may have previously been accepted
+                sds = SourceDetection.objects.filter(detection=conflict.detection)
+                for sd in sds:
+                    if 'WALLABY' in sd.source.name:
+                        logging.info('Detection was accepted in previous external conflict resolution. Must now de-select source detection.')
+                        source = sd.source
+                        revert_name = source.name.replace('WALLABY', 'SoFiA')
+                        source.name = revert_name
+                        source.save()
+                logging.info("Conflict resolved")
+                conflict.delete()
+
+                # Remove other possible conflicts with this detection.
+                other_conflicts = ExternalConflict.objects.filter(detection=conflict.detection)
+                logging.info(f'Other conflicts id={[c.id for c in other_conflicts]} can also be resolved')
+                for c in other_conflicts:
+                    c.delete()
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
@@ -717,22 +731,22 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
-            detection = conflict.detection
-            logging.info(f'Adding detection {detection.name} to existing source.')
-            sds = conflict.conflict_source_detection_ids
-            if len(sds) != 1:
-                messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
-            sd_id = sds[0]
+            with transaction.atomic():
+                detection = conflict.detection
+                sds = conflict.conflict_source_detection_ids
+                if len(sds) != 1:
+                    messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
+                sd_id = sds[0]
 
-            # Delete existing source and update source detection
-            sd_existing = SourceDetection.objects.get(detection=detection)
-            logging.info(f"Deleting source {sd_existing.source.name} and updating source detection")
-            new_source = Source.objects.get(id=sd_id)
-            old_source = sd_existing.source
-            if old_source != new_source:
+                # Delete existing source and update source detection
+                sd_existing = SourceDetection.objects.get(detection=detection)
+                new_source = Source.objects.get(id=sd_id)
+                old_source = sd_existing.source
                 sd_existing.source = new_source
-            logging.info("Conflict resolved")
-            conflict.delete()
+                logging.info(f'Adding detection {detection.name} to existing source {new_source.name}.')
+                sd_existing.save()
+                logging.info("Conflict resolved")
+                conflict.delete()
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):

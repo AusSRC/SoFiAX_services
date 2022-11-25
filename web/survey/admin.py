@@ -162,11 +162,12 @@ class DetectionAdmin(ModelAdmin):
 
                 # Create source and source detection entries
                 for detection in detect_list:
-                    source = Source.objects.create(name=detection.name)
-                    SourceDetection.objects.create(
-                        source=source,
-                        detection=detection
-                    )
+                    with transaction.atomic():
+                        source = Source.objects.create(name=detection.name)
+                        SourceDetection.objects.create(
+                            source=source,
+                            detection=detection
+                        )
                 messages.info(request, f"Marked {len(detect_list)} detections as sources.")
                 return
         except Exception as e:
@@ -195,12 +196,13 @@ class DetectionAdmin(ModelAdmin):
                 tag = Tag.objects.get(id=int(tag_select))
             detect_list = list(queryset)
             for d in detect_list:
-                source_detection = SourceDetection.objects.get(detection=d)
-                TagSourceDetection.objects.create(
-                    source_detection=source_detection,
-                    tag=tag,
-                    author=str(request.user)
-                )
+                with transaction.atomic():
+                    source_detection = SourceDetection.objects.get(detection=d)
+                    TagSourceDetection.objects.create(
+                        source_detection=source_detection,
+                        tag=tag,
+                        author=str(request.user)
+                    )
             return len(detect_list)
         except Exception as e:
             messages.error(request, str(e))
@@ -398,27 +400,28 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     @add_tag_form(AddTagForm)
     def add_tag(self, request, queryset):
         try:
-            # get or create tag
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            if tag_select == 'None':
-                if tag_create == '':
-                    messages.error(request, "No tag selected or created")
-                    return
+            with transaction.atomic():
+                # get or create tag
+                tag_select = request.POST['tag_select']
+                tag_create = str(request.POST['tag_create'])
+                if tag_select == 'None':
+                    if tag_create == '':
+                        messages.error(request, "No tag selected or created")
+                        return
+                    else:
+                        tag = Tag.objects.create(
+                            name=tag_create
+                        )
                 else:
-                    tag = Tag.objects.create(
-                        name=tag_create
+                    tag = Tag.objects.get(id=int(tag_select))
+                detect_list = list(queryset)
+                for d in detect_list:
+                    source_detection = SourceDetection.objects.get(detection=d)
+                    TagSourceDetection.objects.create(
+                        source_detection=source_detection,
+                        tag=tag,
+                        author=str(request.user)
                     )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-            detect_list = list(queryset)
-            for d in detect_list:
-                source_detection = SourceDetection.objects.get(detection=d)
-                TagSourceDetection.objects.create(
-                    source_detection=source_detection,
-                    tag=tag,
-                    author=str(request.user)
-                )
             return len(detect_list)
         except Exception as e:
             messages.error(request, str(e))
@@ -431,14 +434,15 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     @add_comment_form(AddCommentForm)
     def add_comment(self, request, queryset):
         try:
-            detect_list = list(queryset)
-            comment = str(request.POST['comment'])
-            for d in detect_list:
-                Comment.objects.create(
-                    comment=comment,
-                    author=str(request.user),
-                    detection=d
-                )
+            with transaction.atomic():
+                detect_list = list(queryset)
+                comment = str(request.POST['comment'])
+                for d in detect_list:
+                    Comment.objects.create(
+                        comment=comment,
+                        author=str(request.user),
+                        detection=d
+                    )
             return len(detect_list)
         except Exception as e:
             messages.error(request, str(e))
@@ -675,9 +679,10 @@ class RunAdmin(ModelAdmin):
 
                 # Detections from run must enter into one of these lists
                 accepted_detections = []
+                all_rename_sources = []
                 external_conflicts = []
 
-                logging.info(f'External cross matching applied to {len(run_detections)} detections')
+                logging.info(f'External cross matching applied to {run.name} {len(run_detections)} detections')
                 start = time.time()
                 for idx, d in enumerate(run_detections):
                     auto_rename = False
@@ -731,7 +736,8 @@ class RunAdmin(ModelAdmin):
                             logging.error(f'Multiple rename sources: {rename_sources}')
                             raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
                         _, sd_ext = rename_sources[0]
-                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name}')
+                        all_rename_sources += rename_sources
+                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name} [{sd_ext.detection.run.name}]')
                     if not auto_rename and not auto_delete and matches:
                         logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
                         for match in matches:
@@ -761,8 +767,10 @@ class RunAdmin(ModelAdmin):
                     source.save()
 
                 # Renaming
-                for (sd, new_source) in rename_sources:
+                for (sd, new_sd) in all_rename_sources:
                     old_source = sd.source
+                    new_source = new_sd.source
+                    logging.info(f'Database update: Renaming {old_source} to {new_source}')
                     sd.source = new_source
                     sd.save()
                     old_source.delete()
@@ -832,8 +840,6 @@ class RunAdmin(ModelAdmin):
                     logging.info(f"Preparing release for run {run.name}")
                     detections = Detection.objects.filter(
                         run=run,
-                        n_pix__gte=300,
-                        rel__gte=0.7,
                         id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
                     ).select_for_update()
                     release_detections = detections.filter(
@@ -858,13 +864,11 @@ class RunAdmin(ModelAdmin):
                     logging.info(f"{len(release_detections)} detections to release, {len(delete_detections)} detections to delete")
 
                     # Release sources
-                    release_source_detections = SourceDetection.objects.filter(
-                        detection_id__in=[d.id for d in release_detections]
-                    )
-                    for sd in release_source_detections:
+                    release_source_detections = [SourceDetection.objects.get(detection=d) for d in release_detections]
+                    for idx, sd in enumerate(release_source_detections):
                         existing = TagSourceDetection.objects.filter(tag=tag, source_detection=sd)
                         if not existing:
-                            logging.info(f'Creating TagSourceDetection entry for Source {sd.source.name}')
+                            logging.info(f'[{idx+1}/{len(release_source_detections)}] Creating TagSourceDetection entry for Source {sd.source.name}')
                             TagSourceDetection.objects.create(
                                 tag=tag,
                                 source_detection=sd,
@@ -877,12 +881,20 @@ class RunAdmin(ModelAdmin):
                     delete_source_detections = SourceDetection.objects.filter(
                         detection_id__in=[d.id for d in delete_detections]
                     )
-                    logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
-                    for sd in delete_source_detections:
-                        source = sd.source
-                        if 'SoFiA' in source.name:
-                            sd.delete()
-                            source.delete()
+                    logging.info('Not deleting any sources for the time being.')
+                    # logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
+                    # for idx, sd in enumerate(delete_source_detections):
+                    #     try:
+                    #         source = sd.source
+                    #     except Exception as e:
+                    #         # TODO: this should never happen since delete should cascade down.
+                    #         logging.info('Source does not exist for this source detection. Deleting source detection.')
+                    #         sd.delete()
+                    #         continue
+                    #     if 'SoFiA' in source.name:
+                    #         logging.info(f'[{idx+1}/{len(delete_source_detections)}] Deleting source {source.name}')
+                    #         sd.delete()
+                    #         source.delete()
 
                     logging.info("Release completed")
                 return len(queryset)
