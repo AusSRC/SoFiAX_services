@@ -333,8 +333,8 @@ class Source(models.Model):
 
 class SourceDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
-    source = models.ForeignKey(Source, models.DO_NOTHING)
-    detection = models.OneToOneField(Detection, models.DO_NOTHING)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE)
+    detection = models.OneToOneField(Detection, on_delete=models.CASCADE)
     added_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
@@ -417,7 +417,7 @@ class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=2048, blank=True, null=True)
-    detection = models.ForeignKey('Detection', models.DO_NOTHING)
+    detection = models.ForeignKey('Detection', on_delete=models.CASCADE)
     updated_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
@@ -442,12 +442,13 @@ class Tag(models.Model):
 class TagSourceDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
     tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    source_detection = models.ForeignKey(SourceDetection, models.DO_NOTHING)
+    source_detection = models.ForeignKey(SourceDetection, on_delete=models.CASCADE)
     author = models.CharField(max_length=2048, blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
         managed = False
         db_table = 'tag_source_detection'
+        unique_together = (('tag', 'source_detection'),)
 
 # ------------------------------------------------------------------------------
