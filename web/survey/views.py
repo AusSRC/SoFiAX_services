@@ -497,8 +497,8 @@ def inspect_detection_view(request):
             return HttpResponseRedirect(url)
         if 'Next' in body['action']:
             new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = current_idx - 1
+            if new_idx >= len(detections_to_resolve):
+                new_idx = len(detections_to_resolve) - 1
             url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Previous' in body['action']:
