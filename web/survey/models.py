@@ -452,3 +452,22 @@ class TagSourceDetection(models.Model):
         unique_together = (('tag', 'source_detection'),)
 
 # ------------------------------------------------------------------------------
+# Operational tables
+
+class Observation(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    sbid = models.CharField(max_length=48, blank=True, null=True)
+    # ra
+    # dec
+    # description
+    # phase
+    # image_cube_file
+    # weights_cube_file
+    # quality
+    # status
+
+# ------------------------------------------------------------------------------
+
+# LOST GALAXIES
+# Source.objects.get(name='WALLABY J133516-223211')
+# WALLABY J133516-223211

@@ -694,8 +694,6 @@ class RunAdmin(ModelAdmin):
                     # Compare against close detections.
                     # TODO: Fix this threshold for the poles with delta RA (cosine factor)
                     close_detections = Detection.objects.filter(
-                        n_pix__gte=300,
-                        rel__gte=0.7,
                         id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
                         ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                         dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
@@ -754,8 +752,11 @@ class RunAdmin(ModelAdmin):
                 logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
                 # Release name check
-                if set([wallaby_release_name(d.name) for d in accepted_detections]) & set([s.name for s in Source.objects.all()]):
+                accepted_source_names = set([wallaby_release_name(d.name) for d in accepted_detections])
+                existing_wallaby_names = set([s.name for s in Source.objects.all()])
+                if accepted_source_names & existing_wallaby_names:
                     logging.error('External cross matching failed - release name already exists for accepted detection.')
+                    logging.error(f'Attempting to rename to: {accepted_source_names.intersection(existing_wallaby_names)}')
                     return 0
 
                 logging.info("Writing updates to database")
@@ -767,6 +768,7 @@ class RunAdmin(ModelAdmin):
                     source.save()
 
                 # Renaming
+                logging.info(f'Renaming: {all_rename_sources}')
                 for (sd, new_sd) in all_rename_sources:
                     old_source = sd.source
                     new_source = new_sd.source
@@ -881,20 +883,19 @@ class RunAdmin(ModelAdmin):
                     delete_source_detections = SourceDetection.objects.filter(
                         detection_id__in=[d.id for d in delete_detections]
                     )
-                    logging.info('Not deleting any sources for the time being.')
-                    # logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
-                    # for idx, sd in enumerate(delete_source_detections):
-                    #     try:
-                    #         source = sd.source
-                    #     except Exception as e:
-                    #         # TODO: this should never happen since delete should cascade down.
-                    #         logging.info('Source does not exist for this source detection. Deleting source detection.')
-                    #         sd.delete()
-                    #         continue
-                    #     if 'SoFiA' in source.name:
-                    #         logging.info(f'[{idx+1}/{len(delete_source_detections)}] Deleting source {source.name}')
-                    #         sd.delete()
-                    #         source.delete()
+                    logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
+                    for idx, sd in enumerate(delete_source_detections):
+                        try:
+                            source = sd.source
+                        except Exception as e:
+                            # TODO: this should never happen since delete should cascade down.
+                            logging.info('Source does not exist for this source detection. Deleting source detection.')
+                            sd.delete()
+                            continue
+                        if 'SoFiA' in source.name:
+                            logging.info(f'[{idx+1}/{len(delete_source_detections)}] Deleting source {source.name}')
+                            sd.delete()
+                            source.delete()
 
                     logging.info("Release completed")
                 return len(queryset)

@@ -624,6 +624,7 @@ def external_conflict_view(request):
     elif request.method == 'POST':
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
+        logging.info(f'External conflict resolution for run {run.name}')
         conflict = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
         conflicts = ExternalConflict.objects.filter(
             detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
@@ -706,14 +707,21 @@ def external_conflict_view(request):
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted
-                sds = SourceDetection.objects.filter(detection=conflict.detection)
+                sds = SourceDetection.objects.filter(
+                    detection=conflict.detection
+                )
                 for sd in sds:
-                    if 'WALLABY' in sd.source.name:
-                        logging.info('Detection was accepted in previous external conflict resolution. Must now de-select source detection.')
-                        source = sd.source
-                        revert_name = source.name.replace('WALLABY', 'SoFiA')
-                        source.name = revert_name
-                        source.save()
+                    source = sd.source
+                    ssd = SourceDetection.objects.filter(source=source)
+                    # Delete source if this is the only detection (create new)
+                    if (len(ssd) == 1) and (ssd[0] == sd):
+                        logging.info(f'Deleting source {source.name}.')
+                        sd.delete()
+                        source.delete()
+                    # Delete only the source detection if a source existed already (rename)
+                    else:
+                        logging.info(f'Deleting source detection (id={sd.id}) since related source has been released.')
+                        sd.delete()
                 logging.info("Conflict resolved")
                 conflict.delete()
 
@@ -728,19 +736,20 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+            # TODO: what if {conflicts[new_idx].id} does not exist?
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
             with transaction.atomic():
                 detection = conflict.detection
-                sds = conflict.conflict_source_detection_ids
-                if len(sds) != 1:
+                sd_ids = conflict.conflict_source_detection_ids
+                if len(sd_ids) != 1:
                     messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
-                sd_id = sds[0]
+                sd_id = sd_ids[0]
 
                 # Delete existing source and update source detection
                 sd_existing = SourceDetection.objects.get(detection=detection)
-                new_source = Source.objects.get(id=sd_id)
+                new_source = SourceDetection.objects.get(id=sd_id).source
                 old_source = sd_existing.source
                 sd_existing.source = new_source
                 logging.info(f'Adding detection {detection.name} to existing source {new_source.name}.')
