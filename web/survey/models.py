@@ -371,39 +371,39 @@ class SpatialRefSys(models.Model):
 
 
 class KinematicModel(models.Model):
-    id = models.BigAutoField(db_column='ID', primary_key=True)
-    name = models.ForeignKey('Source', models.DO_NOTHING, db_column='Name', to_field='name')
-    ra = models.FloatField(db_column='RA')
-    dec = models.FloatField(db_column='DEC')
+    id = models.BigAutoField(primary_key=True)
+    name = models.ForeignKey('Source', models.DO_NOTHING, to_field='name')
+    ra = models.FloatField()
+    dec = models.FloatField()
     freq = models.FloatField()
     team_release = models.CharField(max_length=255)
     team_release_kin = models.CharField(max_length=255)
-    vsys_model = models.FloatField(db_column='Vsys_model')
-    e_vsys_model = models.FloatField(db_column='e_Vsys_model')
-    x_model = models.FloatField(db_column='X_model')
-    e_x_model = models.FloatField(db_column='e_X_model')
-    y_model = models.FloatField(db_column='Y_model')
-    e_y_model = models.FloatField(db_column='e_Y_model')
-    ra_model = models.FloatField(db_column='RA_model')
-    e_ra_model = models.FloatField(db_column='e_RA_model')
-    dec_model = models.FloatField(db_column='DEC_model')
-    e_dec_model = models.FloatField(db_column='e_DEC_model')
-    inc_model = models.FloatField(db_column='Inc_model')
-    e_inc_model = models.FloatField(db_column='e_Inc_model')
-    pa_model = models.FloatField(db_column='PA_model')
-    e_pa_model = models.FloatField(db_column='e_PA_model')
-    pa_model_g = models.FloatField(db_column='PA_model_g')
-    e_pa_model_g = models.FloatField(db_column='e_PA_model_g')
-    qflag_model = models.IntegerField(db_column='QFlag_model')
-    rad = models.CharField(db_column='Rad', max_length=255)
-    vrot_model = models.CharField(db_column='Vrot_model', max_length=255)
-    e_vrot_model = models.CharField(db_column='e_Vrot_model', max_length=255)
-    e_vrot_model_inc = models.CharField(db_column='e_Vrot_model_inc', max_length=255)
-    rad_sd = models.CharField(db_column='Rad_SD', max_length=255)
-    sd_model = models.CharField(db_column='SD_model', max_length=255)
-    e_sd_model = models.CharField(db_column='e_SD_model', max_length=255)
-    sd_fo_model = models.CharField(db_column='SD_FO_model', max_length=255)
-    e_sd_fo_model_inc = models.CharField(db_column='e_SD_FO_model_inc', max_length=255)
+    vsys_model = models.FloatField()
+    e_vsys_model = models.FloatField()
+    x_model = models.FloatField()
+    e_x_model = models.FloatField()
+    y_model = models.FloatField()
+    e_y_model = models.FloatField()
+    ra_model = models.FloatField()
+    e_ra_model = models.FloatField()
+    dec_model = models.FloatField()
+    e_dec_model = models.FloatField()
+    inc_model = models.FloatField()
+    e_inc_model = models.FloatField()
+    pa_model = models.FloatField()
+    e_pa_model = models.FloatField()
+    pa_model_g = models.FloatField()
+    e_pa_model_g = models.FloatField()
+    qflag_model = models.IntegerField()
+    rad = models.CharField(max_length=255)
+    vrot_model = models.CharField(max_length=255)
+    e_vrot_model = models.CharField(max_length=255)
+    e_vrot_model_inc = models.CharField(max_length=255)
+    rad_sd = models.CharField(max_length=255)
+    sd_model = models.CharField(max_length=255)
+    e_sd_model = models.CharField(max_length=255)
+    sd_fo_model = models.CharField(max_length=255)
+    e_sd_fo_model_inc = models.CharField(max_length=255)
 
     class Meta:
         managed = False
@@ -454,20 +454,33 @@ class TagSourceDetection(models.Model):
 # ------------------------------------------------------------------------------
 # Operational tables
 
+
+class SurveyComponent(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.TextField()
+    runs = ArrayField(
+        models.TextField()
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'survey_component'
+
+
 class Observation(models.Model):
     id = models.BigAutoField(primary_key=True)
-    sbid = models.CharField(max_length=48, blank=True, null=True)
-    # ra
-    # dec
-    # description
-    # phase
-    # image_cube_file
-    # weights_cube_file
-    # quality
-    # status
+    sbid = models.CharField(max_length=64)
+    ra = models.FloatField()
+    dec = models.FloatField()
+    description = models.TextField()
+    phase = models.CharField(max_length=64)
+    image_cube_file = models.CharField(max_length=256)
+    weights_cube_file = models.CharField(max_length=256)
+    quality = models.CharField(max_length=64)
+    status = models.CharField(max_length=64)
+
+    class Meta:
+        managed = False
+        db_table = 'observation'
 
 # ------------------------------------------------------------------------------
-
-# LOST GALAXIES
-# Source.objects.get(name='WALLABY J133516-223211')
-# WALLABY J133516-223211

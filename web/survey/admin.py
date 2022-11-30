@@ -13,7 +13,8 @@ from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.components import wallaby_survey_components, wallaby_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
-    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel
+    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel,\
+    Observation, SurveyComponent
 
 
 logging.basicConfig(level=logging.INFO)
@@ -78,6 +79,38 @@ class CommentAdmin(ModelAdmin):
 
 class KinematicModelAdmin(ModelAdmin):
     list_display = [f.name for f in KinematicModel._meta.get_fields()]
+
+
+class ObservationAdmin(ModelAdmin):
+    list_display = [f.name for f in Observation._meta.get_fields()]
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def has_add_permission(self, request, obj=None):
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return True
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+
+class SurveyComponentAdmin(ModelAdmin):
+    list_display = [f.name for f in SurveyComponent._meta.get_fields()]
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def has_add_permission(self, request, obj=None):
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return True
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
 
 
 class SourceDetectionAdmin(ModelAdmin):
@@ -713,7 +746,8 @@ class RunAdmin(ModelAdmin):
                         if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                             # Logic: delete if in same survey component or reassign to existing source otherwise.
                             delete = False
-                            for runs in wallaby_survey_components.values():
+                            survey_components = wallaby_survey_components()
+                            for runs in survey_components.values():
                                 if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
                                     delete = True
                             if delete:
@@ -790,10 +824,28 @@ class RunAdmin(ModelAdmin):
         """Run the external cross matching workflow to identify sources
         that conflict with sources from other survey components.
 
-        NOTE: current external matching looks forward and backward in time (potentially need
-        to ignore the external matches that are more recent than the first detection)
-
         """
+        if len(queryset) != 1:
+            messages.error(request, "Only one run can be selected at a time for external cross matching.")
+            return
+
+        # Check to make sure run is in survey_components
+        run = list(queryset)[0]
+        survey_component_runs = []
+        survey_components = wallaby_survey_components()
+        for runs in survey_components.values():
+            survey_component_runs += runs
+        if run.name not in survey_component_runs:
+            messages.error(request, "This run is not in the survey component list.")
+            return
+
+        # Make sure all runs have a survey component
+        existing_runs = [r.name for r in Run.objects.all()]
+        if set(existing_runs) != set(survey_component_runs):
+            diff_runs = list(set(existing_runs) - set(survey_component_runs))
+            messages.error(request, f"Runs with no survey components: {diff_runs}")
+            return
+
         try:
             t = threading.Thread(target=self._external_cross_match_function, args=(request, queryset,))
             t.start()
@@ -833,9 +885,6 @@ class RunAdmin(ModelAdmin):
                     )
             else:
                 tag = Tag.objects.get(id=int(tag_select))
-
-            # perform checks
-            # - Untagged release name source detection objects
 
             with transaction.atomic():
                 for run in queryset:
@@ -927,3 +976,5 @@ admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
 admin.site.register(KinematicModel, KinematicModelAdmin)
+admin.site.register(SurveyComponent, SurveyComponentAdmin)
+admin.site.register(Observation, ObservationAdmin)

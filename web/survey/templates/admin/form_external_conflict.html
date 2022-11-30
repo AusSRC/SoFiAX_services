@@ -5,7 +5,7 @@
     <!-- Summary image -->
     <h3>{{ subheading }}</h3>
     <br><hr><br>
-    <form style='padding: 2px' name="submit" method="post">
+    <form style="padding: 2px" name="submit" method="post">
         {% csrf_token %}
         <div style="display: flex">
             <div style="flex: 50%">
@@ -83,23 +83,24 @@
         <br><hr><br>
         <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
         <input type="hidden" name="run_id" value={{ run_id }}>
-        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Add tags and comments">
-        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='keep_new_source' type="submit" value="Keep new source name">
-        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='add_to_existing' type="submit" value="Copy old source name">
-        <input name='action' style='background-color: rgba(255, 0, 0, 0.729);' id='delete_detection' type="submit" value="Delete conflict">
+        <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="submit" type="submit" value="Add tags and comments">
+        <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="keep_new_source" type="submit" value="Keep new source name">
+        <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="add_to_existing" type="submit" value="Copy old source name">
+        <input name="action" style="background-color: rgba(255, 132, 0, 0.852);" id="ignore_conflict" type="submit" value="Ignore conflict">
+        <input name="action" style="background-color: rgba(255, 0, 0, 0.729);" id="delete_detection" type="submit" value="Delete conflict">
     </form>
 
-    <div style='display: table'>
-        <form style='padding: 2px; display: table-cell' method="post">
+    <div style="display: table">
+        <form style="padding: 2px; display: table-cell" method="post">
             {% csrf_token %}
             <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
             <input type="hidden" name="run_id" value={{ run_id }}>
-            <input name='action' id='first' type="submit" value="First">
-            <input name='action' id='previous' type="submit" value="Previous">
-            <input style='width: 50px' type="number" name="index" min="1">
-            <input name='action' id='go_to_index' type="submit" value="Go to index">
-            <input name='action' id='next' type="submit" value="Next">
-            <input name='action' id='last' type="submit" value="Last">
+            <input name="action" id="first" type="submit" value="First">
+            <input name="action" id="previous" type="submit" value="Previous">
+            <input style="width: 50px" type="number" name="index" min="1">
+            <input name="action" id="go_to_index" type="submit" value="Go to index">
+            <input name="action" id="next" type="submit" value="Next">
+            <input name="action" id="last" type="submit" value="Last">
         </form>
     </div>
 {% endblock %}

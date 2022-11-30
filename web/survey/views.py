@@ -704,6 +704,14 @@ def external_conflict_view(request):
                 return HttpResponseRedirect('/admin/survey/run')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+        if 'Ignore conflict' in body['action']:
+            # conflict.delete()
+            new_idx = current_idx + 1
+            if new_idx >= len(conflicts):
+                new_idx = current_idx - 1
+            if len(conflicts) == 1:
+                return HttpResponseRedirect('/admin/survey/run')
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted
@@ -741,6 +749,20 @@ def external_conflict_view(request):
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
             with transaction.atomic():
+                # Priority over creating new name. Undo create new name if exists
+                sds = SourceDetection.objects.filter(
+                    detection=conflict.detection
+                )
+                # Remove new name source if exists.
+                for sd in sds:
+                    source = sd.source
+                    ssd = SourceDetection.objects.filter(source=source)
+                    # Delete source if this is the only detection (create new)
+                    if (len(ssd) == 1) and (ssd[0] == sd) and ('WALLABY' in source.name):
+                        logging.info(f'Deleting source {source.name}.')
+                        sd.delete()
+                        source.delete()
+
                 detection = conflict.detection
                 sd_ids = conflict.conflict_source_detection_ids
                 if len(sd_ids) != 1:
@@ -766,7 +788,7 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         messages.warning(request, "Selected action that should not exist.")
-        url = f"{reverse('inspect_detection')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
+        url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
         return HttpResponseRedirect(url)
     else:
         messages.warning(request, "Error, returning to run.")
