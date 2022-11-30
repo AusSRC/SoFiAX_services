@@ -705,13 +705,14 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Ignore conflict' in body['action']:
-            # conflict.delete()
+            conflict.delete()
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            return HttpResponseRedirect(url)
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted
