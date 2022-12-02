@@ -526,7 +526,6 @@ def inspect_detection_view(request):
 
 # TODO: require superuser status
 def external_conflict_view(request):
-    # Handle GET request
     if request.method == 'GET':
         run_id = request.GET.get('run_id', None)
         if not run_id:
@@ -599,6 +598,11 @@ def external_conflict_view(request):
                 'w20': round(c_detection.w20, 2),
                 'w50': round(c_detection.w50, 2)
             }
+            # Check same survey component for additional functionality
+            detection_survey_component = get_survey_component(conflict.detection)
+            conflict_survey_component = get_survey_component(c_detection)
+            same_survey_component = detection_survey_component == conflict_survey_component
+
             # Form content
             params = {
                 'title': conflict.detection.name,
@@ -614,7 +618,9 @@ def external_conflict_view(request):
                 'run_id': run_id,
                 'external_conflict_id': conflict.id,
                 'tags': Tag.objects.all(),
+                'same_survey_component': same_survey_component,
             }
+            logging.info(f'External conflict {conflict.detection} [{detection_survey_component}] with {c_detection} [{conflict_survey_component}]')
             return render(request, 'admin/form_external_conflict.html', params)
         elif len(conflict_sd_ids) > 1:
             messages.warning(request, "No view has been developed to handle more than one conflict yet...")
@@ -705,6 +711,7 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Ignore conflict' in body['action']:
+            logging.info(f'Ignoring conflict {conflict.id}. Deleting conflict instance.')
             conflict.delete()
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
@@ -714,6 +721,7 @@ def external_conflict_view(request):
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
         if 'Delete conflict' in body['action']:
+            deleted_other_conflict = False
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted
                 sds = SourceDetection.objects.filter(
@@ -727,10 +735,12 @@ def external_conflict_view(request):
                         logging.info(f'Deleting source {source.name}.')
                         sd.delete()
                         source.delete()
+                        deleted_other_conflict = True
                     # Delete only the source detection if a source existed already (rename)
                     else:
                         logging.info(f'Deleting source detection (id={sd.id}) since related source has been released.')
                         sd.delete()
+                        deleted_other_conflict = True
                 logging.info("Conflict resolved")
                 conflict.delete()
 
@@ -745,8 +755,12 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
-            # TODO: what if {conflicts[new_idx].id} does not exist?
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            if deleted_other_conflict:
+                conflicts = ExternalConflict.objects.filter(
+                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
+                )
+                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
             return HttpResponseRedirect(url)
         if 'Copy old source name' in body['action']:
             with transaction.atomic():
@@ -783,6 +797,26 @@ def external_conflict_view(request):
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
                 # TODO: crashes if this is not correct.
+                new_idx = current_idx - 1
+            if len(conflicts) == 1:
+                return HttpResponseRedirect('/admin/survey/run')
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            return HttpResponseRedirect(url)
+        if 'Replace detection in source' in body['action']:
+            detection = conflict.detection
+            sd = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
+            source = sd.source
+            logging.info(f'Replacing detection {sd.detection} with {detection} in source {source}.')
+
+            with transaction.atomic():
+                logging.info('Database update')
+                current_sd = SourceDetection.objects.get(detection=detection)
+                current_sd.source = source
+                current_sd.save()
+                sd.delete()
+
+            new_idx = current_idx + 1
+            if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')

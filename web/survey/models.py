@@ -325,6 +325,32 @@ class Source(models.Model):
     def __str__(self):
         return f"{self.name}"
 
+    def save(self, *args, **kwargs):
+        """Do not save changes for released WALLABY sources."""
+        release_tags = Tag.objects.filter(type='release')
+        sds = SourceDetection.objects.filter(source=self)
+        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
+        is_tagged = False
+        for tsd in tsds:
+            if tsd.tag in release_tags:
+                is_tagged = True
+        if ('WALLABY' in self.name) and is_tagged:
+            raise Exception(f"Cannot overwrite a released WALLABY source {self.name}.")
+        super(Source, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Cannot delete released WALLABY sources."""
+        release_tags = Tag.objects.filter(type='release')
+        sds = SourceDetection.objects.filter(source=self)
+        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
+        is_tagged = False
+        for tsd in tsds:
+            if tsd.tag in release_tags:
+                is_tagged = True
+        if ('WALLABY' in self.name) and is_tagged:
+            raise Exception(f"Cannot overwrite a released WALLABY source {self.name}.")
+        super(Source, self).delete(*args, **kwargs)
+
     class Meta:
         managed = False
         db_table = 'source'
@@ -336,6 +362,28 @@ class SourceDetection(models.Model):
     source = models.ForeignKey(Source, on_delete=models.CASCADE)
     detection = models.OneToOneField(Detection, on_delete=models.CASCADE)
     added_at = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        """Do not save changes for released WALLABY source detections."""
+        internal_release_tag = Tag.objects.get(name='Internal Release')
+        tsds = TagSourceDetection.objects.filter(source_detection=self)
+        is_released = False
+        if internal_release_tag in tsds:
+            is_released = True
+        if ('WALLABY' in source.name) and is_released:
+            raise Exception(f"Cannot change source detection pointing to a released WALLABY source {self.source.name}.")
+        super(SourceDetection, self).save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Do not delete released WALLABY sources."""
+        internal_release_tag = Tag.objects.get(name='Internal Release')
+        tsds = TagSourceDetection.objects.filter(source_detection=self)
+        is_released = False
+        if internal_release_tag in tsds:
+            is_released = True
+        if ('WALLABY' in source.name) and is_released:
+            raise Exception(f"Cannot change source detection pointing to  released WALLABY source {self.source.name}.")
+        super(SourceDetection, self).delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.source}, {self.detection}"
@@ -429,6 +477,7 @@ class Tag(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(unique=True, max_length=255)
     description = models.TextField(blank=True, null=True)
+    type = models.TextField(blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     def __str__(self):
@@ -482,5 +531,18 @@ class Observation(models.Model):
     class Meta:
         managed = False
         db_table = 'observation'
+
+class Postprocessing(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    name = models.TextField()
+    region = models.TextField()
+    sofia_parameter_file = models.TextField()
+    s2p_setup = models.TextField()
+    status = models.CharField(max_length=64)
+
+    class Meta:
+        managed = False
+        db_table = 'postprocessing'
 
 # ------------------------------------------------------------------------------

@@ -14,14 +14,14 @@ from survey.utils.components import wallaby_survey_components, wallaby_release_n
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel,\
-    Observation, SurveyComponent
+    Observation, SurveyComponent, Postprocessing
 
 
 logging.basicConfig(level=logging.INFO)
 
 
 class TagAdmin(ModelAdmin):
-    list_display = ('name', 'description', 'added_at')
+    list_display = ('name', 'description', 'type', 'added_at')
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -79,6 +79,10 @@ class CommentAdmin(ModelAdmin):
 
 class KinematicModelAdmin(ModelAdmin):
     list_display = [f.name for f in KinematicModel._meta.get_fields()]
+
+
+class PostprocessingAdmin(ModelAdmin):
+    list_display = [f.name for f in Postprocessing._meta.get_fields()]
 
 
 class ObservationAdmin(ModelAdmin):
@@ -560,7 +564,6 @@ class RunAdmin(ModelAdmin):
         'id', 'name', 'sanity_thresholds',
         'run_unresolved_detections', 'run_sources', 'run_detections',
         'run_manual_inspection', 'run_external_conflicts',
-        # 'run_products_download', 'run_catalog',
     )
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -688,6 +691,9 @@ class RunAdmin(ModelAdmin):
         thresh_spec_auto = 0.05e+6
         SEARCH_THRESHOLD = 1.0
 
+        # Get survey components
+        survey_components = wallaby_survey_components()
+
         try:
             with transaction.atomic():
                 Detection.objects.filter(
@@ -715,7 +721,7 @@ class RunAdmin(ModelAdmin):
                 all_rename_sources = []
                 external_conflicts = []
 
-                logging.info(f'External cross matching applied to {run.name} {len(run_detections)} detections')
+                logging.info(f'External cross matching applied in {run.name} to {len(run_detections)} detections')
                 start = time.time()
                 for idx, d in enumerate(run_detections):
                     auto_rename = False
@@ -746,7 +752,6 @@ class RunAdmin(ModelAdmin):
                         if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
                             # Logic: delete if in same survey component or reassign to existing source otherwise.
                             delete = False
-                            survey_components = wallaby_survey_components()
                             for runs in survey_components.values():
                                 if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
                                     delete = True
@@ -767,9 +772,24 @@ class RunAdmin(ModelAdmin):
                         if len(rename_sources) > 1:
                             logging.error(f'Multiple rename sources: {rename_sources}')
                             raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
-                        _, sd_ext = rename_sources[0]
-                        all_rename_sources += rename_sources
-                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name} [{sd_ext.detection.run.name}]')
+
+                        # Check other detections pointing to rename source in same survey component
+                        conflict_in_survey_component = False
+                        sd_cur, sd_ext = rename_sources[0]
+                        sds = SourceDetection.objects.filter(source=sd_ext.source)
+                        for sd in sds:
+                            if set([sd_cur.detection.run.name, sd.detection.run.name]).issubset(set(runs)):
+                                conflict_in_survey_component = True
+                                logging.info(f'Cannot rename detection {sd_cur.detection.name} to {sd_ext.source.name} due to potential conflict {sd.detection.name} in same survey component.')
+                                logging.info(f'Creating external conflict {sd_cur.detection.name} to detection {sd.detection.name} [source_detection_id={sd.id}]')
+                                external_conflicts.append({
+                                    'run': run,
+                                    'detection': sd_cur.detection,
+                                    'conflict_source_detection_ids': [sd.id]
+                                })
+                        if not conflict_in_survey_component:
+                            all_rename_sources += rename_sources
+                            logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name} [{sd_ext.detection.run.name}]')
                     if not auto_rename and not auto_delete and matches:
                         logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
                         for match in matches:
@@ -804,6 +824,7 @@ class RunAdmin(ModelAdmin):
                 # Renaming
                 logging.info(f'Renaming: {all_rename_sources}')
                 for (sd, new_sd) in all_rename_sources:
+                    # Check if deleted in this run
                     old_source = sd.source
                     new_source = new_sd.source
                     logging.info(f'Database update: Renaming {old_source} to {new_source}')
@@ -815,7 +836,6 @@ class RunAdmin(ModelAdmin):
                 for ex_c in external_conflicts:
                     ExternalConflict.objects.get_or_create(**ex_c)
                 logging.info("Updating database complete")
-            logging.info("External cross matching completed")
         except Exception as e:
             logging.error(e)
             return 0
@@ -978,3 +998,4 @@ admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
 admin.site.register(KinematicModel, KinematicModelAdmin)
 admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Observation, ObservationAdmin)
+admin.site.register(Postprocessing, PostprocessingAdmin)
