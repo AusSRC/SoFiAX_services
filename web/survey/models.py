@@ -370,7 +370,7 @@ class SourceDetection(models.Model):
         is_released = False
         if internal_release_tag in tsds:
             is_released = True
-        if ('WALLABY' in source.name) and is_released:
+        if ('WALLABY' in self.source.name) and is_released:
             raise Exception(f"Cannot change source detection pointing to a released WALLABY source {self.source.name}.")
         super(SourceDetection, self).save(*args, **kwargs)
 
@@ -381,7 +381,7 @@ class SourceDetection(models.Model):
         is_released = False
         if internal_release_tag in tsds:
             is_released = True
-        if ('WALLABY' in source.name) and is_released:
+        if ('WALLABY' in self.source.name) and is_released:
             raise Exception(f"Cannot change source detection pointing to  released WALLABY source {self.source.name}.")
         super(SourceDetection, self).delete(*args, **kwargs)
 
