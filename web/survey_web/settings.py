@@ -3,7 +3,9 @@ import environ
 from pathlib import Path
 
 # Initialise environment variables
-env = environ.Env()
+env = environ.Env(
+    KINEMATICS=(bool, True)
+)
 environ.Env.read_env()
 
 # ---------------------------------------------------------------------------------------
@@ -22,6 +24,8 @@ SITE_TITLE = env("SITE_TITLE")
 INDEX_TITLE = env("INDEX_TITLE")
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+KINEMATICS = env('KINEMATICS')
 
 # ---------------------------------------------------------------------------------------
 # Application definition

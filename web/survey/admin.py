@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.forms import forms
 from django.db import transaction
+from django.conf import settings
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
@@ -995,7 +996,10 @@ admin.site.register(SourceDetection, SourceDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
-admin.site.register(KinematicModel, KinematicModelAdmin)
+
+if settings.KINEMATICS:
+    admin.site.register(KinematicModel, KinematicModelAdmin)
+
 admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Observation, ObservationAdmin)
 admin.site.register(Postprocessing, PostprocessingAdmin)
