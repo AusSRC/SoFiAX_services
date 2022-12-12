@@ -181,7 +181,7 @@ class DetectionAdmin(ModelAdmin):
         qs = super(DetectionAdmin, self).\
             get_queryset(request).\
             select_related('run')
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False)
 
     class MarkGenuineDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
