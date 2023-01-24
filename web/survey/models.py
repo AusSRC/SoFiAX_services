@@ -518,9 +518,11 @@ class SurveyComponent(models.Model):
 
 class Observation(models.Model):
     id = models.BigAutoField(primary_key=True)
+    name = models.TextField()
     sbid = models.CharField(max_length=64)
     ra = models.FloatField()
     dec = models.FloatField()
+    rotation = models.FloatField()
     description = models.TextField()
     phase = models.CharField(max_length=64)
     image_cube_file = models.CharField(max_length=256)
