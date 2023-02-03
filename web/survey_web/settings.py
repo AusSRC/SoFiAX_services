@@ -10,6 +10,14 @@ environ.Env.read_env()
 
 # ---------------------------------------------------------------------------------------
 # Deployment settings
+
+PROJECT = os.getenv('PROJECT')
+if not PROJECT:
+    raise Exception("Need to specify science project environment variable PROJECT=(wallaby, dingo).")
+else:
+    if PROJECT not in ["dingo", "wallaby"]:
+        raise Exception(f"Invalid project selection. Pick either: (dingo, wallaby). Currently PROJECT={PROJECT}")
+
 LOCAL = bool(env('LOCAL', default=False))
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env('DJANGO_SECRET_KEY')

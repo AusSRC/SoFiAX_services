@@ -11,7 +11,7 @@ from django.conf import settings
 from random import choice
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
-from survey.utils.components import wallaby_survey_components, wallaby_release_name
+from survey.utils.components import get_survey_components, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel,\
@@ -693,7 +693,7 @@ class RunAdmin(ModelAdmin):
         SEARCH_THRESHOLD = 1.0
 
         # Get survey components
-        survey_components = wallaby_survey_components()
+        survey_components = get_survey_components()
 
         try:
             with transaction.atomic():
@@ -807,7 +807,7 @@ class RunAdmin(ModelAdmin):
                 logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
                 # Release name check
-                accepted_source_names = set([wallaby_release_name(d.name) for d in accepted_detections])
+                accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
                 existing_wallaby_names = set([s.name for s in Source.objects.all()])
                 if accepted_source_names & existing_wallaby_names:
                     logging.error('External cross matching failed - release name already exists for accepted detection.')
@@ -818,7 +818,7 @@ class RunAdmin(ModelAdmin):
                 # Accepted sources
                 for d in accepted_detections:
                     source = SourceDetection.objects.get(detection=d).source
-                    release_name = wallaby_release_name(d.name)
+                    release_name = get_release_name(d.name)
                     source.name = release_name
                     source.save()
 
@@ -853,7 +853,7 @@ class RunAdmin(ModelAdmin):
         # Check to make sure run is in survey_components
         run = list(queryset)[0]
         survey_component_runs = []
-        survey_components = wallaby_survey_components()
+        survey_components = get_survey_components()
         for runs in survey_components.values():
             survey_component_runs += runs
         if run.name not in survey_component_runs:

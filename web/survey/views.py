@@ -5,7 +5,7 @@ import logging
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
-from survey.utils.components import get_survey_component, wallaby_release_name
+from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
@@ -688,7 +688,7 @@ def external_conflict_view(request):
         if 'Keep new source name' in body['action']:
             with transaction.atomic():
                 # Check against existing sources
-                new_name = wallaby_release_name(conflict.detection.name)
+                new_name = get_release_name(conflict.detection.name)
                 if new_name in [s.name for s in Source.objects.all()]:
                     messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
                     url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
