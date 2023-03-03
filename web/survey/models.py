@@ -27,6 +27,7 @@ class Run(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.TextField()
     sanity_thresholds = models.JSONField()
+    created = models.DateTimeField()
 
     def __str__(self):
         return f"{self.name}"
@@ -420,7 +421,7 @@ class SpatialRefSys(models.Model):
 
 class KinematicModel(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.ForeignKey('Source', models.DO_NOTHING, to_field='name')
+    name = models.ForeignKey('Source', models.DO_NOTHING, db_column='name', to_field='name')
     ra = models.FloatField()
     dec = models.FloatField()
     freq = models.FloatField()

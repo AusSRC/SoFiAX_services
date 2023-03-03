@@ -562,7 +562,7 @@ class InstanceAdminInline(ModelAdminInline):
 class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
-        'id', 'name', 'sanity_thresholds',
+        'id', 'name', 'created', 'sanity_thresholds',
         'run_unresolved_detections', 'run_sources', 'run_detections',
         'run_manual_inspection', 'run_external_conflicts',
     )
@@ -977,7 +977,7 @@ class RunAdmin(ModelAdmin):
 
 class RunAdminInline(ModelAdminInline):
     model = Run
-    list_display = ['id', 'name', 'sanity_thresholds', 'run_products_download']
+    list_display = ['id', 'name', 'created', 'sanity_thresholds', 'run_products_download']
     fields = list_display
     readonly_fields = fields
 
