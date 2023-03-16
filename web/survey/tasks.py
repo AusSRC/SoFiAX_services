@@ -8,7 +8,7 @@ from urllib.request import pathname2url
 from survey.utils.task import task
 
 
-@task
+@task()
 def download_accepted_sources(request, detection_ids):
     products = Product.objects.filter(detection_id__in=detection_ids)
 

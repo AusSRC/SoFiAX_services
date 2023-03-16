@@ -26,11 +26,17 @@ logging.basicConfig(level=logging.INFO)
 class TaskReturnType(IntEnum):
     NONE = 1
     FILE = 2
+    VALUE = 3
 
 class TaskReturn(object):
     def __init__(self, return_type, return_values):
+        if return_values is None:
+            raise ValueError("None return_values")
         self.return_type = return_type
         self.return_values = return_values
+
+    def __str__(self):
+        return self.return_values
 
     def get_json(self):
         return json.dumps({'type': self.return_type, 'retval': self.return_values})
@@ -40,11 +46,20 @@ class TaskReturn(object):
 
 class NoneTaskReturn(TaskReturn):
     def __init__(self):
-        super(NoneTaskReturn, self).__init__(int(TaskReturnType.NONE), None)
+        super(NoneTaskReturn, self).__init__(int(TaskReturnType.NONE), "")
+
+    def __str__(self):
+        return None
 
 class FileTaskReturn(TaskReturn):
     def __init__(self, file_paths):
+        if not isinstance(file_paths, list):
+            raise ValueError("file paths must be a list")
+
         super(FileTaskReturn, self).__init__(int(TaskReturnType.FILE), file_paths)
+
+    def __str__(self):
+        return ','.join([os.path.basename(f) for f in self.return_values])
 
     def get_paths(self):
         return self.return_values
@@ -55,6 +70,11 @@ class FileTaskReturn(TaskReturn):
                 os.remove(f)
             except Exception as e:
                 pass
+
+class ValueTaskReturn(TaskReturn):
+    def __init__(self, value):
+        super(ValueTaskReturn, self).__init__(int(TaskReturnType.VALUE), value)
+
 
 class Task(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -67,7 +87,12 @@ class Task(models.Model):
     state = models.TextField()
     user = models.TextField()
 
+    def __str__(self):
+        return f"{self.id}"
+
     def get_return(self):
+        if self.retval is None:
+            return None
         retval = json.loads(self.retval)
         rettype = retval['type']
 
@@ -75,8 +100,10 @@ class Task(models.Model):
             return NoneTaskReturn(retval['retval'])
         elif rettype == int(TaskReturnType.FILE):
             return FileTaskReturn(retval['retval'])
+        elif rettype == int(TaskReturnType.VALUE):
+            return ValueTaskReturn(retval['retval'])
         else:
-            raise ValueError('Unknown TaskReturn')
+            raise ValueError("Unknown return type")
 
     class Meta:
         managed = True

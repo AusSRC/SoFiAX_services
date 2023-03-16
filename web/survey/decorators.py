@@ -64,10 +64,10 @@ def add_tag_form(form_class=None, tags=Tag.objects.all()):
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset)
-                    self.message_user(
-                        request,
-                        '%s objects updated' % obj_count
-                    )
+                    #self.message_user(
+                    #    request,
+                    #    '%s objects updated' % obj_count
+                    #)
                 return None
 
             context = dict(
