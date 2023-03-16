@@ -15,8 +15,9 @@ from survey.utils.components import get_survey_components, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form
 from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
     Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel,\
-    Observation, SurveyComponent, Postprocessing
+    Observation, SurveyComponent, Postprocessing, Task
 
+from .tasks import download_accepted_sources
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,7 +37,7 @@ class TagAdmin(ModelAdmin):
 
 class TagSourceDetectionAdmin(ModelAdmin):
     list_display = ('tag', 'get_source', 'get_detection', 'author', 'added_at')
-
+    
     def get_source(self, obj):
         return obj.source_detection.source.name
     get_source.short_description = 'Source'
@@ -123,6 +124,12 @@ class SourceDetectionAdmin(ModelAdmin):
     list_filter = ['detection__run']
     list_per_page = 10
 
+    @admin.action(description='Download Products')
+    def download_products(modeladmin, request, queryset):    
+        ids = [i.detection.id for i in queryset]
+        task_id = download_accepted_sources(request, ids)
+        messages.info(request, f"Task {task_id} has been created")
+
     def get_list_display(self, request):
         return 'source', 'detection_link', 'summary'
 
@@ -138,6 +145,9 @@ class SourceDetectionAdmin(ModelAdmin):
         detection = obj.detection
         url = reverse('summary_image')
         return format_html(f"<a href='{url}?id={detection.id}' target='_blank'>{detection.summary_image(size=(8,6))}</a>")
+
+    actions = [download_products]
+    download_products.acts_on_all = True
 
 
 class DetectionAdmin(ModelAdmin):
@@ -988,6 +998,21 @@ class RunAdminInline(ModelAdminInline):
     run_products_download.short_description = 'Products'
 
 
+class TaskAdmin(ModelAdmin):
+    list_display = ['id', 'func', 'start', 'end', 'state', 'error', 'link']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(user__contains=str(request.user))
+
+    def link(self, obj):
+        if obj.func == 'download_accepted_sources':
+            url = reverse('source_detection_products')
+            return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return None
+
+    link.short_description = 'Link'
+
+
 admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
@@ -1003,3 +1028,4 @@ if settings.KINEMATICS:
 admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Observation, ObservationAdmin)
 admin.site.register(Postprocessing, PostprocessingAdmin)
+admin.site.register(Task, TaskAdmin)

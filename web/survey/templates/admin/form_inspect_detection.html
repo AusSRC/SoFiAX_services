@@ -6,61 +6,71 @@
     <h3>{{ subheading }}</h3>
     <h4>{{ subsubheading }}</h4>
     <br><hr><br>
-    {{ image }}
+
     <table>
         <tr>
-            {% for key, value in properties.items %}
-            <td>{{ key }}</td>
-            {% endfor %}
-        </tr>
-        <tr>
-            {% for key, value in properties.items %}
-            <td>{{ value }}</td>
-            {% endfor %}
+            <th>
+            {{ image }}
+            </th>
+
+            <th>
+            <table>
+                <tr>
+                    {% for key, value in properties.items %}
+                    <td>{{ key }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    {% for key, value in properties.items %}
+                    <td>{{ value }}</td>
+                    {% endfor %}
+                </tr>
+            </table>
+
+            <form style='padding: 2px' method="post">
+                {% csrf_token %}
+                <br><hr><br>
+
+                <!-- Tag detection -->
+                <h2>Add or create tag</h2>
+                <label>Create Tag</label>
+                <input type="text" name="tag_create" id="tag_create" />
+                <div></div>
+                <label>or select existing Tag</label>
+                <select name="tag_select" id="tag_select">
+                    <option value="None">None</option>
+                    {% for object in tags.all %}
+                    <option value={{ object.id }}>{{ object }}</option>
+                    {% endfor %}
+                </select>
+                <div></div>
+                <br><hr><br>
+
+                <!-- Comment detection -->
+                <h2>Add comment</h2>
+                <textarea name="comment" id="comment" rows="3"></textarea>
+                <br><hr><br>
+
+                <!-- functionality -->
+                <input type="hidden" name="detection_id" value={{ detection_id }}>
+                <input type="hidden" name="run_id" value={{ run_id }}>
+                <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Accept">
+                <input name='action' style='background-color: rgba(255, 0, 0, 0.729);' id='delete' type="submit" value="Delete">
+            </form>
+            <div style='display: table'>
+                <form style='padding: 2px; display: table-cell' method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="detection_id" value={{ detection_id }}>
+                    <input type="hidden" name="run_id" value={{ run_id }}>
+                    <input name='action' id='first' type="submit" value="First">
+                    <input name='action' id='previous' type="submit" value="Previous">
+                    <input style='width: 50px' type="number" name="index" min="1">
+                    <input name='action' id='go_to_index' type="submit" value="Go to index">
+                    <input name='action' id='next' type="submit" value="Next">
+                    <input name='action' id='last' type="submit" value="Last">
+                </form>
+            </div>
+            </th>
         </tr>
     </table>
-
-    <form style='padding: 2px' method="post">
-        {% csrf_token %}
-        <br><hr><br>
-
-        <!-- Tag detection -->
-        <h2>Add or create tag</h2>
-        <label>Create Tag</label>
-        <input type="text" name="tag_create" id="tag_create" />
-        <div></div>
-        <label>or select existing Tag</label>
-        <select name="tag_select" id="tag_select">
-            <option value="None">None</option>
-            {% for object in tags.all %}
-            <option value={{ object.id }}>{{ object }}</option>
-            {% endfor %}
-        </select>
-        <div></div>
-        <br><hr><br>
-
-        <!-- Comment detection -->
-        <h2>Add comment</h2>
-        <input type="text" name="comment" id="comment" />
-        <br><hr><br>
-
-        <!-- functionality -->
-        <input type="hidden" name="detection_id" value={{ detection_id }}>
-        <input type="hidden" name="run_id" value={{ run_id }}>
-        <input name='action' style='background-color: rgba(6, 119, 0, 0.827);' id='submit' type="submit" value="Accept">
-        <input name='action' style='background-color: rgba(255, 0, 0, 0.729);' id='delete' type="submit" value="Delete">
-    </form>
-    <div style='display: table'>
-        <form style='padding: 2px; display: table-cell' method="post">
-            {% csrf_token %}
-            <input type="hidden" name="detection_id" value={{ detection_id }}>
-            <input type="hidden" name="run_id" value={{ run_id }}>
-            <input name='action' id='first' type="submit" value="First">
-            <input name='action' id='previous' type="submit" value="Previous">
-            <input style='width: 50px' type="number" name="index" min="1">
-            <input name='action' id='go_to_index' type="submit" value="Go to index">
-            <input name='action' id='next' type="submit" value="Next">
-            <input name='action' id='last' type="submit" value="Last">
-        </form>
-    </div>
 {% endblock %}

@@ -1,17 +1,20 @@
 import io
+import os
+import json
 import tarfile
 import urllib.parse
 import logging
+
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import summary_image_WALLABY
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
-from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict
+from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict, Task
 from django.urls import reverse
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.contrib import messages
@@ -94,6 +97,41 @@ def instance_products(request):
     response['Content-Disposition'] = f'attachment; \
         filename={instance.run.name}_{instance.filename}.tar'
     response['Content-Length'] = size
+    return response
+
+
+def _read_in_chunks(filename, chunk_size=1024*64):
+    with open(filename, 'rb') as infile:
+        while True:
+            chunk = infile.read(chunk_size)
+            if chunk:
+                yield chunk
+            else:
+                # The chunk was empty, which means we're at the end
+                # of the file
+                return
+
+
+@basic_auth
+def source_detection_products(request):
+    task_id = request.GET.get('id', None)
+    if not task_id:
+        return HttpResponse('task id does not exist.', status=400)
+
+    task = Task.objects.filter(id=task_id).first()
+    if task.func != 'download_accepted_sources':
+        return HttpResponse('No data.', status=404)
+
+    if task.state != 'COMPLETED':
+        return HttpResponse('Task failed or not ready', status=400)
+
+    if request.user.username != task.user:
+        return HttpResponse('Unauthorized', status=401)
+
+    filename = task.get_return().get_paths()[0]
+    response = StreamingHttpResponse(streaming_content=_read_in_chunks(filename))
+    response['Content-Disposition'] = f'attachment; filename={os.path.basename(filename)}'
+    response['Content-Length'] = os.path.getsize(filename)
     return response
 
 
@@ -419,7 +457,7 @@ def inspect_detection_view(request):
 
         # Show image
         product = Product.objects.get(detection=detection)
-        img_src = summary_image_WALLABY(product, size=(8, 6))
+        img_src = summary_image_WALLABY(product, size=(12, 9))
         sd = SourceDetection.objects.filter(detection=detection)
         description = ''
         if sd:

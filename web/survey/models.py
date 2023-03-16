@@ -1,4 +1,6 @@
+import os
 import math
+import json
 import cv2
 import numpy as np
 import binascii
@@ -6,6 +8,8 @@ import logging
 from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
+
+from enum import IntEnum
 from io import BytesIO, StringIO
 from astropy.io import fits
 from django.db import models
@@ -18,6 +22,65 @@ from survey.utils.plot import summary_image_WALLABY
 matplotlib.use('Agg')
 logging.basicConfig(level=logging.INFO)
 
+
+class TaskReturnType(IntEnum):
+    NONE = 1
+    FILE = 2
+
+class TaskReturn(object):
+    def __init__(self, return_type, return_values):
+        self.return_type = return_type
+        self.return_values = return_values
+
+    def get_json(self):
+        return json.dumps({'type': self.return_type, 'retval': self.return_values})
+
+    def cleanup(self):
+        pass
+
+class NoneTaskReturn(TaskReturn):
+    def __init__(self):
+        super(NoneTaskReturn, self).__init__(int(TaskReturnType.NONE), None)
+
+class FileTaskReturn(TaskReturn):
+    def __init__(self, file_paths):
+        super(FileTaskReturn, self).__init__(int(TaskReturnType.FILE), file_paths)
+
+    def get_paths(self):
+        return self.return_values
+
+    def cleanup(self):
+        for f in self.return_values:
+            try:
+                os.remove(f)
+            except Exception as e:
+                pass
+
+class Task(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    func = models.TextField()
+    args = models.JSONField()
+    retval = models.JSONField()
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    error = models.TextField()
+    state = models.TextField()
+    user = models.TextField()
+
+    def get_return(self):
+        retval = json.loads(self.retval)
+        rettype = retval['type']
+
+        if rettype == int(TaskReturnType.NONE):
+            return NoneTaskReturn(retval['retval'])
+        elif rettype == int(TaskReturnType.FILE):
+            return FileTaskReturn(retval['retval'])
+        else:
+            raise ValueError('Unknown TaskReturn')
+
+    class Meta:
+        managed = True
+        db_table = 'task'
 
 # ------------------------------------------------------------------------------
 # Astronomy data tables
