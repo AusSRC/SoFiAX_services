@@ -1019,9 +1019,9 @@ class TaskAdmin(ModelAdmin):
         return None
 
     def get_link(self, obj):
-        if obj.func == 'download_accepted_sources':
+        if obj.func == 'download_accepted_sources' and obj.state == 'COMPLETED':
             url = reverse('source_detection_products')
-            return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+            return format_html(f"<a href='{url}?id={obj.id}'>Download</a>")
         return None
 
     get_retval.short_description = 'Return'
