@@ -124,7 +124,7 @@ class SurveyComponentAdmin(ModelAdmin):
 class SourceDetectionAdmin(ModelAdmin):
     model = SourceDetection
     list_filter = ['detection__run']
-    list_per_page = 10
+    list_per_page = 50
 
     @admin.action(description='Download Products')
     def download_products(self, request, queryset):    
@@ -154,7 +154,7 @@ class SourceDetectionAdmin(ModelAdmin):
 
 class DetectionAdmin(ModelAdmin):
     model = Detection
-    list_per_page = 10
+    list_per_page = 50
     list_display = ('id', 'run', 'name', 'x', 'y', 'z',
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
@@ -1023,6 +1023,9 @@ class TaskAdmin(ModelAdmin):
             url = reverse('source_detection_products')
             return format_html(f"<a href='{url}?id={obj.id}'>Download</a>")
         return None
+
+    def has_delete_permission(self, request, obj=None):
+        return True
 
     get_retval.short_description = 'Return'
     get_link.short_description = 'Link'
