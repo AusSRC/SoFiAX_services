@@ -12,7 +12,7 @@ from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, \
-                          SourceDetection, Comment, ExternalConflict, Task, FileTaskReturn
+    SourceDetection, Comment, ExternalConflict, Task, FileTaskReturn
 from django.urls import reverse
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
@@ -132,7 +132,7 @@ def task_file_download(request):
     task = task.get_return()
     if isinstance(task, FileTaskReturn) is False:
         return HttpResponse('Not a File Task', status=400)
-    
+
     filename = task.get_paths()[0]
     response = StreamingHttpResponse(streaming_content=_read_in_chunks(filename))
     response['Content-Disposition'] = f'attachment; filename={os.path.basename(filename)}'

@@ -39,7 +39,7 @@ class TagAdmin(ModelAdmin):
 
 class TagSourceDetectionAdmin(ModelAdmin):
     list_display = ('tag', 'get_source', 'get_detection', 'author', 'added_at')
-    
+
     def get_source(self, obj):
         return obj.source_detection.source.name
     get_source.short_description = 'Source'
@@ -642,7 +642,6 @@ class RunAdmin(ModelAdmin):
             return True
         return False
 
-
     def _internal_cross_match(self, request, queryset):
         try:
             task_id = self.internal_cross_match(request, queryset)
@@ -677,7 +676,7 @@ class RunAdmin(ModelAdmin):
 
             if any([d.unresolved for d in all_run_detections]):
                 raise Exception('There cannot be any unresolved detections for the run at the time of running internal cross matching.')
-                
+
             sd_list = list(SourceDetection.objects.filter(detection_id__in=[d.id for d in all_run_detections]))
             detections = [Detection.objects.get(id=sd.detection.id) for sd in sd_list]
 
@@ -697,7 +696,7 @@ class RunAdmin(ModelAdmin):
                         logging.info(f'{d1.name}, {d2.name}')
 
             return ValueTaskReturn(f'Completed internal cross matching for {run.name}')
-   
+
     _internal_cross_match.short_description = 'Internal cross matching'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
@@ -871,7 +870,6 @@ class RunAdmin(ModelAdmin):
 
             logging.info("Updating database complete")
             return ValueTaskReturn(f'Completed {run.name} external cross matching')
-            
 
     def _external_cross_match(self, request, queryset):
         """Run the external cross matching workflow to identify sources
@@ -984,7 +982,7 @@ class RunAdmin(ModelAdmin):
             task_id = self.release_sources(request, queryset)
             messages.info(request, f"Task {task_id} has been scheduled")
             return 0
-            
+
         except Exception as e:
             messages.error(request, str(e))
             return
@@ -1014,7 +1012,7 @@ class TaskAdmin(ModelAdmin):
     def get_retval(self, obj):
         ret = obj.get_return()
         if ret:
-           return str(ret)
+            return str(ret)
         return None
 
     def get_return_link(self, obj):

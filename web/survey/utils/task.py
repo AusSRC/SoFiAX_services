@@ -18,6 +18,7 @@ def delete_task_hook(sender, instance, using, **kwargs):
     if ret:
         ret.cleanup()
 
+
 def _thread_func(func, task_id, *args, **kwargs):
     try:
         Task.objects.filter(pk=task_id).update(start=datetime.now(), state='RUNNING')
@@ -34,7 +35,7 @@ def _thread_func(func, task_id, *args, **kwargs):
         Task.objects.filter(pk=task_id).update(retval=ret.get_json(), end=datetime.now(), state='COMPLETED')
     except Exception as e:
         Task.objects.filter(pk=task_id).update(error=str(e), state='ERROR')
-    
+
     connection.close()
 
 
@@ -65,6 +66,6 @@ def task(exclusive_func_with=[]):
             th = threading.Thread(target=_thread_func, args=(func, t.id, args), kwargs=kwargs, daemon=True)
             th.start()
             return t.id
-            
+
         return wrapper
     return decorator

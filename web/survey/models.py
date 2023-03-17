@@ -31,6 +31,7 @@ class TaskReturnType(IntEnum):
     FILE = 2
     VALUE = 3
 
+
 class TaskReturn(object):
     def __init__(self, return_type, return_values):
         if return_values is None:
@@ -50,12 +51,14 @@ class TaskReturn(object):
     def cleanup(self):
         pass
 
+
 class NoneTaskReturn(TaskReturn):
     def __init__(self):
         super(NoneTaskReturn, self).__init__(int(TaskReturnType.NONE), "")
 
     def __str__(self):
         return None
+
 
 class FileTaskReturn(TaskReturn):
     def __init__(self, file_paths):
@@ -80,6 +83,7 @@ class FileTaskReturn(TaskReturn):
                 os.remove(f)
             except Exception as e:
                 pass
+
 
 class ValueTaskReturn(TaskReturn):
     def __init__(self, value):
@@ -106,7 +110,7 @@ class Task(models.Model):
             if self.state == 'COMPLETED':
                 return ret.get_link(self)
         return None
-        
+
     def get_return(self):
         if self.retval is None:
             return None
@@ -379,7 +383,7 @@ class Detection(models.Model):
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
                 return mark_safe(img_src)
 
-    def summary_image(self, size=(3,2)):
+    def summary_image(self, size=(3, 2)):
         products = self.product_set.only('spec')
         if not products:
             return None
@@ -641,6 +645,7 @@ class Observation(models.Model):
     class Meta:
         managed = False
         db_table = 'observation'
+
 
 class Postprocessing(models.Model):
     id = models.BigAutoField(primary_key=True)

@@ -15,7 +15,7 @@ def download_accepted_sources(request, queryset):
 
     uuid_id = str(uuid.uuid4())
     uuid_filename = f"/tmp/{uuid_id}.tar.gz"
-    
+
     with tarfile.open(uuid_filename, mode='w:gz') as tar:
         for product in products:
             detection = product.detection
