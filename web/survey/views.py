@@ -11,7 +11,8 @@ from survey.utils.plot import summary_image_WALLABY
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
-from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, SourceDetection, Comment, ExternalConflict, Task
+from survey.models import Product, Instance, Detection, Run, Tag, TagSourceDetection, Source, \
+                          SourceDetection, Comment, ExternalConflict, Task, FileTaskReturn
 from django.urls import reverse
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
@@ -113,7 +114,7 @@ def _read_in_chunks(filename, chunk_size=1024*64):
 
 
 @basic_auth
-def source_detection_products(request):
+def task_file_download(request):
     task_id = request.GET.get('id', None)
     if not task_id:
         return HttpResponse('task id does not exist.', status=400)
@@ -128,7 +129,11 @@ def source_detection_products(request):
     if request.user.username != task.user:
         return HttpResponse('Unauthorized', status=401)
 
-    filename = task.get_return().get_paths()[0]
+    task = task.get_return()
+    if isinstance(task, FileTaskReturn) is False:
+        return HttpResponse('Not a File Task', status=400)
+    
+    filename = task.get_paths()[0]
     response = StreamingHttpResponse(streaming_content=_read_in_chunks(filename))
     response['Content-Disposition'] = f'attachment; filename={os.path.basename(filename)}'
     response['Content-Length'] = os.path.getsize(filename)

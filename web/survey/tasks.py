@@ -9,8 +9,9 @@ from survey.utils.task import task
 
 
 @task()
-def download_accepted_sources(request, detection_ids):
-    products = Product.objects.filter(detection_id__in=detection_ids)
+def download_accepted_sources(request, queryset):
+    ids = [i.detection.id for i in queryset]
+    products = Product.objects.filter(detection_id__in=ids)
 
     uuid_id = str(uuid.uuid4())
     uuid_filename = f"/tmp/{uuid_id}.tar.gz"

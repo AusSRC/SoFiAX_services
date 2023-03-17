@@ -15,6 +15,9 @@ from astropy.io import fits
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
+from django.urls import reverse
+from django.utils.html import format_html
+
 from survey.utils.fields import PostgresDecimalField
 from survey.utils.plot import summary_image_WALLABY
 
@@ -37,6 +40,9 @@ class TaskReturn(object):
 
     def __str__(self):
         return self.return_values
+
+    def get_link(self, task):
+        return None
 
     def get_json(self):
         return json.dumps({'type': self.return_type, 'retval': self.return_values})
@@ -64,6 +70,10 @@ class FileTaskReturn(TaskReturn):
     def get_paths(self):
         return self.return_values
 
+    def get_link(self, task):
+        url = reverse('task_file_download')
+        return format_html(f"<a href='{url}?id={task.id}'>Download</a>")
+
     def cleanup(self):
         for f in self.return_values:
             try:
@@ -90,6 +100,13 @@ class Task(models.Model):
     def __str__(self):
         return f"{self.id}"
 
+    def get_return_link(self):
+        ret = self.get_return()
+        if ret:
+            if self.state == 'COMPLETED':
+                return ret.get_link(self)
+        return None
+        
     def get_return(self):
         if self.retval is None:
             return None

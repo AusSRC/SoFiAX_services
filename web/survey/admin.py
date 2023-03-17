@@ -127,9 +127,8 @@ class SourceDetectionAdmin(ModelAdmin):
     list_per_page = 50
 
     @admin.action(description='Download Products')
-    def download_products(self, request, queryset):    
-        ids = [i.detection.id for i in queryset]
-        task_id = download_accepted_sources(request, ids)
+    def download_products(self, request, queryset):
+        task_id = download_accepted_sources(request, queryset)
         messages.info(request, f"Task {task_id} has been created")
 
     def get_list_display(self, request):
@@ -1007,28 +1006,25 @@ class RunAdminInline(ModelAdminInline):
 
 
 class TaskAdmin(ModelAdmin):
-    list_display = ['id', 'func', 'start', 'end', 'state', 'error', 'get_retval', 'get_link']
+    list_display = ['id', 'func', 'start', 'end', 'state', 'error', 'get_retval', 'get_return_link']
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(user__contains=str(request.user))
 
     def get_retval(self, obj):
-        r = obj.get_return()
-        if r:
-           return str(r)
+        ret = obj.get_return()
+        if ret:
+           return str(ret)
         return None
 
-    def get_link(self, obj):
-        if obj.func == 'download_accepted_sources' and obj.state == 'COMPLETED':
-            url = reverse('source_detection_products')
-            return format_html(f"<a href='{url}?id={obj.id}'>Download</a>")
-        return None
+    def get_return_link(self, obj):
+        return obj.get_return_link()
 
     def has_delete_permission(self, request, obj=None):
         return True
 
     get_retval.short_description = 'Return'
-    get_link.short_description = 'Link'
+    get_return_link.short_description = 'Link'
 
 
 admin.site.register(Run, RunAdmin)
