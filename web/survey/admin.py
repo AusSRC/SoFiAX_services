@@ -25,7 +25,9 @@ logging.basicConfig(level=logging.INFO)
 
 
 class TagAdmin(ModelAdmin):
-    list_display = ('name', 'description', 'type', 'added_at')
+    list_display = ('name', 'description', 'type')
+    fields = list_display
+    readonly_fields = ['name',]
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -39,20 +41,23 @@ class TagAdmin(ModelAdmin):
 
 class TagSourceDetectionAdmin(ModelAdmin):
     list_display = ('tag', 'get_source', 'get_detection', 'author', 'added_at')
+    search_fields = ['tag__name', 'source_detection__source__name', 'source_detection__detection__name']
 
     def get_source(self, obj):
         return obj.source_detection.source.name
     get_source.short_description = 'Source'
+    get_source.admin_order_field = "source_detection__source__name"
 
     def get_detection(self, obj):
         return obj.source_detection.detection.name
     get_detection.short_description = 'Detection'
+    get_detection.admin_order_field = "source_detection__deetection__name"
 
     def has_change_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_add_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return True
@@ -205,18 +210,15 @@ class DetectionAdmin(ModelAdmin):
                 if len(run_set) > 1:
                     messages.error(
                         request,
-                        "Detections from multiple runs selected"
-                    )
+                        "Detections from multiple runs selected")
                     return 0
 
                 # Create source and source detection entries
                 for detection in detect_list:
-                    with transaction.atomic():
-                        source = Source.objects.create(name=detection.name)
-                        SourceDetection.objects.create(
-                            source=source,
-                            detection=detection
-                        )
+                    source = Source.objects.create(name=detection.name)
+                    SourceDetection.objects.create(
+                        source=source,
+                        detection=detection)
                 messages.info(request, f"Marked {len(detect_list)} detections as sources.")
                 return
         except Exception as e:
@@ -888,23 +890,20 @@ class RunAdmin(ModelAdmin):
         title = 'Release sources for selected runs. Created WALLABY source names and adds new tag to all sources.'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
-    def release_sources(self, request, queryset):
+    def release_sources(self, request, queryset, tag):
         with transaction.atomic():
             for run in queryset:
                 logging.info(f"Preparing release for run {run.name}")
 
                 detections = Detection.objects.filter(
                     run=run,
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
-                ).select_for_update()
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],).select_for_update()
 
                 release_detections = detections.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' in sd.source.name],
-                )
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' in sd.source.name],)
 
                 delete_detections = detections.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'SoFiA' in sd.source.name],
-                )
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'SoFiA' in sd.source.name],)
 
                 if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
                     raise Exception('There cannot be any external conflicts when creating release source names.')
@@ -923,15 +922,13 @@ class RunAdmin(ModelAdmin):
                         TagSourceDetection.objects.create(
                             tag=tag,
                             source_detection=sd,
-                            author=str(request.user)
-                        )
+                            author=str(request.user))
                     else:
                         logging.info(f'Tag already created for Source {sd.source.name}')
 
                 # Delete sources
                 delete_source_detections = SourceDetection.objects.filter(
-                    detection_id__in=[d.id for d in delete_detections]
-                )
+                    detection_id__in=[d.id for d in delete_detections])
 
                 logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
                 for idx, sd in enumerate(delete_source_detections):
@@ -979,7 +976,7 @@ class RunAdmin(ModelAdmin):
             else:
                 tag = Tag.objects.get(id=int(tag_select))
 
-            task_id = self.release_sources(request, queryset)
+            task_id = self.release_sources(request, queryset, tag)
             messages.info(request, f"Task {task_id} has been scheduled")
             return 0
 

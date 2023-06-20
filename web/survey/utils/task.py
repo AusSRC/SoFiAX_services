@@ -2,6 +2,7 @@ import os
 import functools
 import threading
 import json
+import logging
 
 from django.db import connection
 from datetime import datetime
@@ -35,6 +36,7 @@ def _thread_func(func, task_id, *args, **kwargs):
         Task.objects.filter(pk=task_id).update(retval=ret.get_json(), end=datetime.now(), state='COMPLETED')
     except Exception as e:
         Task.objects.filter(pk=task_id).update(error=str(e), state='ERROR')
+        logging.exception(e)
 
     connection.close()
 
