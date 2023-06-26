@@ -24,6 +24,29 @@ from .tasks import download_accepted_sources
 logging.basicConfig(level=logging.INFO)
 
 
+def sanity_check(request, queryset):
+    try:
+        detect_list = list(queryset)
+        for index, detect_outer in enumerate(detect_list):
+            for detect_inner in detect_list[index + 1:]:
+                logging.info(f'Detections: {detect_outer.id}, {detect_inner.id}')
+                if detect_outer.is_match(detect_inner):
+                    logging.info('Passed is_match test')
+                    sanity, msg = detect_outer.sanity_check(detect_inner)
+                    if sanity is False:
+                        logging.info('Sanity check has failed')
+                        messages.error(request, msg)
+                    else:
+                        logging.info('Passed sanity_check test')
+                        messages.info(request, "sanity passed")
+                else:
+                    # TODO(austin): could probably keep both of these sources if not match...
+                    msg = f"Detections {detect_inner.id}, {detect_outer.id} are not in the same spacial and spectral range"  # noqa
+                    messages.error(request, msg)
+    except Exception as e:
+        messages.error(request, str(e))
+
+
 class TagAdmin(ModelAdmin):
     list_display = ('name', 'description', 'type')
     fields = list_display
@@ -163,7 +186,12 @@ class DetectionAdmin(ModelAdmin):
                     'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
-    actions = ['mark_genuine', 'add_tag', 'add_comment']
+    actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
+
+    def check_action(self, request, queryset):
+        sanity_check(request, queryset)
+
+    check_action.short_description = 'Sanity Check Detections'
 
     @admin.display(empty_value=None)
     def tags(self, obj):
@@ -419,30 +447,8 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     manual_resolve.short_description = "Manual Resolve Detections"
 
     def check_action(self, request, queryset):
-        try:
-            detect_list = list(queryset)
-            for index, detect_outer in enumerate(detect_list):
-                for detect_inner in detect_list[index + 1:]:
-                    logging.info(f'Detections: {detect_outer.id}, {detect_inner.id}')
-                    if detect_outer.is_match(detect_inner):
-                        logging.info('Passed is_match test')
-                        sanity, msg = detect_outer.sanity_check(detect_inner)
-                        if sanity is False:
-                            logging.info('Sanity check has failed')
-                            messages.error(request, msg)
-                        else:
-                            logging.info('Passed sanity_check test')
-                            messages.info(request, "sanity passed")
-                        return
-                    else:
-                        # TODO(austin): could probably keep both of these sources if not match...
-                        msg = f"Detections {detect_inner.id}, {detect_outer.id} are not in the same spacial and spectral range"  # noqa
-                        messages.error(request, msg)
-                        return
-            return None
-        except Exception as e:
-            messages.error(request, str(e))
-            return
+        sanity_check(request, queryset)
+
     check_action.short_description = 'Sanity Check Detections'
 
     class AddTagForm(forms.Form):
