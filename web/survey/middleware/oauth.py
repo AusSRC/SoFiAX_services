@@ -6,6 +6,8 @@ from django.shortcuts import redirect
 from social_django.models import UserSocialAuth
 from keycloak import KeycloakOpenID
 
+import json
+
 
 class KeycloakMiddleware:
 
@@ -30,7 +32,10 @@ class KeycloakMiddleware:
             if auth is None:
                 response = self.get_response(request)
                 return response
-            data = self.openid.introspect(auth.extra_data.get('access_token'))
+            extra = auth.extra_data
+            if isinstance(extra, str):
+                extra = json.loads(extra)
+            data = self.openid.introspect(extra.get('access_token'))
             if data.get('active', False) is False:
                 logout(request)
                 return redirect(settings.LOGIN_REDIRECT_URL)
