@@ -1,76 +1,89 @@
-# SofiAX_services
+# SofiAX Services
 
-Code for the deployment of database portals.
+Code deploying database and web services for SoFiAX survey runs.
 
 [![Linting](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml/badge.svg)](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml)
 
 <HR>
 
-## Deployment
+## Installation
 
-### Environment variables
+Clone package
+```
+https://github.com/AusSRC/SoFiAX_services.git
+```
 
-We use environment variables to pass information to the image at runtime. These are used to specify the database to connect with. Create or modify a ``.env`` file and include the following values
+Instantiate Database
+```
+docker-compose up survey_db -d
+```
+
+Create environment file
+The environoment file contains information regarding project type and database connection details. 
 
 ```
-DEBUG=1
-DJANGO_SECRET_KEY=<secret_key>
-DJANGO_ADMIN_SITE_NAME="WALLABY"
-DATABASE_ENGINE=django.db.backends.postgresql
-DATABASE_NAME=sofiadb
-DATABASE_USER=admin
-DATABASE_PASSWORD=admin
-DATABASE_HOST=sofiax_db
+cd SoFiAX_services/web/survey_web/
+vim .env
+```
+
+The ``.env`` file:
+```
+PROJECT=DINGO
+
+SITE_NAME=DINGO Catalog
+SITE_HEADER=DINGO Catalog
+SITE_TITLE=DINGO Catalog
+INDEX_TITLE=DINGO Catalog
+KINEMATICS=False
+
+DJANGO_SECRET_KEY=<django key>
+DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
+
+DATABASE_HOST=host.docker.internal
 DATABASE_PORT=5432
-DATABASE=postgres
+DATABASE_NAME=surveydb
+DATABASE_USER=postgres
+DATABASE_PASSWORD=postgres
+SEARCH_PATH=public,survey
 ```
 
-You will also need to specify the `DJANGO_ALLOWED_HOSTS` environment variable when deploying this to a production environment.
+* The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
 
-### Local
+* The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
 
-Local deployment can be helpful for developing the services. The local deployment includes the following services:
 
-* `nginx` (reverse proxy)
-* `survey` (Django project for interacting with the database)
-* `vo` 
-* `PostgreSQL database`
-
-To raise the services run the following
+Sync the administration database
 
 ```
-docker-compose up
+docker run survey_web python manage.py migrate
 ```
 
-You should access the services at http://localhost and the `nginx` reverse proxy will redirect you to the Django admin page.
-
-#### Prepare the services
-
+Create Site superuser
 ```
-# Run the migrations
-SoFiAX_services/web$ docker exec sofiax_web_app python sofiax_web/manage.py migrate --noinput
-
-
-# Create superuser
-SoFiAX_services/web$ docker exec -it sofiax_web_app python sofiax_web/manage.py createsuperuser
+docker run -e DJANGO_SUPERUSER_PASSWORD=admin survey_web python manage.py createsuperuser --username=admin --email=admin@admin.com --noinput
 ```
 
-#### Access to logs
+
+Start Web Services
 ```
-SoFiAX_services/web$ docker-compose -f local.yml logs
-```
-
-### Production
-
-To get this working in a production setting you will need to run `python manage.py migrate` and create a user for accessing the admin console. 
-
-
-Once you have successfully migrated and created the superuser, you can deploy the services in detached mode
-
-```
-docker-compose up -d
+docker-compose up survey_nginx survey_web -d
 ```
 
-### Database
+VO TAP Serices
+```
+docker-compose up survey_vo -d
+```
 
-Note that the services that are deployed through the code in this repository depend on a database service to be active. The code for deploying the database can be found at [this repository](https://github.com/AusSRC/WALLABY_database).
+TAP URL:
+```
+https://localhost/tap
+```
+
+Website URL
+```
+https://localhost
+```
+
+Once the service are running then a SoFiAX run can be performed.
+
+The SoFiAX can be found here: https://github.com/AusSRC/SoFiAX
