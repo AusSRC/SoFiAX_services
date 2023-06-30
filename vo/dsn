@@ -1,5 +1,5 @@
-database = sofiadb
-host = 
+database = surveydb
+host = survey_db
 port = 5432
 user = admin
 password = admin

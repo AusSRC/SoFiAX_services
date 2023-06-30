@@ -15,9 +15,9 @@ def get_release_name(name):
 
     """
     project = settings.PROJECT
-    if project == 'dingo':
+    if project == 'DINGO':
         return dingo_release_name(name)
-    elif project == 'wallaby':
+    elif project == 'WALLABY':
         return wallaby_release_name(name)
     else:
         raise Exception(f"Unexpected value for PROJECT environment variable ({project}).")

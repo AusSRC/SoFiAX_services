@@ -1,6 +1,23 @@
 version: '3.5'
 
 services:
+
+  survey_db:
+    image: survey_db
+    container_name: survey_db
+    shm_size: '32gb'
+    build: 
+      context: db/
+      shm_size: '32gb'
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - /Users/dpallot/data:/var/lib/postgresql/data
+    networks:
+      - survey_network
+
   survey_web:
     image: survey_web
     container_name: survey_web
@@ -13,11 +30,11 @@ services:
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
     networks:
-      - sofiax_network
+      - survey_network
 
-  sofiax_nginx:
-    image: sofiax_nginx
-    container_name: sofiax_nginx
+  survey_nginx:
+    image: survey_nginx
+    container_name: survey_nginx
     build:
       context: nginx
     ports:
@@ -31,11 +48,11 @@ services:
     depends_on:
       - survey_web
     networks:
-      - sofiax_network
+      - survey_network
 
-  sofiax_vo:
-    image: sofiax_vo
-    container_name: sofiax_vo
+  survey_vo:
+    image: survey_vo
+    container_name: survey_vo
     build:
       context: vo
     env_file:
@@ -47,11 +64,11 @@ services:
     ports:
       - 8080:8080
     networks:
-      - sofiax_network
+      - survey_network
             
 networks:
-  sofiax_network:
-    name: sofiax_network
+  survey_network:
+    name: survey_network
     driver: bridge
 
 volumes:

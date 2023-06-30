@@ -1,4 +1,4 @@
-ARG DEBIAN_IMAGE="buster"
+ARG DEBIAN_IMAGE="latest"
 FROM "debian:$DEBIAN_IMAGE"
 
 RUN apt-get update && apt-get -y upgrade && \
@@ -41,8 +41,8 @@ COPY trustedquery ${GAVO_ROOT}/etc/trustedquery
 COPY untrustedquery ${GAVO_ROOT}/etc/untrustedquery
 COPY startup.sh /startup.sh
 
-RUN mkdir -p ${GAVO_INPUTS}/wallaby
-COPY vo.rd ${GAVO_INPUTS}/wallaby/vo.rd
+RUN mkdir -p ${GAVO_INPUTS}/survey
+COPY vo.rd ${GAVO_INPUTS}/survey/vo.rd
 
 RUN chmod +x /startup.sh
 CMD /startup.sh

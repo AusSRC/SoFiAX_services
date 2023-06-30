@@ -11,14 +11,12 @@ environ.Env.read_env()
 # ---------------------------------------------------------------------------------------
 # Deployment settings
 
-PROJECT = os.getenv('PROJECT')
+PROJECT = env('PROJECT')
 if not PROJECT:
-    raise Exception("Need to specify science project environment variable PROJECT=(wallaby, dingo).")
-else:
-    if PROJECT not in ["dingo", "wallaby"]:
-        raise Exception(f"Invalid project selection. Pick either: (dingo, wallaby). Currently PROJECT={PROJECT}")
+    raise Exception("Project not defined")
 
-LOCAL = bool(env('LOCAL', default=False))
+PROJECT = PROJECT.upper()
+LOCAL = bool(env('LOCAL', default=True))
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 DEBUG = env('DEBUG')
@@ -195,10 +193,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
-
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'survey/templates/')]
 
 #MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'media')

@@ -1,5 +1,5 @@
 [web]
 bindAddress:
 serverPort: 8080
-serverURL: https://wallaby-web.aussrc.org
+serverURL: https://localhost
 adaptProtocol: False

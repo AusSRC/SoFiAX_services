@@ -1,9 +1,9 @@
-<resource schema="wallaby">
-   <meta name="title">WALLABY - the ASKAP HI All-Sky Survey</meta>
-    <meta name="creationDate">2007-06-06T12:00:00Z</meta>
-    <meta name="description">WALLABY - the ASKAP HI All-Sky Survey</meta>
-    <meta name="copyright" format="plain">WALLABY - the ASKAP HI All-Sky Survey</meta>
-    <meta name="_dataUpdated">2020-04-24T12:00:00Z</meta>
+<resource schema="survey">
+   <meta name="title">ASKAP Survey</meta>
+    <meta name="creationDate">2023-06-06T12:00:00Z</meta>
+    <meta name="description">ASKAP Survey</meta>
+    <meta name="copyright" format="plain"></meta>
+    <meta name="_dataUpdated">2023-06-06T12:00:00Z</meta>
 
    <table id="run" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>

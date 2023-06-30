@@ -5,6 +5,6 @@ gavo imp //users
 gavo imp //adql
 gavo imp //products
 gavo imp //uws
-gavo imp -m wallaby/vo.rd
-gavo pub wallaby/vo.rd
+gavo imp -m survey/vo.rd
+gavo pub survey/vo.rd
 gavo serve start -f

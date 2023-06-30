@@ -747,7 +747,7 @@ class RunAdmin(ModelAdmin):
 
             run_list = list(queryset)
             if len(run_list) != 1:
-                raise Excption("Only one run can be selected at a time for external cross matching.")
+                raise Exception("Only one run can be selected at a time for external cross matching.")
 
             run = run_list[0]
             run_detections = Detection.objects.filter(
