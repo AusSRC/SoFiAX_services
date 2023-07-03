@@ -17,9 +17,10 @@ from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.utils.html import format_html
+from django.conf import settings
 
 from survey.utils.fields import PostgresDecimalField
-from survey.utils.plot import summary_image_WALLABY
+from survey.utils.plot import summary_image
 
 
 matplotlib.use('Agg')
@@ -150,7 +151,7 @@ class Run(models.Model):
 
 
 class Instance(models.Model):
-    """Automatically generated Django model from the WALLABY database.
+    """Automatically generated Django model from the database.
 
     """
     id = models.BigAutoField(primary_key=True)
@@ -180,7 +181,7 @@ class Instance(models.Model):
 
 
 class Detection(models.Model):
-    """Auto-generated Django model for WALLABY detection table.
+    """Auto-generated Django model for detection table.
 
     """
     id = models.BigAutoField(primary_key=True)
@@ -387,7 +388,7 @@ class Detection(models.Model):
         products = self.product_set.only('spec')
         if not products:
             return None
-        return summary_image_WALLABY(products[0], size=size)
+        return summary_image(products[0], size=size)
 
     class Meta:
         managed = False
@@ -438,7 +439,7 @@ class Source(models.Model):
         return f"{self.name}"
 
     def save(self, *args, **kwargs):
-        """Do not save changes for released WALLABY sources."""
+        """Do not save changes for released sources."""
         release_tags = Tag.objects.filter(type='release')
         sds = SourceDetection.objects.filter(source=self)
         tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
@@ -446,12 +447,13 @@ class Source(models.Model):
         for tsd in tsds:
             if tsd.tag in release_tags:
                 is_tagged = True
-        if ('WALLABY' in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released WALLABY source {self.name}.")
+
+        if (settings.PROJECT in self.name) and is_tagged:
+            raise Exception(f"Cannot overwrite a released source {self.name}.")
         super(Source, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        """Cannot delete released WALLABY sources."""
+        """Cannot delete released sources."""
         release_tags = Tag.objects.filter(type='release')
         sds = SourceDetection.objects.filter(source=self)
         tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
@@ -459,8 +461,8 @@ class Source(models.Model):
         for tsd in tsds:
             if tsd.tag in release_tags:
                 is_tagged = True
-        if ('WALLABY' in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released WALLABY source {self.name}.")
+        if (settings.PROJECT in self.name) and is_tagged:
+            raise Exception(f"Cannot overwrite a released source {self.name}.")
         super(Source, self).delete(*args, **kwargs)
 
     class Meta:
@@ -476,25 +478,25 @@ class SourceDetection(models.Model):
     added_at = models.DateTimeField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        """Do not save changes for released WALLABY source detections."""
+        """Do not save changes for released source detections."""
         internal_release_tag = Tag.objects.get(name='Internal Release')
         tsds = TagSourceDetection.objects.filter(source_detection=self)
         is_released = False
         if internal_release_tag in tsds:
             is_released = True
-        if ('WALLABY' in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to a released WALLABY source {self.source.name}.")
+        if (settings.PROJECT in self.source.name) and is_released:
+            raise Exception(f"Cannot change source detection pointing to a released source {self.source.name}.")
         super(SourceDetection, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        """Do not delete released WALLABY sources."""
+        """Do not delete released sources."""
         internal_release_tag = Tag.objects.get(name='Internal Release')
         tsds = TagSourceDetection.objects.filter(source_detection=self)
         is_released = False
         if internal_release_tag in tsds:
             is_released = True
-        if ('WALLABY' in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to  released WALLABY source {self.source.name}.")
+        if (settings.PROJECT in self.source.name) and is_released:
+            raise Exception(f"Cannot change source detection pointing to released source {self.source.name}.")
         super(SourceDetection, self).delete(*args, **kwargs)
 
     def __str__(self):

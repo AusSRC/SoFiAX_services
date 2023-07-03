@@ -14,13 +14,14 @@ def get_release_name(name):
     """Return name of source depending on the project.
 
     """
-    project = settings.PROJECT
-    if project == 'DINGO':
+    PROJECT = settings.PROJECT
+    if PROJECT == 'DINGO':
         return dingo_release_name(name)
-    elif project == 'WALLABY':
+    elif PROJECT == 'WALLABY':
         return wallaby_release_name(name)
     else:
-        raise Exception(f"Unexpected value for PROJECT environment variable ({project}).")
+        parts = re.split('[+-]', name.replace('SoFiA', PROJECT).replace('_', ' '))
+        return re.search('[+-]', name).group().join(parts)
 
 
 def wallaby_release_name(name):
@@ -29,8 +30,7 @@ def wallaby_release_name(name):
     """
     parts = re.split('[+-]', name.replace('SoFiA', 'WALLABY').replace('_', ' '))
     return re.search('[+-]', name).group().join(
-        list(map(lambda x: x.split('.')[0], parts))
-    )
+        list(map(lambda x: x.split('.')[0], parts)))
 
 
 def dingo_release_name(name):

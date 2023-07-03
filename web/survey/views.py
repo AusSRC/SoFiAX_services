@@ -7,7 +7,7 @@ import logging
 
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
-from survey.utils.plot import summary_image_WALLABY
+from survey.utils.plot import summary_image
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
 from survey.decorators import basic_auth
@@ -462,7 +462,7 @@ def inspect_detection_view(request):
 
         # Show image
         product = Product.objects.get(detection=detection)
-        img_src = summary_image_WALLABY(product, size=(12, 9))
+        img_src = summary_image(product, size=(12, 9))
         sd = SourceDetection.objects.filter(detection=detection)
         description = ''
         if sd:
@@ -597,7 +597,7 @@ def external_conflict_view(request):
         if len(conflict_sd_ids) == 1:
             # Show image
             product = Product.objects.get(detection=conflict.detection)
-            img_src = summary_image_WALLABY(product, size=(6, 4))
+            img_src = summary_image(product, size=(6, 4))
             sd = SourceDetection.objects.filter(detection=conflict.detection)
             description = ''
             if sd:
@@ -629,7 +629,7 @@ def external_conflict_view(request):
             else:
                 c_product = None
 
-            c_img_src = summary_image_WALLABY(c_product, size=(6, 4))
+            c_img_src = summary_image(c_product, size=(6, 4))
             c_description = ''
             if c_sd:
                 tag_sd = TagSourceDetection.objects.filter(source_detection=c_sd)
@@ -815,14 +815,14 @@ def external_conflict_view(request):
             with transaction.atomic():
                 # Priority over creating new name. Undo create new name if exists
                 sds = SourceDetection.objects.filter(
-                    detection=conflict.detection
-                )
+                    detection=conflict.detection)
+
                 # Remove new name source if exists.
                 for sd in sds:
                     source = sd.source
                     ssd = SourceDetection.objects.filter(source=source)
                     # Delete source if this is the only detection (create new)
-                    if (len(ssd) == 1) and (ssd[0] == sd) and ('WALLABY' in source.name):
+                    if (len(ssd) == 1) and (ssd[0] == sd) and (settings.PROJECT in source.name):
                         logging.info(f'Deleting source {source.name}.')
                         sd.delete()
                         source.delete()

@@ -11,7 +11,7 @@ import matplotlib.image as mpimg
 from django.utils.safestring import mark_safe
 
 
-def summary_image_WALLABY(products, size=(3, 2)):
+def summary_image(products, size=(3, 2)):
     if not products:
         return None
     plot = products.plot

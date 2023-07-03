@@ -749,11 +749,13 @@ class RunAdmin(ModelAdmin):
             if len(run_list) != 1:
                 raise Exception("Only one run can be selected at a time for external cross matching.")
 
+            PROJECT = settings.PROJECT
+
             run = run_list[0]
             run_detections = Detection.objects.filter(
                 run=run,
-                id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' not in sd.source.name],
-            )
+                id__in=[sd.detection_id for sd in SourceDetection.objects.all() if PROJECT not in sd.source.name],)
+
             if any([d.unresolved for d in run_detections]):
                 raise Exception('There cannot be any unresolved detections for the run at the time of running external cross matching.')
 
@@ -777,16 +779,15 @@ class RunAdmin(ModelAdmin):
                     id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
-                ).exclude(
-                    run=run
-                )
+                ).exclude(run=run)
+
                 for d_ext in list(set(close_detections)):
                     sd = SourceDetection.objects.get(detection=d)
                     sd_ext = SourceDetection.objects.get(detection=d_ext)
 
                     # Require official source.
                     # TODO: require associated tag?
-                    if 'WALLABY' not in sd_ext.source.name:
+                    if PROJECT not in sd_ext.source.name:
                         continue
 
                     # Auto-delete check on tighter threshold values
@@ -848,10 +849,10 @@ class RunAdmin(ModelAdmin):
 
             # Release name check
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_wallaby_names = set([s.name for s in Source.objects.all()])
-            if accepted_source_names & existing_wallaby_names:
+            existing_names = set([s.name for s in Source.objects.all()])
+            if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
-                raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_wallaby_names)}')
+                raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
 
             logging.info("Writing updates to database")
             # Accepted sources
@@ -893,10 +894,12 @@ class RunAdmin(ModelAdmin):
     _external_cross_match.short_description = 'External cross matching'
 
     class ReleaseSourceForm(forms.Form):
-        title = 'Release sources for selected runs. Created WALLABY source names and adds new tag to all sources.'
+        title = 'Release sources for selected runs. Created source names and adds new tag to all sources.'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
     def release_sources(self, request, queryset, tag):
+        PROJECT = settings.PROJECT
+
         with transaction.atomic():
             for run in queryset:
                 logging.info(f"Preparing release for run {run.name}")
@@ -906,7 +909,7 @@ class RunAdmin(ModelAdmin):
                     id__in=[sd.detection_id for sd in SourceDetection.objects.all()],).select_for_update()
 
                 release_detections = detections.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'WALLABY' in sd.source.name],)
+                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if PROJECT in sd.source.name],)
 
                 delete_detections = detections.filter(
                     id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'SoFiA' in sd.source.name],)
@@ -958,7 +961,7 @@ class RunAdmin(ModelAdmin):
     @add_tag_form(ReleaseSourceForm)
     def _release_sources(self, request, queryset):
         """Create releases for a given run. This will update source names to be
-        official WALLABY release names and create a new tag for all sources.
+        official release names and create a new tag for all sources.
 
         Needs for there to be no internal or external conflicts.
 
