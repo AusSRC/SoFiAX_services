@@ -20,7 +20,7 @@ from django.utils.html import format_html
 from django.conf import settings
 
 from survey.utils.fields import PostgresDecimalField
-from survey.utils.plot import summary_image
+from survey.utils.plot import product_summary_image
 
 
 matplotlib.use('Agg')
@@ -388,7 +388,7 @@ class Detection(models.Model):
         products = self.product_set.only('spec')
         if not products:
             return None
-        return summary_image(products[0], size=size)
+        return product_summary_image(products[0], size=size)
 
     class Meta:
         managed = False
