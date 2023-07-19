@@ -29,7 +29,7 @@ vim .env
 The ``.env`` file:
 ```
 PROJECT=DINGO
-
+DEBUG=True
 SITE_NAME=DINGO Catalog
 SITE_HEADER=DINGO Catalog
 SITE_TITLE=DINGO Catalog
@@ -55,6 +55,7 @@ SEARCH_PATH=public,survey
 Sync the administration database
 
 ```
+docker-compose build survey_web
 docker run survey_web python manage.py migrate
 ```
 

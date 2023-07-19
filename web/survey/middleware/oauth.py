@@ -1,9 +1,7 @@
 from django.conf import settings
-from django.contrib.sessions.models import Session
 from django.contrib.auth import logout
 from django.contrib.auth.models import Group
 from django.shortcuts import redirect
-from social_django.models import UserSocialAuth
 from keycloak import KeycloakOpenID
 
 import json

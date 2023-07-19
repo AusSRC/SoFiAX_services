@@ -58,9 +58,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'social_django.middleware.SocialAuthExceptionMiddleware',
-    'survey.middleware.oauth.KeycloakMiddleware'
+    'social_django.middleware.SocialAuthExceptionMiddleware'
 ]
+
+if not LOCAL:
+    MIDDLEWARE.append('survey.middleware.oauth.KeycloakMiddleware')
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.keycloak.KeycloakOAuth2',
@@ -84,14 +86,15 @@ SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
 SITE_ID = 1
 
-SOCIAL_AUTH_KEYCLOAK_KEY = env('KEY')
-SOCIAL_AUTH_KEYCLOAK_SECRET = env('SECRET')
-REALM = env('REALM')
-SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = env('PUBLIC_KEY')
-CLIENT_AUTH = env('CLIENT_AUTH')
-SOCIAL_AUTH_KEYCLOAK_AUTHORIZATION_URL=env('AUTHORIZATION_URL')
-SOCIAL_AUTH_KEYCLOAK_ACCESS_TOKEN_URL=env('ACCESS_TOKEN_URL')
-ID_KEY = env('ID_KEY')
+if not LOCAL:
+    SOCIAL_AUTH_KEYCLOAK_KEY = env('KEY')
+    SOCIAL_AUTH_KEYCLOAK_SECRET = env('SECRET')
+    REALM = env('REALM')
+    SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = env('PUBLIC_KEY')
+    CLIENT_AUTH = env('CLIENT_AUTH')
+    SOCIAL_AUTH_KEYCLOAK_AUTHORIZATION_URL=env('AUTHORIZATION_URL')
+    SOCIAL_AUTH_KEYCLOAK_ACCESS_TOKEN_URL=env('ACCESS_TOKEN_URL')
+    ID_KEY = env('ID_KEY')
 ## End Social Auth
 
 SOCIAL_AUTH_PIPELINE = (
