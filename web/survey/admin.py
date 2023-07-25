@@ -10,6 +10,7 @@ from django.forms import forms
 from django.db import transaction
 from django.conf import settings
 from random import choice
+from django.shortcuts import redirect
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.task import task
@@ -157,7 +158,7 @@ class SourceDetectionAdmin(ModelAdmin):
     @admin.action(description='Download Products')
     def download_products(self, request, queryset):
         task_id = download_accepted_sources(request, queryset)
-        messages.info(request, f"Task {task_id} has been created")
+        return redirect('/admin/survey/task/')
 
     def get_list_display(self, request):
         return 'source', 'detection_link', 'summary'
@@ -653,7 +654,7 @@ class RunAdmin(ModelAdmin):
     def _internal_cross_match(self, request, queryset):
         try:
             task_id = self.internal_cross_match(request, queryset)
-            messages.info(request, f"Task {task_id} has been scheduled")
+            return redirect('/admin/survey/task/')
         except Exception as e:
             messages.error(request, str(e))
 
@@ -887,7 +888,7 @@ class RunAdmin(ModelAdmin):
         """
         try:
             task_id = self.external_cross_match(request, queryset)
-            messages.info(request, f"Task {task_id} has been scheduled")
+            return redirect('/admin/survey/task/')
         except Exception as e:
             messages.error(request, str(e))
 
@@ -986,8 +987,7 @@ class RunAdmin(ModelAdmin):
                 tag = Tag.objects.get(id=int(tag_select))
 
             task_id = self.release_sources(request, queryset, tag)
-            messages.info(request, f"Task {task_id} has been scheduled")
-            return 0
+            return redirect('/admin/survey/task/')
 
         except Exception as e:
             messages.error(request, str(e))
