@@ -183,11 +183,43 @@ class SourceDetectionAdmin(ModelAdmin):
 class DetectionAdmin(ModelAdmin):
     model = Detection
     list_per_page = 50
-    list_display = ('id', 'run', 'name', 'x', 'y', 'z',
-                    'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50',
+    list_display = ('id', 'run', 'name', 'display_x', 'display_y', 'display_z',
+                    'display_f_sum', 'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
+
+    def display_x(self, obj):
+        return round(obj.x, 4)
+    display_x.short_description = 'x'
+
+    def display_y(self, obj):
+        return round(obj.y, 4)
+    display_y.short_description = 'y'
+
+    def display_z(self, obj):
+        return round(obj.z, 4)
+    display_z.short_description = 'z'
+
+    def display_f_sum(self, obj):
+        return round(obj.f_sum, 4)
+    display_f_sum.short_description = 'f sum'
+
+    def display_ell_maj(self, obj):
+        return round(obj.ell_maj, 4)
+    display_ell_maj.short_description = 'ell maj'
+
+    def display_ell_min(self, obj):
+        return round(obj.ell_min, 4)
+    display_ell_min.short_description = 'ell min'
+
+    def display_w20(self, obj):
+        return round(obj.w20, 4)
+    display_w20.short_description = 'w20'
+
+    def display_w50(self, obj):
+        return round(obj.w50, 4)
+    display_w50.short_description = 'w50'
 
     def check_action(self, request, queryset):
         sanity_check(request, queryset)
@@ -213,8 +245,8 @@ class DetectionAdmin(ModelAdmin):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
-        return 'id', 'run', 'tags', 'summary', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
-               'w20', 'w50'
+        return 'id', 'run', 'tags', 'summary', 'name', 'display_x', 'display_y', 'display_z', \
+               'display_f_sum', 'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -313,11 +345,11 @@ class DetectionAdmin(ModelAdmin):
 class DetectionAdminInline(ModelAdminInline):
     # TODO(austin): probably want to show tags if there are any?
     model = Detection
-    list_display = (
-        'name', 'x', 'y', 'z', 'f_sum',
-        'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
+    readonly_fields = (
+        'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
-    exclude = [
+    exclude = [ 'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
         'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
         'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
@@ -325,8 +357,41 @@ class DetectionAdminInline(ModelAdminInline):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    readonly_fields = list_display
+    #readonly_fields = list_display
     fk_name = 'run'
+
+    def display_x(self, obj):
+        return round(obj.x, 4)
+    display_x.short_description = 'x'
+
+    def display_y(self, obj):
+        return round(obj.y, 4)
+    display_y.short_description = 'y'
+
+    def display_z(self, obj):
+        return round(obj.z, 4)
+    display_z.short_description = 'z'
+
+    def display_f_sum(self, obj):
+        return round(obj.f_sum, 4)
+    display_f_sum.short_description = 'f sum'
+
+    def display_ell_maj(self, obj):
+        return round(obj.ell_maj, 4)
+    display_ell_maj.short_description = 'ell maj'
+
+    def display_ell_min(self, obj):
+        return round(obj.ell_min, 4)
+    display_ell_min.short_description = 'ell min'
+
+    def display_w20(self, obj):
+        return round(obj.w20, 4)
+    display_w20.short_description = 'w20'
+
+    def display_w50(self, obj):
+        return round(obj.w50, 4)
+    display_w50.short_description = 'w50'
+
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -342,6 +407,39 @@ class DetectionAdminInline(ModelAdminInline):
 class UnresolvedDetectionAdmin(ModelAdmin):
     model = UnresolvedDetection
     actions = ['check_action', 'resolve_action', 'manual_resolve', 'add_tag', 'add_comment']
+
+    def display_x(self, obj):
+        return round(obj.x, 4)
+    display_x.short_description = 'x'
+
+    def display_y(self, obj):
+        return round(obj.y, 4)
+    display_y.short_description = 'y'
+
+    def display_z(self, obj):
+        return round(obj.z, 4)
+    display_z.short_description = 'z'
+
+    def display_f_sum(self, obj):
+        return round(obj.f_sum, 4)
+    display_f_sum.short_description = 'f sum'
+
+    def display_ell_maj(self, obj):
+        return round(obj.ell_maj, 4)
+    display_ell_maj.short_description = 'ell maj'
+
+    def display_ell_min(self, obj):
+        return round(obj.ell_min, 4)
+    display_ell_min.short_description = 'ell min'
+
+    def display_w20(self, obj):
+        return round(obj.w20, 4)
+    display_w20.short_description = 'w20'
+
+    def display_w50(self, obj):
+        return round(obj.w50, 4)
+    display_w50.short_description = 'w50'
+
 
     @admin.display(empty_value='No')
     def source(self, obj):
@@ -370,11 +468,11 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min',\
-                   'w20', 'w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+                   'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'run', 'name', 'x', 'y', 'z', 'f_sum', 'ell_maj',\
-                   'ell_min', 'w20', 'w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
+                   'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
     def lookup_allowed(self, lookup, value):
         if lookup is None:

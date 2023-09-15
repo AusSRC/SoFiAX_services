@@ -31,6 +31,6 @@ def product_summary_image(products, size=(3, 2)):
     with io.BytesIO() as image_data:
         fig.savefig(image_data, format='png')
         base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-        img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+        img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
         plt.close(fig)
         return mark_safe(img_src)
