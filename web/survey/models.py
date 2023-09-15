@@ -358,7 +358,7 @@ class Detection(models.Model):
         with BytesIO() as image_data:
             fig.savefig(image_data, format='png')
             base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-            img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+            img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
             plt.close(fig)
             return mark_safe(img_src)
 
@@ -381,7 +381,7 @@ class Detection(models.Model):
                 img.save(image_file, format='PNG')
                 image_data = image_file.getvalue()
                 base_img = binascii.b2a_base64(image_data).decode()
-                img_src = f'<img src=\"data:image/png;base64,{base_img}\">'
+                img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
                 return mark_safe(img_src)
 
     def summary_image(self, size=(3, 2)):
