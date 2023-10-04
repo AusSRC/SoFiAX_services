@@ -440,7 +440,9 @@ def inspect_detection_view(request):
             run_id = int(run_id)
         except ValueError:
             return HttpResponse('Run id is not an integer.', status=400)
+
         run = Run.objects.get(id=run_id)
+
         detections_to_resolve = Detection.objects.filter(
             run=run,
             n_pix__gte=300,
@@ -577,10 +579,10 @@ def external_conflict_view(request):
             run_id = int(run_id)
         except ValueError:
             return HttpResponse('Run id is not an integer.', status=400)
+
         run = Run.objects.get(id=run_id)
         conflicts = ExternalConflict.objects.filter(
-            detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
-        )
+            detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
 
         if len(conflicts) == 0:
             messages.info(request, "All external conflicts for this run have been resolved")
@@ -592,8 +594,10 @@ def external_conflict_view(request):
             conflict = conflicts[0]
         else:
             conflict = ExternalConflict.objects.get(id=external_conflict_id)
+
         current_idx = list(conflicts).index(conflict)
         conflict_sd_ids = conflict.conflict_source_detection_ids
+
         if len(conflict_sd_ids) == 1:
             # Show image
             product = Product.objects.get(detection=conflict.detection)
@@ -679,12 +683,15 @@ def external_conflict_view(request):
     elif request.method == 'POST':
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
+
         logging.info(f'External conflict resolution for run {run.name}')
+
         conflict = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
         conflicts = ExternalConflict.objects.filter(
-            detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
-        )
+            detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
+
         current_idx = list(conflicts).index(conflict)
+
         if 'Add tags and comments' in body['action']:
             with transaction.atomic():
                 sd = SourceDetection.objects.get(detection=conflict.detection)
@@ -734,6 +741,7 @@ def external_conflict_view(request):
                 new_idx = 0
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+
         if 'Keep new source name' in body['action']:
             with transaction.atomic():
                 # Check against existing sources
@@ -757,8 +765,10 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+
         if 'Ignore conflict' in body['action']:
             logging.info(f'Ignoring conflict {conflict.id}. Deleting conflict instance.')
             conflict.delete()
@@ -767,15 +777,15 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+
         if 'Delete conflict' in body['action']:
             deleted_other_conflict = False
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted
-                sds = SourceDetection.objects.filter(
-                    detection=conflict.detection
-                )
+                sds = SourceDetection.objects.filter(detection=conflict.detection)
                 for sd in sds:
                     source = sd.source
                     ssd = SourceDetection.objects.filter(source=source)
@@ -804,18 +814,21 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+
             if deleted_other_conflict:
                 conflicts = ExternalConflict.objects.filter(
-                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
-                )
+                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
+
                 url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
+
             return HttpResponseRedirect(url)
+
         if 'Copy old source name' in body['action']:
             with transaction.atomic():
                 # Priority over creating new name. Undo create new name if exists
-                sds = SourceDetection.objects.filter(
-                    detection=conflict.detection)
+                sds = SourceDetection.objects.filter(detection=conflict.detection)
 
                 # Remove new name source if exists.
                 for sd in sds:
@@ -831,6 +844,7 @@ def external_conflict_view(request):
                 sd_ids = conflict.conflict_source_detection_ids
                 if len(sd_ids) != 1:
                     messages.error(request, f"Cannot add new detection {detection.name} to existing source if there are multiple potential sources.")
+
                 sd_id = sd_ids[0]
 
                 # Delete existing source and update source detection
@@ -849,8 +863,10 @@ def external_conflict_view(request):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+
         if 'Replace detection in source' in body['action']:
             detection = conflict.detection
             sd = SourceDetection.objects.get(id=conflict.conflict_source_detection_ids[0])
@@ -858,19 +874,23 @@ def external_conflict_view(request):
             logging.info(f'Replacing detection {sd.detection} with {detection} in source {source}.')
 
             with transaction.atomic():
-                logging.info('Database update')
                 current_sd = SourceDetection.objects.get(detection=detection)
                 current_sd.source = source
                 current_sd.save()
                 sd.delete()
+                conflict.delete()
+
+            logging.info('Database update')
 
             new_idx = current_idx + 1
             if new_idx >= len(conflicts):
                 new_idx = current_idx - 1
             if len(conflicts) == 1:
                 return HttpResponseRedirect('/admin/survey/run')
+
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
             return HttpResponseRedirect(url)
+
         messages.warning(request, "Selected action that should not exist.")
         url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
         return HttpResponseRedirect(url)
