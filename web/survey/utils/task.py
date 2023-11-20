@@ -9,8 +9,9 @@ from datetime import datetime
 from django.http import HttpRequest
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from django.db.models.query import QuerySet
 
-from survey.models import Task, TaskReturn
+from survey.models import Task, TaskReturn, NoneTaskReturn
 
 
 @receiver(post_delete, sender=Task)
@@ -31,7 +32,7 @@ def _thread_func(func, task_id, *args, **kwargs):
         if ret is None:
             ret = NoneTaskReturn()
         elif isinstance(ret, TaskReturn) is False:
-            raise Exception(f"{fun.__name__} must return TaskReturn object")
+            raise Exception(f"{func.__name__} must return TaskReturn object")
 
         Task.objects.filter(pk=task_id).update(retval=ret.get_json(), end=datetime.now(), state='COMPLETED')
     except Exception as e:
@@ -61,8 +62,18 @@ def task(exclusive_func_with=[]):
             if running.count() > 0:
                 raise ValueError(f'Functions {",".join(exclusive_func_with)} is RUNNING or PENDING, please wait for them to finish.')
 
+            query_set = None
+            for a in args:
+                if isinstance(a, QuerySet):
+                    query_set = [str(i) for i in a]
+                    break
+
             # Create new task to track, in PENDING
-            t = Task.objects.create(func=func.__name__, args=json.dumps([str(a) for a in args]), state='PENDING', user=req.user.username)
+            t = Task.objects.create(func=func.__name__, 
+                                    args=json.dumps([str(a) for a in args]),
+                                    queryset=query_set,
+                                    state='PENDING', 
+                                    user=req.user.username)
             t.save()
 
             th = threading.Thread(target=_thread_func, args=(func, t.id, args), kwargs=kwargs, daemon=True)

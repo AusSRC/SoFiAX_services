@@ -94,6 +94,7 @@ class ValueTaskReturn(TaskReturn):
 class Task(models.Model):
     id = models.BigAutoField(primary_key=True)
     func = models.TextField()
+    queryset = models.JSONField()
     args = models.JSONField()
     retval = models.JSONField()
     start = models.DateTimeField()
@@ -155,7 +156,7 @@ class Instance(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
     filename = models.TextField()
     boundary = models.TextField()
     run_date = models.DateTimeField(auto_now_add=True)
@@ -185,8 +186,8 @@ class Detection(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    instance = models.ForeignKey(Instance, on_delete=models.CASCADE)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    instance = models.ForeignKey(Instance, on_delete=models.DO_NOTHING)
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
     name = models.TextField(blank=True, null=True)
     x = PostgresDecimalField()
     y = PostgresDecimalField()
@@ -409,7 +410,7 @@ class InternalConflictSource(Detection):
 
 class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
-    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.DO_NOTHING)
     cube = models.BinaryField(blank=True, null=True)
     mask = models.BinaryField(blank=True, null=True)
     mom0 = models.BinaryField(blank=True, null=True)
@@ -473,8 +474,8 @@ class Source(models.Model):
 
 class SourceDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
-    source = models.ForeignKey(Source, on_delete=models.CASCADE)
-    detection = models.OneToOneField(Detection, on_delete=models.CASCADE)
+    source = models.ForeignKey(Source, on_delete=models.DO_NOTHING)
+    detection = models.OneToOneField(Detection, on_delete=models.DO_NOTHING)
     added_at = models.DateTimeField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -509,8 +510,8 @@ class SourceDetection(models.Model):
 
 class ExternalConflict(models.Model):
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, on_delete=models.DO_NOTHING)
     conflict_source_detection_ids = ArrayField(
         models.IntegerField()
     )
@@ -579,7 +580,7 @@ class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=2048, blank=True, null=True)
-    detection = models.ForeignKey('Detection', on_delete=models.CASCADE)
+    detection = models.ForeignKey('Detection', on_delete=models.DO_NOTHING)
     updated_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
@@ -605,7 +606,7 @@ class Tag(models.Model):
 class TagSourceDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
     tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    source_detection = models.ForeignKey(SourceDetection, on_delete=models.CASCADE)
+    source_detection = models.ForeignKey(SourceDetection, on_delete=models.DO_NOTHING)
     author = models.CharField(max_length=2048, blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True, blank=True)
 
@@ -620,14 +621,26 @@ class TagSourceDetection(models.Model):
 
 class SurveyComponent(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.TextField()
-    runs = ArrayField(
-        models.TextField()
-    )
+    name = models.CharField(max_length=2048, blank=True, null=True)
+    runs = ArrayField(models.TextField(), editable=False)
+
+    def __str__(self):
+        return self.name
 
     class Meta:
         managed = False
         db_table = 'survey_component'
+
+
+class SurveyComponentRun(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
+    sc = models.ForeignKey(SurveyComponent, on_delete=models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'survey_component_run'
+        unique_together = (('run', 'sc'),)
 
 
 class Observation(models.Model):
@@ -639,14 +652,67 @@ class Observation(models.Model):
     rotation = models.FloatField()
     description = models.TextField()
     phase = models.CharField(max_length=64)
-    image_cube_file = models.CharField(max_length=256)
-    weights_cube_file = models.CharField(max_length=256)
     quality = models.CharField(max_length=64)
     status = models.CharField(max_length=64)
+    scheduled = models.BooleanField()
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
+
+    def __str__(self):
+        return self.name
 
     class Meta:
         managed = False
         db_table = 'observation'
+
+
+class Tile(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.TextField()
+    ra_deg = models.FloatField()
+    dec_deg = models.FloatField()
+    phase = models.TextField()
+    
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        managed = False
+        db_table = 'tile'
+
+
+class TileObs(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING, db_column='tile_id', to_field='id')
+    obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
+
+    class Meta:
+        managed = False
+        db_table = 'tile_obs'
+
+
+class SourceExtractionRegion(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.TextField()
+    ra_deg = models.FloatField()
+    dec_deg = models.FloatField()
+    complete = models.BooleanField()
+    status = models.TextField()
+    scheduled = models.BooleanField()
+    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'source_extraction_region'
+
+
+class SourceExtractionRegionTile(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    ser = models.ForeignKey(SourceExtractionRegion, on_delete=models.DO_NOTHING)
+    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'source_extraction_region_tile'
 
 
 class Postprocessing(models.Model):
