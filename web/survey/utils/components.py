@@ -6,7 +6,7 @@ from survey.models import Run, Detection, SurveyComponent
 def get_survey_components():
     components_dict = {}
     for sc in SurveyComponent.objects.all():
-        components_dict[sc.name] = sc.runs
+        components_dict[sc.name] = [i.run.name for i in sc.surveycomponentrun_set.all()]
     return components_dict
 
 
