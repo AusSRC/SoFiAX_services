@@ -14,6 +14,23 @@ from survey.models import Tag, Comment
 from keycloak import KeycloakOpenID
 
 
+# decorator for model action
+def require_confirmation(func):
+    def wrapper(modeladmin, request, queryset):
+        if request.POST.get("confirmation") is None:
+            request.current_app = modeladmin.admin_site.name
+            context = {
+                "action": request.POST["action"],
+                "queryset": queryset,
+            }
+            return TemplateResponse(request, "admin/action_confirmation.html", context)
+
+        return func(modeladmin, request, queryset)
+    
+    wrapper.__name__ = func.__name__
+    return wrapper
+
+
 def action_form(form_class=None):
     """
 
