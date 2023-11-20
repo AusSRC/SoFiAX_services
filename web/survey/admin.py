@@ -5,20 +5,26 @@ import threading
 
 from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.forms import forms
 from django.db import transaction
 from django.conf import settings
 from random import choice
 from django.shortcuts import redirect
+from django.utils.html import format_html
+from django.db.models.aggregates import Count
+from django.db.models import Q
+from django.db.models.expressions import RawSQL
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.task import task
 from survey.utils.components import get_survey_components, get_release_name
-from survey.decorators import action_form, add_tag_form, add_comment_form
-from survey.models import Detection, UnresolvedDetection, ExternalConflict,\
-    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel,\
-    Observation, SurveyComponent, Postprocessing, Task, ValueTaskReturn
+from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
+from survey.models import Detection, UnresolvedDetection, ExternalConflict, \
+    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel, \
+    Observation, SurveyComponent, Postprocessing, Task, ValueTaskReturn, SurveyComponentRun, Tile, \
+    SourceExtractionRegion
+
 
 from .tasks import download_accepted_sources
 
@@ -110,32 +116,127 @@ class CommentAdmin(ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-class KinematicModelAdmin(ModelAdmin):
-    list_display = [f.name for f in KinematicModel._meta.get_fields()]
+#class KinematicModelAdmin(ModelAdmin):
+#    list_display = [f.name for f in KinematicModel._meta.get_fields()]
 
 
-class PostprocessingAdmin(ModelAdmin):
-    list_display = [f.name for f in Postprocessing._meta.get_fields()]
+#class PostprocessingAdmin(ModelAdmin):
+#    list_display = [f.name for f in Postprocessing._meta.get_fields()]
 
 
 class ObservationAdmin(ModelAdmin):
-    list_display = [f.name for f in Observation._meta.get_fields()]
+    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled']
+    search_fields = ['name', 'sbid', 'quality', 'status', 'scheduled']
+    ordering = ('quality',)
 
     def has_change_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_add_permission(self, request, obj=None):
-        return True
+        return False
 
     def has_delete_permission(self, request, obj=None):
-        return True
+        return False
 
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+    def get_queryset(self, request):
+        qs = super(ObservationAdmin, self).get_queryset(request)
+        return qs.filter(phase='Full Survey')
+
+    def run_link(self, obj):
+        if not obj.run:
+            return '-'
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_run_changelist')
+        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+
+    run_link.short_description = 'Run'
+
+
+class TileAdmin(ModelAdmin):
+    list_display = ['id', 'name', 'ra_deg', 'dec_deg', 'phase', 'show_footprint', 'footprint_complete']
+    search_fields = ['id', 'name', 'ra_deg', 'dec_deg', 'phase', 'tileobs__obs__name', 'tileobs__obs__sbid']
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        qs = super(TileAdmin, self).get_queryset(request)
+        qs = qs.annotate(footprint_complete=Count('tileobs', 
+                                                  filter=Q(tileobs__obs__status='COMPLETED'))).order_by('-footprint_complete')
+
+        return qs.filter(phase='Survey')
+
+    def show_footprint(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_observation_changelist')
+        fmt = format_html_join(", ", "<a href='{}?q={}'>{}</a>", ((url, o.obs.name, o.obs.name) for o in obj.tileobs_set.all()))
+        return fmt
+
+    def footprint_complete(self, obj):
+        total = obj.footprint_complete
+        return total
+
+    footprint_complete.admin_order_field = 'footprint_complete'
+    footprint_complete.short_description = 'Footprints Complete'
+    show_footprint.short_description = 'Footprints'
+
+
+class SourceExtractionRegionAdmin(ModelAdmin):
+    list_display = ['id', 'name', 'ra_deg', 'dec_deg', 'show_tiles', 'status', 'run_link', 'scheduled']
+    search_fields = ['id', 'name', 'ra_deg', 'dec_deg', 'status', 'scheduled', 'sourceextractionregiontile__tile__name']
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def show_tiles(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_tile_changelist')
+        fmt = format_html_join(", ", "<a href='{}?q={}'>{}</a>", ((url, t.tile.name, t.tile.name) for t in obj.sourceextractionregiontile_set.all()))
+        return fmt
+
+    show_tiles.short_description = 'Tiles'
+
+    def run_link(self, obj):
+        if not obj.run:
+            return '-'
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_run_changelist')
+        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+
+    run_link.short_description = 'Run'
+
+
+class SurveyComponentRunInline(admin.TabularInline):
+    model = SurveyComponentRun
+    extra = 1
+    
+    autocomplete_fields = ['run']
+
+    def formfield_for_dbfield(self, *args, **kwargs):
+        formfield = super().formfield_for_dbfield(*args, **kwargs)
+        if formfield:
+            formfield.widget.can_delete_related = False
+            formfield.widget.can_change_related = False
+            formfield.widget.can_add_related = False
+            formfield.widget.can_view_related = True
+
+        return formfield
 
 
 class SurveyComponentAdmin(ModelAdmin):
-    list_display = [f.name for f in SurveyComponent._meta.get_fields()]
+    inlines = [SurveyComponentRunInline,]
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -682,14 +783,18 @@ class RunAdmin(ModelAdmin):
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
         'run_unresolved_detections', 'run_sources', 'run_detections',
-        'run_manual_inspection', 'run_external_conflicts',
-    )
+        'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
         DetectionAdminInline,
-        InstanceAdminInline,
-    )
-    actions = ['_internal_cross_match', '_external_cross_match', '_release_sources']
+        InstanceAdminInline,)
+
+    search_fields = ['name']
+    actions = ['_internal_cross_match', '_external_cross_match', 
+               '_release_sources', '_delete_run']
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
     def get_actions(self, request):
         return super(RunAdmin, self).get_actions(request)
@@ -749,6 +854,27 @@ class RunAdmin(ModelAdmin):
             return True
         return False
 
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
+    def delete_run(self, request, queryset):
+        names = [i.name for i in queryset]
+        with transaction.atomic():
+            queryset._raw_delete(queryset.db)
+        return ValueTaskReturn(f'Run(s) deleted: {names}')
+
+    @require_confirmation
+    def _delete_run(self, request, queryset):
+        try:
+            if queryset.count() == 0:
+                messages.error(request, "No Run(s) selected")
+                return
+
+            self.delete_run(request, queryset)
+            return redirect('/admin/survey/task/')
+        except Exception as e:
+            messages.error(request, str(e))
+
+    _delete_run.short_description = 'Delete Run'
+
     def _internal_cross_match(self, request, queryset):
         try:
             task_id = self.internal_cross_match(request, queryset)
@@ -756,7 +882,7 @@ class RunAdmin(ModelAdmin):
         except Exception as e:
             messages.error(request, str(e))
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
     def internal_cross_match(self, request, queryset):
         """Run the internal cross matching workflow
 
@@ -806,7 +932,7 @@ class RunAdmin(ModelAdmin):
 
     _internal_cross_match.short_description = 'Internal cross matching'
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
     def external_cross_match(self, request, queryset):
         # Threshold values
         thresh_spat = 90.0
@@ -995,7 +1121,7 @@ class RunAdmin(ModelAdmin):
     class ReleaseSourceForm(forms.Form):
         title = 'Release sources for selected runs. Created source names and adds new tag to all sources.'
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
     def release_sources(self, request, queryset, tag):
         PROJECT = settings.PROJECT
 
@@ -1108,7 +1234,15 @@ class RunAdminInline(ModelAdminInline):
 
 
 class TaskAdmin(ModelAdmin):
-    list_display = ['id', 'func', 'start', 'end', 'state', 'error', 'get_retval', 'get_return_link']
+    list_display = ['id', 'func', 'queryset', 'start', 'end', 'state', 'error', 'get_retval', 'get_return_link']
+
+    def delete_queryset(self, request, queryset):
+        for i in queryset:
+            if i.state == 'RUNNING':
+                messages.error(request, f"{i.id} is RUNNING")
+                return
+        with transaction.atomic():
+            queryset.delete()
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(user__contains=str(request.user))
@@ -1138,10 +1272,12 @@ admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
 
-if settings.KINEMATICS:
-    admin.site.register(KinematicModel, KinematicModelAdmin)
+#if settings.KINEMATICS:
+#    admin.site.register(KinematicModel, KinematicModelAdmin)
 
+admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
 admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Observation, ObservationAdmin)
-admin.site.register(Postprocessing, PostprocessingAdmin)
+admin.site.register(Tile, TileAdmin)
+#admin.site.register(Postprocessing, PostprocessingAdmin)
 admin.site.register(Task, TaskAdmin)
