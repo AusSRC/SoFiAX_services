@@ -15,6 +15,7 @@ from django.utils.html import format_html
 from django.db.models.aggregates import Count
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
+from django.db import connection
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.task import task
@@ -812,29 +813,29 @@ class RunAdmin(ModelAdmin):
     def run_unresolved_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
+        return format_html(f"<a href='{url}?run={obj.id}'>Unresolved Detections</a>")
     run_unresolved_detections.short_description = 'Unresolved Detections'
 
     def run_sources(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_sourcedetection_changelist')
-        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>View</a>")
+        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>Accepted Sources</a>")
     run_sources.short_description = 'Accepted Sources'
 
     def run_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_detection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>View</a>")
+        return format_html(f"<a href='{url}?run={obj.id}'>All Detections</a>")
     run_detections.short_description = 'All Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>Detections</a>")
+        return format_html(f"<a href='{url}'>Manual inspection</a>")
     run_manual_inspection.short_description = 'Manual inspection'
 
     def run_external_conflicts(self, obj):
         url = f"{reverse('external_conflict')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>Conflicts</a>")
+        return format_html(f"<a href='{url}'>External conflicts</a>")
     run_external_conflicts.short_description = 'External conflicts'
 
     def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
@@ -943,6 +944,18 @@ class RunAdmin(ModelAdmin):
 
         if queryset.count() != 1:
             raise Exception("Only one run can be selected at a time for external cross matching.")
+
+        # Quick hack to remove "Dangling" Sources that are not removed when a detection is deleted.
+        # Fix is to put Source name in detection and remove Source and SourceDetection tables
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                            DELETE FROM wallaby.source 
+                            WHERE wallaby.source.id IN (
+                            SELECT s.id 
+                            FROM wallaby.source as s 
+                            LEFT JOIN wallaby.source_detection as sd ON s.id = sd.source_id 
+                            WHERE sd.source_id IS NULL
+                            )""")
 
         # Check to make sure run is in survey_components
         run = queryset.first()

@@ -27,6 +27,20 @@
                 </tr>
             </table>
 
+            <table>
+                <tr>
+                    {% for key, value in links.items %}
+                    <td>{{ key }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    {% for key, value in links.items %}
+                    <td><a href="{{ value }}" target="_blank">{{ key }}</a></td>
+                    {% endfor %}
+                </tr>
+            </table>
+
+
             <form style='padding: 2px' method="post">
                 {% csrf_token %}
                 <br><hr><br>

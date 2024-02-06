@@ -475,15 +475,21 @@ def inspect_detection_view(request):
         description += ', '.join([c.comment for c in Comment.objects.filter(detection=detection)])
 
         properties = {
-            'x': round(detection.x, 2),
-            'y': round(detection.y, 2),
-            'z': round(detection.z, 2),
+            'RA': round(detection.ra, 2),
+            'Dec': round(detection.dec, 2),
+            'freq': round(detection.freq, 2),
+            'v_opt': round(299792.458 * (1.42040575e+9 / detection.freq - 1.0), 2),
             'f_sum': round(detection.f_sum, 2),
-            'ell_maj': round(detection.ell_maj, 2),
-            'ell_min': round(detection.ell_min, 2),
-            'w20': round(detection.w20, 2),
-            'w50': round(detection.w50, 2),
+            'rel': round(detection.rel, 2),
+            'rms': round(detection.rms, 2),
+            'snr': round(detection.f_sum / detection.err_f_sum, 2),
         }
+
+        links = {
+            "NED": f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5",
+            "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768"
+        }
+
         # Form content
         params = {
             'title': detection.name,
@@ -494,7 +500,9 @@ def inspect_detection_view(request):
             'detection_id': detection.id,
             'image': mark_safe(img_src),
             'tags': Tag.objects.all(),
+            'links': links
         }
+
         return render(request, 'admin/form_inspect_detection.html', params)
 
     # Handle POST
