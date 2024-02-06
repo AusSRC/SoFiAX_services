@@ -285,43 +285,43 @@ class SourceDetectionAdmin(ModelAdmin):
 class DetectionAdmin(ModelAdmin):
     model = Detection
     list_per_page = 50
-    list_display = ('id', 'run', 'name', 'display_x', 'display_y', 'display_z',
-                    'display_f_sum', 'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50',
+    list_display = ('id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq',
+                    'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
 
-    def display_x(self, obj):
-        return round(obj.x, 4)
-    display_x.short_description = 'x'
+    def display_ra(self, obj):
+        return round(obj.ra, 4)
+    display_ra.short_description = 'RA'
 
-    def display_y(self, obj):
-        return round(obj.y, 4)
-    display_y.short_description = 'y'
+    def display_dec(self, obj):
+        return round(obj.dec, 4)
+    display_dec.short_description = 'Dec'
 
-    def display_z(self, obj):
-        return round(obj.z, 4)
-    display_z.short_description = 'z'
+    def display_freq(self, obj):
+        return round(obj.freq, 4)
+    display_freq.short_description = 'freq'
 
     def display_f_sum(self, obj):
         return round(obj.f_sum, 4)
     display_f_sum.short_description = 'f sum'
 
-    def display_ell_maj(self, obj):
-        return round(obj.ell_maj, 4)
-    display_ell_maj.short_description = 'ell maj'
+    def display_v_opt(self, obj):
+        return round(299792.458 * (1.42040575e+9 / obj.freq - 1.0), 4)
+    display_v_opt.short_description = 'v_opt'
 
-    def display_ell_min(self, obj):
-        return round(obj.ell_min, 4)
-    display_ell_min.short_description = 'ell min'
+    def display_rel(self, obj):
+        return round(obj.rel, 4)
+    display_rel.short_description = 'rel'
 
-    def display_w20(self, obj):
-        return round(obj.w20, 4)
-    display_w20.short_description = 'w20'
+    def display_rms(self, obj):
+        return round(obj.rms, 4)
+    display_rms.short_description = 'rms'
 
-    def display_w50(self, obj):
-        return round(obj.w50, 4)
-    display_w50.short_description = 'w50'
+    def display_snr(self, obj):
+        return round(obj.f_sum / obj.err_f_sum, 4)
+    display_snr.short_description = 'snr'
 
     def check_action(self, request, queryset):
         sanity_check(request, queryset)
@@ -347,8 +347,8 @@ class DetectionAdmin(ModelAdmin):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
-        return 'id', 'run', 'tags', 'summary', 'name', 'display_x', 'display_y', 'display_z', \
-               'display_f_sum', 'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50'
+        return 'id', 'run', 'tags', 'summary', 'name', 'display_ra', 'display_dec', 'display_freq', \
+               'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -443,6 +443,9 @@ class DetectionAdmin(ModelAdmin):
             return
     add_comment.short_description = 'Add comments'
 
+    def lookup_allowed(self, lookup, value):
+        return True
+
 
 class DetectionAdminInline(ModelAdminInline):
     # TODO(austin): probably want to show tags if there are any?
@@ -503,7 +506,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)  
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
