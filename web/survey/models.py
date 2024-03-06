@@ -442,7 +442,7 @@ class Source(models.Model):
     def save(self, *args, **kwargs):
         """Do not save changes for released sources."""
         release_tags = Tag.objects.filter(type='release')
-        sds = SourceDetection.objects.filter(source=self)
+        sds = SourceDetection.objects.filter(source__name=self.name)
         tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
         is_tagged = False
         for tsd in tsds:
@@ -481,7 +481,7 @@ class SourceDetection(models.Model):
     def save(self, *args, **kwargs):
         """Do not save changes for released source detections."""
         internal_release_tag = Tag.objects.get(name='Internal Release')
-        tsds = TagSourceDetection.objects.filter(source_detection=self)
+        tsds = TagSourceDetection.objects.filter(source_detection__detection__name=self.detection.name)
         is_released = False
         if internal_release_tag in tsds:
             is_released = True

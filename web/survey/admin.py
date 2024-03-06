@@ -168,7 +168,7 @@ class TileAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         qs = super(TileAdmin, self).get_queryset(request)
-        qs = qs.annotate(footprint_complete=Count('tileobs', 
+        qs = qs.annotate(footprint_complete=Count('tileobs',
                                                   filter=Q(tileobs__obs__status='COMPLETED'))).order_by('-footprint_complete')
 
         return qs.filter(phase='Survey')
@@ -222,7 +222,7 @@ class SourceExtractionRegionAdmin(ModelAdmin):
 class SurveyComponentRunInline(admin.TabularInline):
     model = SurveyComponentRun
     extra = 1
-    
+
     autocomplete_fields = ['run']
 
     def formfield_for_dbfield(self, *args, **kwargs):
@@ -378,7 +378,7 @@ class DetectionAdmin(ModelAdmin):
 
                 # Create source and source detection entries
                 for detection in detect_list:
-                    source = Source.objects.create(name=detection.name)
+                    source = Source.objects.create(name=detection.name)  # NOTE: only place where sources are created
                     SourceDetection.objects.create(
                         source=source,
                         detection=detection)
@@ -506,7 +506,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)  
+        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
@@ -794,7 +794,7 @@ class RunAdmin(ModelAdmin):
         InstanceAdminInline,)
 
     search_fields = ['name']
-    actions = ['_internal_cross_match', '_external_cross_match', 
+    actions = ['_internal_cross_match', '_external_cross_match',
                '_release_sources', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
@@ -952,11 +952,11 @@ class RunAdmin(ModelAdmin):
         # Fix is to put Source name in detection and remove Source and SourceDetection tables
         with connection.cursor() as cursor:
             cursor.execute("""
-                            DELETE FROM wallaby.source 
+                            DELETE FROM wallaby.source
                             WHERE wallaby.source.id IN (
-                            SELECT s.id 
-                            FROM wallaby.source as s 
-                            LEFT JOIN wallaby.source_detection as sd ON s.id = sd.source_id 
+                            SELECT s.id
+                            FROM wallaby.source as s
+                            LEFT JOIN wallaby.source_detection as sd ON s.id = sd.source_id
                             WHERE sd.source_id IS NULL
                             )""")
 
