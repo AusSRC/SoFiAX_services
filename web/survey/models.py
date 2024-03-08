@@ -129,7 +129,7 @@ class Task(models.Model):
             raise ValueError("Unknown return type")
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'task'
 
 # ------------------------------------------------------------------------------
@@ -419,7 +419,7 @@ class Product(models.Model):
     chan = models.BinaryField(blank=True, null=True)
     snr = models.BinaryField(blank=True, null=True)
     spec = models.BinaryField(blank=True, null=True)
-    summary = models.BinaryField(blank=True, null=True)
+    pv = models.BinaryField(blank=True, null=True)
     plot = models.BinaryField(blank=True, null=True)
 
     class Meta:
@@ -628,7 +628,7 @@ class SurveyComponent(models.Model):
         return self.name
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'survey_component'
 
 
@@ -638,7 +638,7 @@ class SurveyComponentRun(models.Model):
     sc = models.ForeignKey(SurveyComponent, on_delete=models.DO_NOTHING)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'survey_component_run'
         unique_together = (('run', 'sc'),)
 
@@ -646,22 +646,24 @@ class SurveyComponentRun(models.Model):
 class Observation(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.TextField()
-    sbid = models.CharField(max_length=64)
+    sbid = models.CharField(max_length=64, null=True)
     ra = models.FloatField()
     dec = models.FloatField()
-    rotation = models.FloatField()
-    description = models.TextField()
-    phase = models.CharField(max_length=64)
-    quality = models.CharField(max_length=64)
-    status = models.CharField(max_length=64)
-    scheduled = models.BooleanField()
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
+    rotation = models.FloatField(null=True)
+    description = models.TextField(null=True)
+    phase = models.CharField(max_length=64, null=True)
+    image_cube_file = models.TextField(null=True)
+    weights_cube_file = models.TextField(null=True)
+    quality = models.CharField(max_length=64, null=True)
+    status = models.CharField(max_length=64, null=True)
+    scheduled = models.BooleanField(null=True)
+    run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'observation'
 
 
@@ -670,13 +672,18 @@ class Tile(models.Model):
     name = models.TextField()
     ra_deg = models.FloatField()
     dec_deg = models.FloatField()
-    phase = models.TextField()
-    
+    phase = models.TextField(null=True)
+    description = models.TextField(null=True)
+    image_cube_file = models.TextField(null=True)
+    weights_cube_file = models.TextField(null=True)
+    footprint_A = models.ForeignKey(Observation, on_delete=models.CASCADE, db_column='footprint_A', related_name='footprint_A', to_field='id', null=True)
+    footprint_B = models.ForeignKey(Observation, on_delete=models.CASCADE, db_column='footprint_B', related_name='footprint_B', to_field='id', null=True)
+
     def __str__(self):
         return self.name
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'tile'
 
 
@@ -686,22 +693,22 @@ class TileObs(models.Model):
     obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'tile_obs'
 
 
 class SourceExtractionRegion(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.TextField()
-    ra_deg = models.FloatField()
-    dec_deg = models.FloatField()
-    complete = models.BooleanField()
-    status = models.TextField()
-    scheduled = models.BooleanField()
+    name = models.TextField(null=True)
+    ra_deg = models.FloatField(null=True)
+    dec_deg = models.FloatField(null=True)
+    complete = models.BooleanField(null=True)
+    status = models.TextField(null=True)
+    scheduled = models.BooleanField(null=True)
     run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'source_extraction_region'
 
 
@@ -711,7 +718,7 @@ class SourceExtractionRegionTile(models.Model):
     tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'source_extraction_region_tile'
 
 
@@ -725,7 +732,7 @@ class Postprocessing(models.Model):
     status = models.CharField(max_length=64)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'postprocessing'
 
 # ------------------------------------------------------------------------------

@@ -28,6 +28,7 @@ ALTER SCHEMA survey OWNER TO admin;
 SET default_tablespace = '';
 SET default_table_access_method = heap;
 
+CREATE EXTENSION IF NOT EXISTS "postgis";
 CREATE EXTENSION IF NOT EXISTS "pg_sphere";
 
 GRANT ALL ON DATABASE surveydb TO gavo;
@@ -360,7 +361,7 @@ CREATE TABLE survey.product (
     snr bytea,
     chan bytea,
     spec bytea,
-    summary bytea,
+    pv bytea,
     plot bytea
 )
 WITH (autovacuum_enabled='on');
@@ -509,6 +510,7 @@ CREATE TABLE survey.task (
     id bigint NOT NULL,
     func text NOT NULL,
     args jsonb,
+    queryset jsonb,
     start timestamp without time zone DEFAULT now(),
     "end" timestamp without time zone,
     retval jsonb,
