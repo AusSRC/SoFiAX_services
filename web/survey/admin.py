@@ -1053,25 +1053,34 @@ class RunAdmin(ModelAdmin):
                     logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted. Conflict: {delete_sources}')
                 if auto_rename and not auto_delete:
                     if len(rename_sources) > 1:
-                        logging.error(f'Multiple rename sources: {rename_sources}')
-                        raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
+                        logging.info(f'Multiple rename sources: {rename_sources}')
+                        logging.info('Original detection: ', d.name)
+                        for (sd1, sd2) in rename_sources:
+                            logging.info(f'Conflicting sources: {sd1.source.name} ({sd1.detection.id}, run={sd1.detection.run.name}) {sd2.source.name} ({sd2.detection.id} run={sd2.detection.run.name}))')
+
+                        new_source_names = [sd.source.name for (sd, _) in rename_sources]
+                        if len(set(new_source_names)) == 1:
+                            logging.info("Allowing rename to source object with multiple detections")
+                        else:
+                            logging.error(f'Multiple rename sources: {rename_sources}')
+                            raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
 
                     # Check other detections pointing to rename source in same survey component
                     conflict_in_survey_component = False
-                    sd_cur, sd_ext = rename_sources[0]
-                    sds = SourceDetection.objects.filter(source=sd_ext.source)
-                    for sd in sds:
-                        if set([sd_cur.detection.run.name, sd.detection.run.name]).issubset(set(runs)):
-                            conflict_in_survey_component = True
-                            logging.info(f'Cannot rename detection {sd_cur.detection.name} to {sd_ext.source.name} due to potential conflict {sd.detection.name} in same survey component.')
-                            logging.info(f'Creating external conflict {sd_cur.detection.name} to detection {sd.detection.name} [source_detection_id={sd.id}]')
-                            external_conflicts.append({
-                                'run': run,
-                                'detection': sd_cur.detection,
-                                'conflict_source_detection_ids': [sd.id]
-                            })
+                    for (sd_cur, sd_ext) in rename_sources:
+                        sds = SourceDetection.objects.filter(source=sd_ext.source)
+                        for sd in sds:
+                            if set([sd_cur.detection.run.name, sd.detection.run.name]).issubset(set(runs)):
+                                conflict_in_survey_component = True
+                                logging.info(f'Cannot rename detection {sd_cur.detection.name} to {sd_ext.source.name} due to potential conflict {sd.detection.name} in same survey component.')
+                                logging.info(f'Creating external conflict {sd_cur.detection.name} to detection {sd.detection.name} [source_detection_id={sd.id}]')
+                                external_conflicts.append({
+                                    'run': run,
+                                    'detection': sd_cur.detection,
+                                    'conflict_source_detection_ids': [sd.id]
+                                })
                     if not conflict_in_survey_component:
-                        all_rename_sources += rename_sources
+                        all_rename_sources += [rename_sources[0]]
                         logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name} [{sd_ext.detection.run.name}]')
                 if not auto_rename and not auto_delete and matches:
                     logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
