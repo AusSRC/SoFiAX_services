@@ -1,7 +1,6 @@
 import math
 import time
 import logging
-import threading
 
 from django.contrib import admin, messages
 from django.urls import reverse
@@ -14,18 +13,14 @@ from django.shortcuts import redirect
 from django.utils.html import format_html
 from django.db.models.aggregates import Count
 from django.db.models import Q
-from django.db.models.expressions import RawSQL
-from django.db import connection
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.task import task
 from survey.utils.components import get_survey_components, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
-from survey.models import Detection, UnresolvedDetection, ExternalConflict, \
-    Source, Instance, Run, SourceDetection, Comment, Tag, TagSourceDetection, KinematicModel, \
-    Observation, SurveyComponent, Postprocessing, Task, ValueTaskReturn, SurveyComponentRun, Tile, \
-    SourceExtractionRegion
-
+from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
+    Instance, Run, Comment, Tag, TagDetection, KinematicModel, Observation, SurveyComponent, \
+    Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
 
 from .tasks import download_accepted_sources
 
@@ -70,19 +65,19 @@ class TagAdmin(ModelAdmin):
         return True
 
 
-class TagSourceDetectionAdmin(ModelAdmin):
+class TagDetectionAdmin(ModelAdmin):
     list_display = ('tag', 'get_source', 'get_detection', 'author', 'added_at')
-    search_fields = ['tag__name', 'source_detection__source__name', 'source_detection__detection__name']
+    search_fields = ['tag__name', 'detection__source__name', 'detection__detection__name']
 
     def get_source(self, obj):
-        return obj.source_detection.source.name
+        return obj.detection.source.name
     get_source.short_description = 'Source'
-    get_source.admin_order_field = "source_detection__source__name"
+    get_source.admin_order_field = "detection__source__name"
 
     def get_detection(self, obj):
-        return obj.source_detection.detection.name
+        return obj.detection.detection.name
     get_detection.short_description = 'Detection'
-    get_detection.admin_order_field = "source_detection__deetection__name"
+    get_detection.admin_order_field = "detection__detection__name"
 
     def has_change_permission(self, request, obj=None):
         return False
@@ -252,40 +247,10 @@ class SurveyComponentAdmin(ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-class SourceDetectionAdmin(ModelAdmin):
-    model = SourceDetection
-    list_filter = ['detection__run']
-    list_per_page = 50
-
-    @admin.action(description='Download Products')
-    def download_products(self, request, queryset):
-        task_id = download_accepted_sources(request, queryset)
-        return redirect('/admin/survey/task/')
-
-    def get_list_display(self, request):
-        return 'source', 'detection_link', 'summary'
-
-    @admin.display(empty_value=None)
-    def detection_link(self, obj):
-        detection_obj = obj.detection
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_detection_changelist')
-        return format_html(f"<a href='{url}{detection_obj.id}' target='_blank'>{detection_obj.name}</a>")
-
-    @admin.display(empty_value=None)
-    def summary(self, obj):
-        detection = obj.detection
-        url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={detection.id}' target='_blank'>{detection.summary_image(size=(8,6))}</a>")
-
-    actions = [download_products]
-    download_products.acts_on_all = True
-
-
 class DetectionAdmin(ModelAdmin):
     model = Detection
     list_per_page = 50
-    list_display = ('id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq',
+    list_display = ('id', 'run', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq',
                     'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr',
                     'detection_products_download')
     search_fields = ['run__name', 'name']
@@ -330,13 +295,11 @@ class DetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def tags(self, obj):
-        sd = SourceDetection.objects.filter(detection=obj)
-        if len(sd) == 1:
-            tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
-            tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
-            if len(tags) > 0:
-                tag_string = ', '.join([t.name for t in tags])
-                return tag_string
+        return ', '.join(td.tag.name for td in TagDetection.objects.filter(detection=obj))
+
+    @admin.display(empty_value=None)
+    def comments(self, obj):
+        return ', '.join(c.comment for c in Comment.objects.filter(detection=obj))
 
     @admin.display(empty_value=None)
     def summary(self, obj):
@@ -347,7 +310,7 @@ class DetectionAdmin(ModelAdmin):
         return super(DetectionAdmin, self).get_actions(request)
 
     def get_list_display(self, request):
-        return 'id', 'run', 'tags', 'summary', 'name', 'display_ra', 'display_dec', 'display_freq', \
+        return 'id', 'run', 'tags', 'comments', 'summary', 'name', 'display_ra', 'display_dec', 'display_freq', \
                'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr'
 
     def detection_products_download(self, obj):
@@ -362,10 +325,10 @@ class DetectionAdmin(ModelAdmin):
             select_related('run')
         return qs.filter(unresolved=False)
 
-    class MarkGenuineDetectionAction(forms.Form):
+    class AcceptDetectionAction(forms.Form):
         title = 'These detections will be marked as real sources.'
 
-    def mark_genuine(self, request, queryset):
+    def accept_detection(self, request, queryset):
         try:
             with transaction.atomic():
                 detect_list = list(queryset.select_for_update())
@@ -377,17 +340,14 @@ class DetectionAdmin(ModelAdmin):
                     return 0
 
                 # Create source and source detection entries
-                for detection in detect_list:
-                    source = Source.objects.create(name=detection.name)
-                    SourceDetection.objects.create(
-                        source=source,
-                        detection=detection)
-                messages.info(request, f"Marked {len(detect_list)} detections as sources.")
+                for d in detect_list:
+                    d.accepted = True
+                messages.info(request, f"Accepted {len(detect_list)} detections.")
                 return
         except Exception as e:
             messages.error(request, str(e))
             return
-    mark_genuine.short_description = 'Mark Genuine Detections'
+    accept_detection.short_description = 'Accept Detections'
 
     class AddTagForm(forms.Form):
         title = 'Add tags'
@@ -411,9 +371,8 @@ class DetectionAdmin(ModelAdmin):
             detect_list = list(queryset)
             for d in detect_list:
                 with transaction.atomic():
-                    source_detection = SourceDetection.objects.get(detection=d)
-                    TagSourceDetection.objects.create(
-                        source_detection=source_detection,
+                    TagDetection.objects.create(
+                        detection=d,
                         tag=tag,
                         author=str(request.user)
                     )
@@ -465,6 +424,12 @@ class DetectionAdminInline(ModelAdminInline):
     #readonly_fields = list_display
     fk_name = 'run'
 
+    def display_tags(self, obj):
+        return ', '.join([td.name for td in TagDetection.objects.get(detection=obj)])
+
+    def display_comments(self, obj):
+        return ', '.join([c.comment for c in Comment.objects.get(detection=obj)])
+
     def display_x(self, obj):
         return round(obj.x, 4)
     display_x.short_description = 'x'
@@ -496,7 +461,6 @@ class DetectionAdminInline(ModelAdminInline):
     def display_w50(self, obj):
         return round(obj.w50, 4)
     display_w50.short_description = 'w50'
-
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -545,23 +509,16 @@ class UnresolvedDetectionAdmin(ModelAdmin):
         return round(obj.w50, 4)
     display_w50.short_description = 'w50'
 
-
-    @admin.display(empty_value='No')
+    @admin.display(empty_value='None')
     def source(self, obj):
-        sd = SourceDetection.objects.filter(detection=obj)
-        if len(sd) == 1:
-            return 'Yes'
-        return 'No'
+        return obj.source_name
 
     @admin.display(empty_value=None)
     def tags(self, obj):
-        sd = SourceDetection.objects.filter(detection=obj)
-        if len(sd) == 1:
-            tag_sd = TagSourceDetection.objects.filter(source_detection=sd[0])
-            tags = Tag.objects.filter(id__in=[tsd.tag_id for tsd in tag_sd])
-            if len(tags) > 0:
-                tag_string = ', '.join([t.name for t in tags])
-                return tag_string
+        tds = TagDetection.objects.filter(detection=obj)
+        if len(tds) > 0:
+            tag_string = ', '.join([td.tag.name for td in tds])
+            return tag_string
 
     @admin.display(empty_value=None)
     def summary(self, obj):
@@ -677,9 +634,8 @@ class UnresolvedDetectionAdmin(ModelAdmin):
                     tag = Tag.objects.get(id=int(tag_select))
                 detect_list = list(queryset)
                 for d in detect_list:
-                    source_detection = SourceDetection.objects.get(detection=d)
-                    TagSourceDetection.objects.create(
-                        source_detection=source_detection,
+                    TagDetection.objects.create(
+                        detection=d,
                         tag=tag,
                         author=str(request.user)
                     )
@@ -731,6 +687,102 @@ class UnresolvedDetectionAdminInline(ModelAdminInline):
     def get_queryset(self, request):
         qs = super(UnresolvedDetectionAdminInline, self).get_queryset(request)
         return qs.filter(unresolved=True)
+
+
+class AcceptedDetectionAdmin(ModelAdmin):
+    # TODO(austin): probably want to show tags if there are any?
+    model = Detection
+    readonly_fields = (
+        'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
+    )
+    exclude = [ 'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
+        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
+        'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
+        'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
+        'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
+    ]
+    #readonly_fields = list_display
+    fk_name = 'run'
+
+    def display_x(self, obj):
+        return round(obj.x, 4)
+    display_x.short_description = 'x'
+
+    def display_y(self, obj):
+        return round(obj.y, 4)
+    display_y.short_description = 'y'
+
+    def display_z(self, obj):
+        return round(obj.z, 4)
+    display_z.short_description = 'z'
+
+    def display_f_sum(self, obj):
+        return round(obj.f_sum, 4)
+    display_f_sum.short_description = 'f sum'
+
+    def display_ell_maj(self, obj):
+        return round(obj.ell_maj, 4)
+    display_ell_maj.short_description = 'ell maj'
+
+    def display_ell_min(self, obj):
+        return round(obj.ell_min, 4)
+    display_ell_min.short_description = 'ell min'
+
+    def display_w20(self, obj):
+        return round(obj.w20, 4)
+    display_w20.short_description = 'w20'
+
+    def display_w50(self, obj):
+        return round(obj.w50, 4)
+    display_w50.short_description = 'w50'
+
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    detection_products_download.short_description = 'Products'
+
+    @admin.display(empty_value=None)
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+
+    def get_queryset(self, request):
+        qs = super(AcceptedDetectionAdmin, self).get_queryset(request)
+        return qs.filter(accepted=True, n_pix__gte=300, rel__gte=0.7)
+
+    def get_list_display(self, request):
+        if request.GET:
+            return 'id', 'summary', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+                   'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+        else:
+            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
+                   'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+
+
+class AcceptedDetectionAdminInline(ModelAdminInline):
+    model = AcceptedDetection
+    list_display = (
+        'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50'
+    )
+    exclude = [
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
+        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
+        'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
+        'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
+        'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
+    ]
+    readonly_fields = list_display
+    ordering = ('x',)
+    fk_name = 'run'
+
+    def get_queryset(self, request):
+        qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
+        return qs.filter(accepted=True)
 
 
 class InstanceAdmin(ModelAdmin):
@@ -786,10 +838,11 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
-        'run_unresolved_detections', 'run_sources', 'run_detections',
+        'run_unresolved_detections', 'run_accepted_detections', 'run_detections',
         'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
+        AcceptedDetectionAdminInline,
         DetectionAdminInline,
         InstanceAdminInline,)
 
@@ -819,11 +872,11 @@ class RunAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?run={obj.id}'>Unresolved Detections</a>")
     run_unresolved_detections.short_description = 'Unresolved Detections'
 
-    def run_sources(self, obj):
+    def run_accepted_detections(self, obj):
         opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_sourcedetection_changelist')
-        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>Accepted Sources</a>")
-    run_sources.short_description = 'Accepted Sources'
+        url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
+        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>Accepted Detections</a>")
+    run_accepted_detections.short_description = 'Accepted Detections'
 
     def run_detections(self, obj):
         opts = self.model._meta
@@ -898,12 +951,7 @@ class RunAdmin(ModelAdmin):
 
         with transaction.atomic():
             # This filter is here to lock all the detections
-            Detection.objects.filter(
-                id__in=SourceDetection.objects.filter(
-                    source_id__in=Source.objects.all()
-                )
-            ).select_for_update()
-
+            Detection.objects.filter(run=run).select_for_update()
             all_run_detections = Detection.objects.filter(
                 run=run,
                 unresolved=False,
@@ -914,8 +962,7 @@ class RunAdmin(ModelAdmin):
             if any([d.unresolved for d in all_run_detections]):
                 raise Exception('There cannot be any unresolved detections for the run at the time of running internal cross matching.')
 
-            sd_list = list(SourceDetection.objects.filter(detection_id__in=[d.id for d in all_run_detections]))
-            detections = [Detection.objects.get(id=sd.detection.id) for sd in sd_list]
+            detections = list(Detection.objects.filter(run=run, accepted=True))
 
             # cross match internally
             logging.info('The following pairs of detections have been marked as unresolved:')
@@ -948,18 +995,6 @@ class RunAdmin(ModelAdmin):
         if queryset.count() != 1:
             raise Exception("Only one run can be selected at a time for external cross matching.")
 
-        # Quick hack to remove "Dangling" Sources that are not removed when a detection is deleted.
-        # Fix is to put Source name in detection and remove Source and SourceDetection tables
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                            DELETE FROM wallaby.source
-                            WHERE wallaby.source.id IN (
-                            SELECT s.id
-                            FROM wallaby.source as s
-                            LEFT JOIN wallaby.source_detection as sd ON s.id = sd.source_id
-                            WHERE sd.source_id IS NULL
-                            )""")
-
         # Check to make sure run is in survey_components
         run = queryset.first()
         survey_component_runs = []
@@ -977,11 +1012,7 @@ class RunAdmin(ModelAdmin):
             raise Exception(f"Runs with no survey components: {diff_runs}")
 
         with transaction.atomic():
-            Detection.objects.filter(
-                id__in=SourceDetection.objects.filter(
-                    source_id__in=Source.objects.all()
-                )
-            ).select_for_update()
+            Detection.objects.filter(accepted=True, source_name__isnull=False).select_for_update()
 
             # Get survey components
             survey_components = get_survey_components()
@@ -993,16 +1024,14 @@ class RunAdmin(ModelAdmin):
             PROJECT = settings.PROJECT
 
             run = run_list[0]
-            run_detections = Detection.objects.filter(
-                run=run,
-                id__in=[sd.detection_id for sd in SourceDetection.objects.all() if PROJECT not in sd.source.name],)
+            run_detections = Detection.objects.filter(run=run, accepted=True)  # Accepted detections that are not yet sources
 
             if any([d.unresolved for d in run_detections]):
                 raise Exception('There cannot be any unresolved detections for the run at the time of running external cross matching.')
 
             # Detections from run must enter into one of these lists
             accepted_detections = []
-            all_rename_sources = []
+            all_rename_detections = []
             external_conflicts = []
 
             logging.info(f'External cross matching applied in {run.name} to {len(run_detections)} detections')
@@ -1011,24 +1040,22 @@ class RunAdmin(ModelAdmin):
                 auto_rename = False
                 auto_delete = False
                 matches = []
-                delete_sources = []
-                rename_sources = []
+                delete_detections = []
+                rename_detections = []
 
-                # Compare against close detections.
+                # Compare against close detections (accepted) from other runs.
                 # TODO: Fix this threshold for the poles with delta RA (cosine factor)
                 close_detections = Detection.objects.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],
+                    accepted=True,
+                    source_name__isnull=False,
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
                 ).exclude(run=run)
 
                 for d_ext in list(set(close_detections)):
-                    sd = SourceDetection.objects.get(detection=d)
-                    sd_ext = SourceDetection.objects.get(detection=d_ext)
-
-                    # Require official source.
+                    # Require official released source.
                     # TODO: require associated tag?
-                    if PROJECT not in sd_ext.source.name:
+                    if PROJECT not in d_ext.source_name:
                         continue
 
                     # Auto-delete check on tighter threshold values
@@ -1040,46 +1067,49 @@ class RunAdmin(ModelAdmin):
                                 delete = True
                         if delete:
                             auto_delete = True
-                            delete_sources.append(d_ext)
+                            delete_detections.append(d_ext)
                         else:
                             auto_rename = True
-                            rename_sources.append((sd, sd_ext))
+                            rename_detections.append((d, d_ext))
+
                     # Otherwise mark for manual resolution
                     elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
-                        matches.append(sd_ext.id)
+                        matches.append(d_ext.id)
 
                 # Possible action for this detection
                 if auto_delete:
-                    logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted. Conflict: {delete_sources}')
+                    logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted. Conflict: {delete_detections}')
+
                 if auto_rename and not auto_delete:
-                    if len(rename_sources) > 1:
-                        logging.error(f'Multiple rename sources: {rename_sources}')
+                    if len(rename_detections) > 1:
+                        logging.error(f'Multiple rename sources: {rename_detections}')
                         raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
 
                     # Check other detections pointing to rename source in same survey component
                     conflict_in_survey_component = False
-                    sd_cur, sd_ext = rename_sources[0]
-                    sds = SourceDetection.objects.filter(source=sd_ext.source)
-                    for sd in sds:
-                        if set([sd_cur.detection.run.name, sd.detection.run.name]).issubset(set(runs)):
+                    d_cur, d_ext = rename_detections[0]
+                    ds = Detection.objects.filter(source_name=d_ext.source_name)
+                    for d in ds:
+                        if set([d_cur.run.name, d.run.name]).issubset(set(runs)):
                             conflict_in_survey_component = True
-                            logging.info(f'Cannot rename detection {sd_cur.detection.name} to {sd_ext.source.name} due to potential conflict {sd.detection.name} in same survey component.')
-                            logging.info(f'Creating external conflict {sd_cur.detection.name} to detection {sd.detection.name} [source_detection_id={sd.id}]')
+                            logging.info(f'Cannot rename detection {d_cur.name} to {d_ext.source_name} due to potential conflict {d.name} in same survey component.')
+                            logging.info(f'Creating external conflict {d_cur.name} to detection {d.name}')
                             external_conflicts.append({
                                 'run': run,
-                                'detection': sd_cur.detection,
-                                'conflict_source_detection_ids': [sd.id]
+                                'detection': d_cur,
+                                'conflict_detection_ids': [d.id]
                             })
                     if not conflict_in_survey_component:
-                        all_rename_sources += rename_sources
-                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {sd_ext.source.name} [{sd_ext.detection.run.name}]')
+                        all_rename_detections += rename_detections
+                        logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {d_ext.source_name} [{d_ext.run.name}]')
+
                 if not auto_rename and not auto_delete and matches:
                     logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
                     for match in matches:
                         external_conflicts.append({
                             'run': run,
                             'detection': d,
-                            'conflict_source_detection_ids': [match]
+                            'conflict_detection_ids': [match]
                         })
                 if not auto_rename and not auto_delete and not matches:
                     accepted_detections.append(d)
@@ -1090,7 +1120,7 @@ class RunAdmin(ModelAdmin):
 
             # Release name check
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([s.name for s in Source.objects.all()])
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
@@ -1098,21 +1128,17 @@ class RunAdmin(ModelAdmin):
             logging.info("Writing updates to database")
             # Accepted sources
             for d in accepted_detections:
-                source = SourceDetection.objects.get(detection=d).source
                 release_name = get_release_name(d.name)
-                source.name = release_name
-                source.save()
+                d.name = release_name
+                d.save()
 
             # Renaming
-            logging.info(f'Renaming: {all_rename_sources}')
-            for (sd, new_sd) in all_rename_sources:
+            logging.info(f'Renaming: {all_rename_detections}')
+            for (d, new_d) in all_rename_detections:
                 # Check if deleted in this run
-                old_source = sd.source
-                new_source = new_sd.source
-                logging.info(f'Database update: Renaming {old_source} to {new_source}')
-                sd.source = new_source
-                sd.save()
-                old_source.delete()
+                logging.info(f'Database update: Renaming {d.source_name} to {new_d.source_name}')
+                d.source_name = new_d.source_name
+                d.save()
 
             # External conflicts
             for ex_c in external_conflicts:
@@ -1145,15 +1171,11 @@ class RunAdmin(ModelAdmin):
             for run in queryset:
                 logging.info(f"Preparing release for run {run.name}")
 
-                detections = Detection.objects.filter(
-                    run=run,
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all()],).select_for_update()
+                detections = Detection.objects.filter(run=run, accepted=True).filter(run=run, source_name__isnull=False).select_for_update()
+                release_detections = detections.filter(accepted=True, source_name__isnull=False)
 
-                release_detections = detections.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if PROJECT in sd.source.name],)
-
-                delete_detections = detections.filter(
-                    id__in=[sd.detection_id for sd in SourceDetection.objects.all() if 'SoFiA' in sd.source.name],)
+                # TODO: there shouldn't be any of these
+                reject_detections = detections.filter(accepted=True, source_name__isnull=True)
 
                 if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
                     raise Exception('There cannot be any external conflicts when creating release source names.')
@@ -1161,38 +1183,26 @@ class RunAdmin(ModelAdmin):
                 if any([d.unresolved for d in release_detections]):
                     raise Exception('There cannot be any unresolved detections when releasing sources.')
 
-                logging.info(f"{len(release_detections)} detections to release, {len(delete_detections)} detections to delete")
+                logging.info(f"{len(release_detections)} detections to release, {len(reject_detections)} detections to reject.")
 
                 # Release sources
-                release_source_detections = [SourceDetection.objects.get(detection=d) for d in release_detections]
-                for idx, sd in enumerate(release_source_detections):
-                    existing = TagSourceDetection.objects.filter(tag=tag, source_detection=sd)
+                for idx, d in enumerate(release_detections):
+                    existing = TagDetection.objects.filter(tag=tag, detection=d)
                     if not existing:
-                        logging.info(f'[{idx+1}/{len(release_source_detections)}] Creating TagSourceDetection entry for Source {sd.source.name}')
-                        TagSourceDetection.objects.create(
+                        logging.info(f'[{idx+1}/{len(release_detections)}] Creating TagDetection entry for Source {d.source_name}')
+                        TagDetection.objects.create(
                             tag=tag,
-                            source_detection=sd,
+                            detection=d,
                             author=str(request.user))
                     else:
-                        logging.info(f'Tag already created for Source {sd.source.name}')
+                        logging.info(f'Tag already created for Source {d.source_name}')
 
                 # Delete sources
-                delete_source_detections = SourceDetection.objects.filter(
-                    detection_id__in=[d.id for d in delete_detections])
-
                 logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
-                for idx, sd in enumerate(delete_source_detections):
-                    try:
-                        source = sd.source
-                    except Exception as e:
-                        # TODO: this should never happen since delete should cascade down.
-                        logging.info('Source does not exist for this source detection. Deleting source detection.')
-                        sd.delete()
-                        continue
-                    if 'SoFiA' in source.name:
-                        logging.info(f'[{idx+1}/{len(delete_source_detections)}] Deleting source {source.name}')
-                        sd.delete()
-                        source.delete()
+                for idx, d in enumerate(reject_detections):
+                    logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
+                    d.accepted = False
+                    d.save()
 
                 logging.info("Release completed")
 
@@ -1283,10 +1293,10 @@ admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
-admin.site.register(SourceDetection, SourceDetectionAdmin)
+admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
-admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
+admin.site.register(TagDetection, TagDetectionAdmin)
 
 #if settings.KINEMATICS:
 #    admin.site.register(KinematicModel, KinematicModelAdmin)

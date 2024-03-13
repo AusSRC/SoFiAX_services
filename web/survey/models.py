@@ -189,6 +189,7 @@ class Detection(models.Model):
     instance = models.ForeignKey(Instance, on_delete=models.DO_NOTHING)
     run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
     name = models.TextField(blank=True, null=True)
+    source_name = models.TextField(blank=True, null=True)
     x = PostgresDecimalField()
     y = PostgresDecimalField()
     z = PostgresDecimalField()
@@ -221,12 +222,13 @@ class Detection(models.Model):
     dec = PostgresDecimalField(blank=True, null=True)
     freq = PostgresDecimalField(blank=True, null=True)
     flag = models.IntegerField(blank=True, null=True)
-    l = PostgresDecimalField(blank=True, null=True)  # noqa
+    l = PostgresDecimalField(blank=True, null=True)
     b = PostgresDecimalField(blank=True, null=True)
     v_rad = PostgresDecimalField(blank=True, null=True)
     v_opt = PostgresDecimalField(blank=True, null=True)
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
+    accepted = models.BooleanField(default=False)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
@@ -398,6 +400,11 @@ class Detection(models.Model):
         unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
 
 
+class AcceptedDetection(Detection):
+    class Meta:
+        proxy = True
+
+
 class UnresolvedDetection(Detection):
     class Meta:
         proxy = True
@@ -428,91 +435,11 @@ class Product(models.Model):
         unique_together = (('detection',),)
 
 
-class Source(models.Model):
-    """Subset of quality checked detections to include in the
-    final source catalog.
-
-    """
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=128)
-
-    def __str__(self):
-        return f"{self.name}"
-
-    def save(self, *args, **kwargs):
-        """Do not save changes for released sources."""
-        release_tags = Tag.objects.filter(type='release')
-        sds = SourceDetection.objects.filter(source=self)
-        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
-        is_tagged = False
-        for tsd in tsds:
-            if tsd.tag in release_tags:
-                is_tagged = True
-
-        if (settings.PROJECT in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released source {self.name}.")
-        super(Source, self).save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Cannot delete released sources."""
-        release_tags = Tag.objects.filter(type='release')
-        sds = SourceDetection.objects.filter(source=self)
-        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
-        is_tagged = False
-        for tsd in tsds:
-            if tsd.tag in release_tags:
-                is_tagged = True
-        if (settings.PROJECT in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released source {self.name}.")
-        super(Source, self).delete(*args, **kwargs)
-
-    class Meta:
-        managed = False
-        db_table = 'source'
-        unique_together = (('name', ),)
-
-
-class SourceDetection(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    source = models.ForeignKey(Source, on_delete=models.DO_NOTHING)
-    detection = models.OneToOneField(Detection, on_delete=models.DO_NOTHING)
-    added_at = models.DateTimeField(blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        """Do not save changes for released source detections."""
-        internal_release_tag = Tag.objects.get(name='Internal Release')
-        tsds = TagSourceDetection.objects.filter(source_detection=self)
-        is_released = False
-        if internal_release_tag in tsds:
-            is_released = True
-        if (settings.PROJECT in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to a released source {self.source.name}.")
-        super(SourceDetection, self).save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Do not delete released sources."""
-        internal_release_tag = Tag.objects.get(name='Internal Release')
-        tsds = TagSourceDetection.objects.filter(source_detection=self)
-        is_released = False
-        if internal_release_tag in tsds:
-            is_released = True
-        if (settings.PROJECT in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to released source {self.source.name}.")
-        super(SourceDetection, self).delete(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.source}, {self.detection}"
-
-    class Meta:
-        managed = False
-        db_table = 'source_detection'
-
-
 class ExternalConflict(models.Model):
     id = models.BigAutoField(primary_key=True)
     run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
     detection = models.ForeignKey(Detection, on_delete=models.DO_NOTHING)
-    conflict_source_detection_ids = ArrayField(
+    conflict_detection_ids = ArrayField(
         models.IntegerField()
     )
 
@@ -535,7 +462,7 @@ class SpatialRefSys(models.Model):
 
 class KinematicModel(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.ForeignKey('Source', models.DO_NOTHING, db_column='name', to_field='name')
+    name = models.ForeignKey('Detection', models.DO_NOTHING)
     ra = models.FloatField()
     dec = models.FloatField()
     freq = models.FloatField()
@@ -580,7 +507,7 @@ class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=2048, blank=True, null=True)
-    detection = models.ForeignKey('Detection', on_delete=models.DO_NOTHING)
+    detection = models.ForeignKey('Detection', on_delete=models.CASCADE)
     updated_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
@@ -603,17 +530,17 @@ class Tag(models.Model):
         db_table = 'tag'
 
 
-class TagSourceDetection(models.Model):
+class TagDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
-    tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    source_detection = models.ForeignKey(SourceDetection, on_delete=models.DO_NOTHING)
+    tag = models.ForeignKey(Tag, models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
     author = models.CharField(max_length=2048, blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
         managed = False
-        db_table = 'tag_source_detection'
-        unique_together = (('tag', 'source_detection'),)
+        db_table = 'tag_detection'
+        unique_together = (('tag', 'detection'),)
 
 # ------------------------------------------------------------------------------
 # Operational tables
@@ -628,7 +555,7 @@ class SurveyComponent(models.Model):
         return self.name
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'survey_component'
 
 
@@ -638,7 +565,7 @@ class SurveyComponentRun(models.Model):
     sc = models.ForeignKey(SurveyComponent, on_delete=models.DO_NOTHING)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'survey_component_run'
         unique_together = (('run', 'sc'),)
 
@@ -663,7 +590,7 @@ class Observation(models.Model):
         return self.name
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'observation'
 
 
@@ -683,7 +610,7 @@ class Tile(models.Model):
         return self.name
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'tile'
 
 
@@ -693,7 +620,7 @@ class TileObs(models.Model):
     obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'tile_obs'
 
 
@@ -708,7 +635,7 @@ class SourceExtractionRegion(models.Model):
     run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'source_extraction_region'
 
 
@@ -718,7 +645,7 @@ class SourceExtractionRegionTile(models.Model):
     tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'source_extraction_region_tile'
 
 
@@ -732,7 +659,7 @@ class Postprocessing(models.Model):
     status = models.CharField(max_length=64)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'postprocessing'
 
 # ------------------------------------------------------------------------------

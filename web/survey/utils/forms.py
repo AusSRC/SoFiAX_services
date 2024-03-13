@@ -1,11 +1,11 @@
 import logging
-from survey.models import Comment, Tag, TagSourceDetection
+from survey.models import Comment, Tag, TagDetection
 
 
 logging.basicConfig(level=logging.INFO)
 
 
-def add_tag(request, source_detection, tag_select_input='tag_select', tag_create_input='tag_create'):
+def add_tag(request, detection, tag_select_input='tag_select', tag_create_input='tag_create'):
     tag = None
     tag_select = request.POST[tag_select_input]
     tag_create = str(request.POST[tag_create_input])
@@ -19,9 +19,9 @@ def add_tag(request, source_detection, tag_select_input='tag_select', tag_create
         tag = Tag.objects.get(id=int(tag_select))
         logging.info(f'Retrieving tag: {tag.name}')
     if tag is not None:
-        logging.info(f'Adding tag {tag.name} to source detection {source_detection.id}')
-        TagSourceDetection.objects.create(
-            source_detection=source_detection,
+        logging.info(f'Adding tag {tag.name} to detection {detection.id}')
+        TagDetection.objects.create(
+            detection=detection,
             tag=tag,
             author=str(request.user)
         )
