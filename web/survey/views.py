@@ -9,6 +9,7 @@ from survey.utils.io import tarfile_write
 from survey.utils.plot import product_summary_image
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import add_tag, add_comment
+from survey.utils.views import handle_navigation, handle_next
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagDetection, \
                           Comment, ExternalConflict, Task, FileTaskReturn
@@ -433,33 +434,23 @@ def manual_inspection_detection_view(request):
     # Handle GET request
     if request.method == 'GET':
         run_id = request.GET.get('run_id', None)
-        if not run_id:
+        if not int(run_id):
             raise Exception('Run not selected or does not exist.')
-        try:
-            run_id = int(run_id)
-        except ValueError:
-            return HttpResponse('Run id is not an integer.', status=400)
-
-        run = Run.objects.get(id=run_id)
-
-        detections_to_resolve = Detection.objects.filter(
+        run = Run.objects.get(id=int(run_id))
+        queryset = Detection.objects.filter(
             run=run,
             accepted=False,
             source_name__isnull=True,
             n_pix__gte=300,
             rel__gte=0.7
         )
-        if len(detections_to_resolve) == 0:
+
+        if len(queryset) == 0:
             messages.info(request, "All detections for this run have been resolved")
             return HttpResponseRedirect('/admin/survey/run')
-
-        detection_id = request.GET.get('detection_id', None)
-        if detection_id is None:
-            # Should only be the case when entering the manual inspection view
-            detection = detections_to_resolve[0]
-        else:
-            detection = Detection.objects.get(id=detection_id)
-        current_idx = list(detections_to_resolve).index(detection)
+        detection_id = request.GET.get('detection_id', queryset[0].id)
+        detection = Detection.objects.get(id=detection_id)
+        idx = list(queryset).index(detection)
 
         # Show image
         product = Product.objects.get(detection=detection)
@@ -488,7 +479,7 @@ def manual_inspection_detection_view(request):
         params = {
             'title': detection.name,
             'subheading': description,
-            'subsubheading': f'{current_idx + 1}/{len(detections_to_resolve)} detections to resolve.',
+            'subsubheading': f'{idx + 1}/{len(queryset)} detections to resolve.',
             'properties': properties,
             'run_id': run_id,
             'detection_id': detection.id,
@@ -504,65 +495,37 @@ def manual_inspection_detection_view(request):
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
         detection = Detection.objects.get(id=int(body['detection_id'][0]))
-        detections_to_resolve = Detection.objects.filter(
+        queryset = Detection.objects.filter(
             run=run,
             accepted=False,
             source_name__isnull=True,
             n_pix__gte=300,
             rel__gte=0.7
         )
-        current_idx = list(detections_to_resolve).index(detection)
+        idx = list(queryset).index(detection)
+        url_base = reverse('inspect_detection')
+        url_params = f'run_id={run.id}&detection_id='
+
         if 'Accept' in body['action']:
             logging.info(f'Marking detection {detection.name} as an accepted detection.')
             detection.accepted = True
             detection.save()
-
-            # add tags and comments if necessary
             add_tag(request, detection)
             add_comment(request, detection)
+            url = handle_next(request, queryset, idx, url_base, url_params)
+            return HttpResponseRedirect(url)
 
-            new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = current_idx - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
-            return HttpResponseRedirect(url)
-        if 'First' in body['action']:
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[0].id}"
-            return HttpResponseRedirect(url)
-        if 'Last' in body['action']:
-            idx = len(detections_to_resolve) - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[idx].id}"
-            return HttpResponseRedirect(url)
-        if 'Go to index' in body['action']:
-            idx = int(request.POST['index'])
-            if idx >= len(detections_to_resolve):
-                idx = len(detections_to_resolve)
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[idx - 1].id}"
-            return HttpResponseRedirect(url)
-        if 'Next' in body['action']:
-            new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve):
-                new_idx = len(detections_to_resolve) - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
-            return HttpResponseRedirect(url)
-        if 'Previous' in body['action']:
-            new_idx = current_idx - 1
-            if new_idx <= 0:
-                new_idx = 0
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
-            return HttpResponseRedirect(url)
         if 'Delete' in body['action']:
             # TODO: are we sure we want this functionality?
             logging.info(f'Deleting detection {detection.name}.')
             detection.delete()
-
-            new_idx = current_idx + 1
-            if new_idx >= len(detections_to_resolve) - 1:
-                new_idx = current_idx - 1
-            url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[new_idx].id}"
+            url = handle_next(request, queryset, idx, url_base, url_params)
             return HttpResponseRedirect(url)
-        messages.warning(request, "Selected action that should not exist.")
-        url = f"{reverse('inspect_detection')}?run_id={run.id}&detection_id={detections_to_resolve[current_idx].id}"
+
+        url = handle_navigation(request, queryset, idx, url_base, url_params)
+        if not url:
+            messages.warning(request, "Selected action that should not exist.")
+            url = f"{url_base}?{url_params}{queryset[idx].id}"
         return HttpResponseRedirect(url)
     else:
         messages.warning(request, "Error, returning to run.")
@@ -595,7 +558,7 @@ def external_conflict_view(request):
         else:
             conflict = ExternalConflict.objects.get(id=external_conflict_id)
 
-        current_idx = list(conflicts).index(conflict)
+        idx = list(conflicts).index(conflict)
         conflict_detection_ids = conflict.conflict_detection_ids
 
         if len(conflict_detection_ids) == 1:
@@ -648,7 +611,7 @@ def external_conflict_view(request):
             # Form content
             params = {
                 'title': conflict.detection.name,
-                'subheading': f'{current_idx + 1}/{len(conflicts)} conflicts to resolve.',
+                'subheading': f'{idx + 1}/{len(conflicts)} conflicts to resolve.',
                 'name': conflict.detection.name,
                 'description': description,
                 'image': mark_safe(img_src),
@@ -672,14 +635,12 @@ def external_conflict_view(request):
     elif request.method == 'POST':
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
-
         logging.info(f'External conflict resolution for run {run.name}')
 
         conflict = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
         conflicts = ExternalConflict.objects.filter(
             detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
-
-        current_idx = list(conflicts).index(conflict)
+        idx = list(conflicts).index(conflict)
 
         if 'Add tags and comments' in body['action']:
             with transaction.atomic():
@@ -701,31 +662,6 @@ def external_conflict_view(request):
                 )
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
-        if 'Go to index' in body['action']:
-            idx = int(request.POST['index'])
-            if idx >= len(conflicts):
-                idx = len(conflicts)
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx-1].id}"
-            return HttpResponseRedirect(url)
-        if 'First' in body['action']:
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[0].id}"
-            return HttpResponseRedirect(url)
-        if 'Last' in body['action']:
-            idx = len(conflicts) - 1
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
-            return HttpResponseRedirect(url)
-        if 'Next' in body['action']:
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = len(conflicts) - 1
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
-            return HttpResponseRedirect(url)
-        if 'Previous' in body['action']:
-            new_idx = current_idx - 1
-            if new_idx <= 0:
-                new_idx = 0
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
-            return HttpResponseRedirect(url)
 
         if 'Keep new source name' in body['action']:
             with transaction.atomic():
@@ -733,35 +669,22 @@ def external_conflict_view(request):
                 new_name = get_release_name(conflict.detection.name)
                 if new_name in [d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)]:
                     messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
-                    url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
+                    url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
                     return HttpResponseRedirect(url)
 
                 # Accept new name as an official (and separate) source
                 logging.info(f'Adding official name {new_name} to detection {conflict.detection.name}')
                 conflict.detection.source_name = new_name
                 conflict.detection.save()
-                logging.info("Conflict resolved")
                 conflict.delete()
 
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = current_idx - 1
-            if len(conflicts) == 1:
-                return HttpResponseRedirect('/admin/survey/run')
-
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Ignore conflict' in body['action']:
             logging.info(f'Ignoring conflict {conflict.id}. Deleting conflict instance.')
             conflict.delete()
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = current_idx - 1
-            if len(conflicts) == 1:
-                return HttpResponseRedirect('/admin/survey/run')
-
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Delete conflict' in body['action']:
@@ -774,7 +697,6 @@ def external_conflict_view(request):
                 conflict.detection.save()
                 deleted_other_conflict = True
 
-                logging.info("Conflict resolved")
                 conflict.delete()
 
                 # Remove other possible conflicts with this detection.
@@ -783,19 +705,11 @@ def external_conflict_view(request):
                 for c in other_conflicts:
                     c.delete()
 
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = current_idx - 1
-            if len(conflicts) == 1:
-                return HttpResponseRedirect('/admin/survey/run')
-
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
-
+            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             if deleted_other_conflict:
                 conflicts = ExternalConflict.objects.filter(
                     detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
-                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
-
+                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
             return HttpResponseRedirect(url)
 
         if 'Copy old source name' in body['action']:
@@ -807,17 +721,9 @@ def external_conflict_view(request):
                 logging.info(f'Adding existing source name {existing_source_name} to current detection {conflict.detection.name}.')
                 conflict.detection.source_name = existing_source_name
                 conflict.detection.save()
-                logging.info("Conflict resolved")
                 conflict.delete()
 
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                # TODO: crashes if this is not correct.
-                new_idx = current_idx - 1
-            if len(conflicts) == 1:
-                return HttpResponseRedirect('/admin/survey/run')
-
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Replace detection in source' in body['action']:
@@ -832,19 +738,13 @@ def external_conflict_view(request):
                 replace_detection.save()
                 conflict.delete()
 
-            logging.info('Conflict resolved')
-
-            new_idx = current_idx + 1
-            if new_idx >= len(conflicts):
-                new_idx = current_idx - 1
-            if len(conflicts) == 1:
-                return HttpResponseRedirect('/admin/survey/run')
-
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[new_idx].id}"
+            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
-        messages.warning(request, "Selected action that should not exist.")
-        url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[current_idx].id}"
+        url = handle_navigation(request, conflicts, idx, reverse('external_conflict'), 'run_id={run.id}&external_conflict_id=')
+        if not url:
+            messages.warning(request, "Selected action that should not exist.")
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
         return HttpResponseRedirect(url)
     else:
         messages.warning(request, "Error, returning to run.")
