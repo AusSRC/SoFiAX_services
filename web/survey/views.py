@@ -546,22 +546,15 @@ def external_conflict_view(request):
         run = Run.objects.get(id=run_id)
         conflicts = ExternalConflict.objects.filter(
             detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
-
         if len(conflicts) == 0:
             messages.info(request, "All external conflicts for this run have been resolved")
             return HttpResponseRedirect('/admin/survey/run')
 
-        external_conflict_id = request.GET.get('external_conflict_id', None)
-        if external_conflict_id is None:
-            # Should only be the case when entering the manual inspection view
-            conflict = conflicts[0]
-        else:
-            conflict = ExternalConflict.objects.get(id=external_conflict_id)
-
+        external_conflict_id = int(request.GET.get('external_conflict_id', conflicts[0].id))
+        conflict = ExternalConflict.objects.get(id=external_conflict_id)
         idx = list(conflicts).index(conflict)
-        conflict_detection_ids = conflict.conflict_detection_ids
 
-        if len(conflict_detection_ids) == 1:
+        if len(conflict.conflict_detection_ids) == 1:
             # Show image
             product = Product.objects.get(detection=conflict.detection)
             img_src = product_summary_image(product, size=(6, 4))
@@ -582,7 +575,7 @@ def external_conflict_view(request):
             }
 
             # Show conflict
-            c_detection = Detection.object.get(id=conflict_detection_ids[0])
+            c_detection = Detection.object.get(id=conflict.conflict_detection_ids[0])
             c_product = Product.objects.filter(detection=c_detection)
             if c_product:
                 c_product = c_product[0]
@@ -627,7 +620,7 @@ def external_conflict_view(request):
             }
             logging.info(f'External conflict {conflict.detection} [{detection_survey_component}] with {c_detection} [{conflict_survey_component}]')
             return render(request, 'admin/form_external_conflict.html', params)
-        elif len(conflict_detection_ids) > 1:
+        elif len(conflict.conflict_detection_ids) > 1:
             messages.warning(request, "No view has been developed to handle more than one conflict yet...")
             return HttpResponseRedirect('/admin/survey/run')
 
@@ -636,30 +629,20 @@ def external_conflict_view(request):
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
         logging.info(f'External conflict resolution for run {run.name}')
-
         conflict = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
         conflicts = ExternalConflict.objects.filter(
-            detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
+            detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
+        )
         idx = list(conflicts).index(conflict)
 
         if 'Add tags and comments' in body['action']:
             with transaction.atomic():
-                # Tag conflict source/detection for current run
+                # Tag both detections in conflict
                 add_tag(request, conflict.detection)
                 add_comment(request, conflict.detection)
-
-                # Tag conflict source/detection
-                add_tag(
-                    request,
-                    conflict.detection,
-                    tag_select_input='tag_select_conflict',
-                    tag_create_input='tag_create_conflict'
-                )
-                add_comment(
-                    request,
-                    conflict.detection,
-                    comment_input='comment_conflict'
-                )
+                other_detection = Detection.objects.get(id=conflict.conflict_detection_ids[0])
+                add_tag(request, other_detection, tag_select_input='tag_select_conflict', tag_create_input='tag_create_conflict')
+                add_comment(request, other_detection, comment_input='comment_conflict')
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
             return HttpResponseRedirect(url)
 
@@ -671,7 +654,6 @@ def external_conflict_view(request):
                     messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
                     url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
                     return HttpResponseRedirect(url)
-
                 # Accept new name as an official (and separate) source
                 logging.info(f'Adding official name {new_name} to detection {conflict.detection.name}')
                 conflict.detection.source_name = new_name
@@ -688,28 +670,20 @@ def external_conflict_view(request):
             return HttpResponseRedirect(url)
 
         if 'Delete conflict' in body['action']:
-            deleted_other_conflict = False
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted for this detection
-                # TODO: check this flow
+                logging.info(f'De-selecting detection {conflict.detection}')
                 conflict.detection.source_name = None
                 conflict.detection.accepted = False
                 conflict.detection.save()
-                deleted_other_conflict = True
 
-                conflict.delete()
-
-                # Remove other possible conflicts with this detection.
-                other_conflicts = ExternalConflict.objects.filter(detection=conflict.detection)
-                logging.info(f'Other conflicts id={[c.id for c in other_conflicts]} can also be resolved')
-                for c in other_conflicts:
+                # Remove external conflicts
+                logging.info(f'Deleting external conflicts for detection {conflict.detection}')
+                for c in ExternalConflict.objects.filter(detection=conflict.detection):
                     c.delete()
-
-            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
-            if deleted_other_conflict:
-                conflicts = ExternalConflict.objects.filter(
-                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
-                url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
+                conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
+                # NOTE: issue with indexing here if multiple conflicts have been deleted
+                url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Copy old source name' in body['action']:
