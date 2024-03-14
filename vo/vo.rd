@@ -274,7 +274,7 @@
    <table id="observation" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
       <column name="name" type="text" unit="" ucd="meta.id" required="True"/>
-      <column name="sbid" type="bigint" unit="" ucd="meta.id"/>
+      <column name="sbid" type="text" unit="" ucd="meta.id"/>
       <column type="double precision" name="ra" unit="deg" ucd="pos.eq.ra;meta.main" verbLevel="1"/>
       <column type="double precision" name="dec" unit="deg" ucd="pos.eq.dec;meta.main" verbLevel="1"/>
       <column type="double precision" name="rotation" unit="deg" ucd="pos.eq.dec;meta.main" verbLevel="1"/>
