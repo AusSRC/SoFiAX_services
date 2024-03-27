@@ -51,7 +51,6 @@ def sanity_check(request, queryset):
 class TagAdmin(ModelAdmin):
     list_display = ('name', 'description', 'type')
     fields = list_display
-    readonly_fields = ['name',]
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -64,7 +63,7 @@ class TagAdmin(ModelAdmin):
 
 
 class CommentAdmin(ModelAdmin):
-    list_display = ('comment', 'detection', 'author', 'updated_at')
+    list_display = ('comment', 'detection', 'updated_at')
 
     def has_change_permission(self, request, obj=None):
         return True
