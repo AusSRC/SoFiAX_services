@@ -1004,7 +1004,7 @@ class RunAdmin(ModelAdmin):
                         logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {d_ext.source_name} [{d_ext.run.name}]')
 
                 if not auto_rename and not auto_delete and matches:
-                    logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
+                    logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} to resolve manually')
                     for d_ext_match in matches:
                         external_conflicts.append({
                             'run': run,
