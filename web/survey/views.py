@@ -8,7 +8,7 @@ from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
 from survey.utils.plot import product_summary_image
 from survey.utils.components import get_survey_component, get_release_name
-from survey.utils.forms import add_tag, add_comment
+from survey.utils.forms import _add_tag, _add_comment
 from survey.utils.views import handle_navigation, handle_next
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagDetection, \
@@ -434,8 +434,13 @@ def manual_inspection_detection_view(request):
     # Handle GET request
     if request.method == 'GET':
         run_id = request.GET.get('run_id', None)
-        if not int(run_id):
+        if not run_id:
             raise Exception('Run not selected or does not exist.')
+        try:
+            run_id = int(run_id)
+        except ValueError:
+            return HttpResponse('Run id is not an integer.', status=400)
+
         run = Run.objects.get(id=int(run_id))
         queryset = Detection.objects.filter(
             run=run,
@@ -455,18 +460,15 @@ def manual_inspection_detection_view(request):
         # Show image
         product = Product.objects.get(detection=detection)
         img_src = product_summary_image(product, size=(12, 9))
-        description = ''
-        description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection=detection)])
-        description += ', '.join([c.comment for c in Comment.objects.filter(detection=detection)])
 
         properties = {
-            'RA': round(detection.ra, 2),
-            'Dec': round(detection.dec, 2),
-            'freq': round(detection.freq, 2),
+            'RA': round(detection.ra, 4),
+            'Dec': round(detection.dec, 4),
+            'freq [MHz]': round(detection.freq / 10**6, 2),
             'v_opt': round(299792.458 * (1.42040575e+9 / detection.freq - 1.0), 2),
             'f_sum': round(detection.f_sum, 2),
             'rel': round(detection.rel, 2),
-            'rms': round(detection.rms, 2),
+            'rms [mJy]': round(detection.rms * 10**3, 2),
             'snr': round(detection.f_sum / detection.err_f_sum, 2),
         }
 
@@ -478,7 +480,7 @@ def manual_inspection_detection_view(request):
         # Form content
         params = {
             'title': detection.name,
-            'subheading': description,
+            'subheading': detection.description_string(),
             'subsubheading': f'{idx + 1}/{len(queryset)} detections to resolve.',
             'properties': properties,
             'run_id': run_id,
@@ -510,15 +512,8 @@ def manual_inspection_detection_view(request):
             logging.info(f'Marking detection {detection.name} as an accepted detection.')
             detection.accepted = True
             detection.save()
-            add_tag(request, detection)
-            add_comment(request, detection)
-            url = handle_next(request, queryset, idx, url_base, url_params)
-            return HttpResponseRedirect(url)
-
-        if 'Delete' in body['action']:
-            # TODO: are we sure we want this functionality?
-            logging.info(f'Deleting detection {detection.name}.')
-            detection.delete()
+            _add_tag(request, detection)
+            _add_comment(request, detection)
             url = handle_next(request, queryset, idx, url_base, url_params)
             return HttpResponseRedirect(url)
 
@@ -550,136 +545,121 @@ def external_conflict_view(request):
             messages.info(request, "All external conflicts for this run have been resolved")
             return HttpResponseRedirect('/admin/survey/run')
 
-        external_conflict_id = int(request.GET.get('external_conflict_id', conflicts[0].id))
-        conflict = ExternalConflict.objects.get(id=external_conflict_id)
-        idx = list(conflicts).index(conflict)
+        ex_c_id = int(request.GET.get('external_conflict_id', conflicts[0].id))
+        ex_c = ExternalConflict.objects.get(id=ex_c_id)
+        idx = list(conflicts).index(ex_c)
 
-        if len(conflict.conflict_detection_ids) == 1:
-            # Show image
-            product = Product.objects.get(detection=conflict.detection)
-            img_src = product_summary_image(product, size=(6, 4))
-            description = ''
-            description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection=conflict.detection)])
-            description += ', '.join([c.comment for c in Comment.objects.filter(detection=conflict.detection)])
-            if description == '':
-                description = "No tags or comments"
-            properties = {
-                'x': round(conflict.detection.x, 2),
-                'y': round(conflict.detection.y, 2),
-                'z': round(conflict.detection.z, 2),
-                'f_sum': round(conflict.detection.f_sum, 2),
-                'ell_maj': round(conflict.detection.ell_maj, 2),
-                'ell_min': round(conflict.detection.ell_min, 2),
-                'w20': round(conflict.detection.w20, 2),
-                'w50': round(conflict.detection.w50, 2)
-            }
+        # Show image
+        product = Product.objects.get(detection=ex_c.detection)
+        img_src = product_summary_image(product, size=(6, 4))
+        description = ''
+        description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection=ex_c.detection)])
+        description += ', '.join([c.comment for c in Comment.objects.filter(detection=ex_c.detection)])
+        if description == '':
+            description = "No tags or comments"
+        properties = {
+            'x': round(ex_c.detection.x, 2),
+            'y': round(ex_c.detection.y, 2),
+            'z': round(ex_c.detection.z, 2),
+            'f_sum': round(ex_c.detection.f_sum, 2),
+            'ell_maj': round(ex_c.detection.ell_maj, 2),
+            'ell_min': round(ex_c.detection.ell_min, 2),
+            'w20': round(ex_c.detection.w20, 2),
+            'w50': round(ex_c.detection.w50, 2)
+        }
 
-            # Show conflict
-            c_detection = Detection.object.get(id=conflict.conflict_detection_ids[0])
-            c_product = Product.objects.filter(detection=c_detection)
-            if c_product:
-                c_product = c_product[0]
-            else:
-                c_product = None
+        # Show conflict
+        c_product = Product.objects.get(detection=ex_c.conflict_detection)
+        c_img_src = product_summary_image(c_product, size=(6, 4))
+        c_properties = {
+            'x': round(ex_c.conflict_detection.x, 2),
+            'y': round(ex_c.conflict_detection.y, 2),
+            'z': round(ex_c.conflict_detection.z, 2),
+            'f_sum': round(ex_c.conflict_detection.f_sum, 2),
+            'ell_maj': round(ex_c.conflict_detection.ell_maj, 2),
+            'ell_min': round(ex_c.conflict_detection.ell_min, 2),
+            'w20': round(ex_c.conflict_detection.w20, 2),
+            'w50': round(ex_c.conflict_detection.w50, 2)
+        }
+        # Check same survey component for additional functionality
+        detection_survey_component = get_survey_component(ex_c.detection)
+        conflict_survey_component = get_survey_component(ex_c.conflict_detection)
+        same_survey_component = detection_survey_component == conflict_survey_component
 
-            c_img_src = product_summary_image(c_product, size=(6, 4))
-            c_description = ''
-            c_description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection=c_detection)])
-            c_description += ', '.join([c.comment for c in Comment.objects.filter(detection=c_detection)])
-            c_properties = {
-                'x': round(c_detection.x, 2),
-                'y': round(c_detection.y, 2),
-                'z': round(c_detection.z, 2),
-                'f_sum': round(c_detection.f_sum, 2),
-                'ell_maj': round(c_detection.ell_maj, 2),
-                'ell_min': round(c_detection.ell_min, 2),
-                'w20': round(c_detection.w20, 2),
-                'w50': round(c_detection.w50, 2)
-            }
-            # Check same survey component for additional functionality
-            detection_survey_component = get_survey_component(conflict.detection)
-            conflict_survey_component = get_survey_component(c_detection)
-            same_survey_component = detection_survey_component == conflict_survey_component
-
-            # Form content
-            params = {
-                'title': conflict.detection.name,
-                'subheading': f'{idx + 1}/{len(conflicts)} conflicts to resolve.',
-                'name': conflict.detection.name,
-                'description': description,
-                'image': mark_safe(img_src),
-                'properties': properties,
-                'conflict_name': c_detection.source_name,
-                'conflict_description': c_description,
-                'conflict_image': mark_safe(c_img_src),
-                'conflict_properties': c_properties,
-                'run_id': run_id,
-                'external_conflict_id': conflict.id,
-                'tags': Tag.objects.all(),
-                'same_survey_component': same_survey_component,
-            }
-            logging.info(f'External conflict {conflict.detection} [{detection_survey_component}] with {c_detection} [{conflict_survey_component}]')
-            return render(request, 'admin/form_external_conflict.html', params)
-        elif len(conflict.conflict_detection_ids) > 1:
-            messages.warning(request, "No view has been developed to handle more than one conflict yet...")
-            return HttpResponseRedirect('/admin/survey/run')
+        # Form content
+        params = {
+            'title': ex_c.detection.name,
+            'subheading': f'{idx + 1}/{len(conflicts)} conflicts to resolve.',
+            'name': ex_c.detection.name,
+            'description': ex_c.detection.description_string(),
+            'image': mark_safe(img_src),
+            'properties': properties,
+            'conflict_name': ex_c.conflict_detection.source_name,
+            'conflict_description': ex_c.confict_detection.description_string(),
+            'conflict_image': mark_safe(c_img_src),
+            'conflict_properties': c_properties,
+            'run_id': run_id,
+            'external_conflict_id': ex_c.id,
+            'tags': Tag.objects.all(),
+            'same_survey_component': same_survey_component,
+        }
+        logging.info(f'External conflict {ex_c.detection} [{detection_survey_component}] with {ex_c.conflict_detection} [{conflict_survey_component}]')
+        return render(request, 'admin/form_external_conflict.html', params)
 
     # Handle POST
     elif request.method == 'POST':
         body = dict(request.POST)
         run = Run.objects.get(id=int(body['run_id'][0]))
         logging.info(f'External conflict resolution for run {run.name}')
-        conflict = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
+        ex_c = ExternalConflict.objects.get(id=int(body['external_conflict_id'][0]))
         conflicts = ExternalConflict.objects.filter(
             detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
         )
-        idx = list(conflicts).index(conflict)
+        idx = list(conflicts).index(ex_c)
 
         if 'Add tags and comments' in body['action']:
             with transaction.atomic():
                 # Tag both detections in conflict
-                add_tag(request, conflict.detection)
-                add_comment(request, conflict.detection)
-                other_detection = Detection.objects.get(id=conflict.conflict_detection_ids[0])
-                add_tag(request, other_detection, tag_select_input='tag_select_conflict', tag_create_input='tag_create_conflict')
-                add_comment(request, other_detection, comment_input='comment_conflict')
-            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflict.id}"
+                _add_tag(request, ex_c.detection)
+                _add_comment(request, ex_c.detection)
+                _add_tag(request, ex_c.conflict_detection, tag_select_input='tag_select_conflict', tag_create_input='tag_create_conflict')
+                _add_comment(request, ex_c.conflict_detection, comment_input='comment_conflict')
+            url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={ex_c.id}"
             return HttpResponseRedirect(url)
 
         if 'Keep new source name' in body['action']:
             with transaction.atomic():
                 # Check against existing sources
-                new_name = get_release_name(conflict.detection.name)
+                new_name = get_release_name(ex_c.detection.name)
                 if new_name in [d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)]:
                     messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
                     url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
                     return HttpResponseRedirect(url)
                 # Accept new name as an official (and separate) source
-                logging.info(f'Adding official name {new_name} to detection {conflict.detection.name}')
-                conflict.detection.source_name = new_name
-                conflict.detection.save()
-                conflict.delete()
-
+                logging.info(f'Adding official name {new_name} to detection {ex_c.detection.name}')
+                ex_c.detection.source_name = new_name
+                ex_c.detection.save()
+                ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Ignore conflict' in body['action']:
-            logging.info(f'Ignoring conflict {conflict.id}. Deleting conflict instance.')
-            conflict.delete()
+            logging.info(f'Ignoring conflict {ex_c.id}. Deleting conflict instance.')
+            ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted for this detection
-                logging.info(f'De-selecting detection {conflict.detection}')
-                conflict.detection.source_name = None
-                conflict.detection.accepted = False
-                conflict.detection.save()
+                logging.info(f'De-selecting detection {ex_c.detection}')
+                ex_c.detection.source_name = None
+                ex_c.detection.accepted = False
+                ex_c.detection.save()
 
                 # Remove external conflicts
-                logging.info(f'Deleting external conflicts for detection {conflict.detection}')
-                for c in ExternalConflict.objects.filter(detection=conflict.detection):
+                logging.info(f'Deleting external conflicts for detection {ex_c.detection}')
+                for c in ExternalConflict.objects.filter(detection=ex_c.detection):
                     c.delete()
                 conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
                 # NOTE: issue with indexing here if multiple conflicts have been deleted
@@ -688,30 +668,22 @@ def external_conflict_view(request):
 
         if 'Copy old source name' in body['action']:
             with transaction.atomic():
-                if len(conflict.conflict_detection_ids) != 1:
-                    messages.error(request, f"Cannot add new detection {conflict.detection.name} to existing source if there are multiple potential sources.")
-
-                existing_source_name = Detection.objects.get(id=conflict.conflict_detection_ids[0]).source_name
-                logging.info(f'Adding existing source name {existing_source_name} to current detection {conflict.detection.name}.')
-                conflict.detection.source_name = existing_source_name
-                conflict.detection.save()
-                conflict.delete()
-
+                logging.info(f'Adding existing source name {ex_c.conflict_detection.source_name} to current detection {ex_c.detection.name}.')
+                ex_c.detection.source_name = ex_c.conflict_detection.source_name
+                ex_c.detection.save()
+                ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Replace detection in source' in body['action']:
-            replace_detection = Detection.objects.get(id=conflict.conflict_detection_ids[0])
-            source_name = replace_detection.source_name
-            logging.info(f'Replacing detection {replace_detection} with {conflict.detection} in source {source_name}.')
-
+            source_name = ex_c.conflict_detection.source_name
+            logging.info(f'Replacing detection {ex_c.conflict_detection} with {ex_c.detection} in source {source_name}.')
             with transaction.atomic():
-                conflict.detection.source_name = source_name
-                conflict.detection.save()
-                replace_detection.source_name = None
-                replace_detection.save()
-                conflict.delete()
-
+                ex_c.detection.source_name = source_name
+                ex_c.detection.save()
+                ex_c.conflict_detection.source_name = None
+                ex_c.conflict_detection.save()
+                ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 

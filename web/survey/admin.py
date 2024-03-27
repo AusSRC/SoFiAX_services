@@ -1,6 +1,7 @@
 import math
 import time
 import logging
+from random import choice
 
 from django.contrib import admin, messages
 from django.urls import reverse
@@ -8,21 +9,18 @@ from django.utils.html import format_html, format_html_join
 from django.forms import forms
 from django.db import transaction
 from django.conf import settings
-from random import choice
 from django.shortcuts import redirect
-from django.utils.html import format_html
 from django.db.models.aggregates import Count
 from django.db.models import Q
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.task import task
+from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
 from survey.utils.components import get_survey_components, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
-    Instance, Run, Comment, Tag, TagDetection, KinematicModel, Observation, SurveyComponent, \
+    Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
-
-from .tasks import download_accepted_sources
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,35 +63,6 @@ class TagAdmin(ModelAdmin):
         return True
 
 
-class TagDetectionAdmin(ModelAdmin):
-    list_display = ('tag', 'get_source', 'get_detection', 'author', 'added_at')
-    search_fields = ['tag__name', 'detection__source__name', 'detection__detection__name']
-
-    def get_source(self, obj):
-        return obj.detection.source.name
-    get_source.short_description = 'Source'
-    get_source.admin_order_field = "detection__source__name"
-
-    def get_detection(self, obj):
-        return obj.detection.detection.name
-    get_detection.short_description = 'Detection'
-    get_detection.admin_order_field = "detection__detection__name"
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return True
-
-    def save_model(self, request, obj, form, change):
-        if obj.author is None:
-            obj.author = request.user
-        super().save_model(request, obj, form, change)
-
-
 class CommentAdmin(ModelAdmin):
     list_display = ('comment', 'detection', 'author', 'updated_at')
 
@@ -110,14 +79,6 @@ class CommentAdmin(ModelAdmin):
         if obj.author is None:
             obj.author = request.user
         super().save_model(request, obj, form, change)
-
-
-#class KinematicModelAdmin(ModelAdmin):
-#    list_display = [f.name for f in KinematicModel._meta.get_fields()]
-
-
-#class PostprocessingAdmin(ModelAdmin):
-#    list_display = [f.name for f in Postprocessing._meta.get_fields()]
 
 
 class ObservationAdmin(ModelAdmin):
@@ -217,7 +178,6 @@ class SourceExtractionRegionAdmin(ModelAdmin):
 class SurveyComponentRunInline(admin.TabularInline):
     model = SurveyComponentRun
     extra = 1
-
     autocomplete_fields = ['run']
 
     def formfield_for_dbfield(self, *args, **kwargs):
@@ -354,32 +314,10 @@ class DetectionAdmin(ModelAdmin):
 
     @add_tag_form(AddTagForm)
     def add_tag(self, request, queryset):
-        try:
-            # get or create tag
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            if tag_select == 'None':
-                if tag_create == '':
-                    messages.error(request, "No tag selected or created")
-                    return
-                else:
-                    tag = Tag.objects.create(
-                        name=tag_create
-                    )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-            detect_list = list(queryset)
-            for d in detect_list:
-                with transaction.atomic():
-                    TagDetection.objects.create(
-                        detection=d,
-                        tag=tag,
-                        author=str(request.user)
-                    )
-            return len(detect_list)
-        except Exception as e:
-            messages.error(request, str(e))
-            return
+        with transaction.atomic():
+            for d in queryset:
+                _add_tag(request, d)
+        return len(queryset)
     add_tag.short_description = 'Add tags'
 
     class AddCommentForm(forms.Form):
@@ -387,19 +325,10 @@ class DetectionAdmin(ModelAdmin):
 
     @add_comment_form(AddCommentForm)
     def add_comment(self, request, queryset):
-        try:
-            detect_list = list(queryset)
-            comment = str(request.POST['comment'])
-            for d in detect_list:
-                Comment.objects.create(
-                    comment=comment,
-                    author=str(request.user),
-                    detection=d
-                )
-            return len(detect_list)
-        except Exception as e:
-            messages.error(request, str(e))
-            return
+        with transaction.atomic():
+            for d in queryset:
+                _add_comment(request, d)
+        return len(queryset)
     add_comment.short_description = 'Add comments'
 
     def lookup_allowed(self, lookup, value):
@@ -413,7 +342,7 @@ class DetectionAdminInline(ModelAdminInline):
         'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
-    exclude = [ 'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
+    exclude = ['x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
         'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
         'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
@@ -617,32 +546,10 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     @add_tag_form(AddTagForm)
     def add_tag(self, request, queryset):
-        try:
-            with transaction.atomic():
-                # get or create tag
-                tag_select = request.POST['tag_select']
-                tag_create = str(request.POST['tag_create'])
-                if tag_select == 'None':
-                    if tag_create == '':
-                        messages.error(request, "No tag selected or created")
-                        return
-                    else:
-                        tag = Tag.objects.create(
-                            name=tag_create
-                        )
-                else:
-                    tag = Tag.objects.get(id=int(tag_select))
-                detect_list = list(queryset)
-                for d in detect_list:
-                    TagDetection.objects.create(
-                        detection=d,
-                        tag=tag,
-                        author=str(request.user)
-                    )
-            return len(detect_list)
-        except Exception as e:
-            messages.error(request, str(e))
-            return
+        with transaction.atomic():
+            for d in queryset:
+                _add_tag(request, d)
+        return len(queryset)
     add_tag.short_description = 'Add tags'
 
     class AddCommentForm(forms.Form):
@@ -650,20 +557,10 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     @add_comment_form(AddCommentForm)
     def add_comment(self, request, queryset):
-        try:
-            with transaction.atomic():
-                detect_list = list(queryset)
-                comment = str(request.POST['comment'])
-                for d in detect_list:
-                    Comment.objects.create(
-                        comment=comment,
-                        author=str(request.user),
-                        detection=d
-                    )
-            return len(detect_list)
-        except Exception as e:
-            messages.error(request, str(e))
-            return
+        with transaction.atomic():
+            for d in queryset:
+                _add_comment(request, d)
+        return len(queryset)
     add_comment.short_description = 'Add comments'
 
 
@@ -696,7 +593,8 @@ class AcceptedDetectionAdmin(ModelAdmin):
         'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
-    exclude = [ 'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
+    exclude = [
+        'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
         'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
         'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
@@ -751,7 +649,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
 
     def get_queryset(self, request):
-        qs = super(AcceptedDetectionAdmin, self).get_queryset(request)
+        qs = super(AcceptedDetectionAdmin, self).get_queryset(request).select_related('run')
         return qs.filter(accepted=True, n_pix__gte=300, rel__gte=0.7)
 
     def get_list_display(self, request):
@@ -844,8 +742,9 @@ class RunAdmin(ModelAdmin):
         UnresolvedDetectionAdminInline,
         AcceptedDetectionAdminInline,
         DetectionAdminInline,
-        InstanceAdminInline,)
-
+        InstanceAdminInline
+    )
+    ordering = ('-created',)
     search_fields = ['name']
     actions = ['_internal_cross_match', '_external_cross_match',
                '_release_sources', '_delete_run']
@@ -875,7 +774,7 @@ class RunAdmin(ModelAdmin):
     def run_accepted_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
-        return format_html(f"<a href='{url}?detection__run__id__exact={obj.id}'>Accepted Detections</a>")
+        return format_html(f"<a href='{url}?run={obj.id}'>Accepted Detections</a>")
     run_accepted_detections.short_description = 'Accepted Detections'
 
     def run_detections(self, obj):
@@ -935,6 +834,7 @@ class RunAdmin(ModelAdmin):
     def _internal_cross_match(self, request, queryset):
         try:
             task_id = self.internal_cross_match(request, queryset)
+            logging.info(f'Created task {task_id} for internal cross matching')
             return redirect('/admin/survey/task/')
         except Exception as e:
             messages.error(request, str(e))
@@ -1074,7 +974,7 @@ class RunAdmin(ModelAdmin):
 
                     # Otherwise mark for manual resolution
                     elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
-                        matches.append(d_ext.id)
+                        matches.append(d_ext)
 
                 # Possible action for this detection
                 if auto_delete:
@@ -1097,7 +997,7 @@ class RunAdmin(ModelAdmin):
                             external_conflicts.append({
                                 'run': run,
                                 'detection': d_cur,
-                                'conflict_detection_ids': [d.id]
+                                'conflict_detection': d_ext
                             })
                     if not conflict_in_survey_component:
                         all_rename_detections += rename_detections
@@ -1105,11 +1005,11 @@ class RunAdmin(ModelAdmin):
 
                 if not auto_rename and not auto_delete and matches:
                     logging.info(f'[{idx+1}/{len(run_detections)}] Matches found for {d.name}: {matches} source detection id to resolve manually')
-                    for match in matches:
+                    for d_ext_match in matches:
                         external_conflicts.append({
                             'run': run,
                             'detection': d,
-                            'conflict_detection_ids': [match]
+                            'conflict_detection': d_ext_match
                         })
                 if not auto_rename and not auto_delete and not matches:
                     accepted_detections.append(d)
@@ -1154,6 +1054,7 @@ class RunAdmin(ModelAdmin):
         """
         try:
             task_id = self.external_cross_match(request, queryset)
+            logging.info(f'Created task {task_id} for external cross matching')
             return redirect('/admin/survey/task/')
         except Exception as e:
             messages.error(request, str(e))
@@ -1173,13 +1074,10 @@ class RunAdmin(ModelAdmin):
 
                 detections = Detection.objects.filter(run=run, accepted=True).filter(run=run, source_name__isnull=False).select_for_update()
                 release_detections = detections.filter(accepted=True, source_name__isnull=False)
-
-                # TODO: there shouldn't be any of these
-                reject_detections = detections.filter(accepted=True, source_name__isnull=True)
+                reject_detections = detections.filter(accepted=True, source_name__isnull=True)  # NOTE: there shouldn't be any of these
 
                 if len(ExternalConflict.objects.filter(run_id=run.id)) != 0:
                     raise Exception('There cannot be any external conflicts when creating release source names.')
-
                 if any([d.unresolved for d in release_detections]):
                     raise Exception('There cannot be any unresolved detections when releasing sources.')
 
@@ -1218,45 +1116,18 @@ class RunAdmin(ModelAdmin):
 
         """
         try:
-            # Get or create tag
-            tag_select = request.POST['tag_select']
-            tag_create = str(request.POST['tag_create'])
-            tag_description = str(request.POST['tag_description'])
-            if tag_select == 'None':
-                if tag_create == '':
-                    messages.error(request, "No tag selected or created")
-                    return
-                else:
-                    if tag_description == '':
-                        tag_description = None
-                    tag = Tag.objects.create(
-                        name=tag_create,
-                        description=tag_description
-                    )
-            else:
-                tag = Tag.objects.get(id=int(tag_select))
-
+            tag = _get_or_create_tag(request)
             task_id = self.release_sources(request, queryset, tag)
-            return redirect('/admin/survey/task/')
+            logging.info(f'Created task {task_id} for releasing sources')
+            # TODO: update metadata in data products here...
+            # TODO: calculate derived properties (hi_cor, f_sum_cor)
 
+            return redirect('/admin/survey/task/')
         except Exception as e:
             messages.error(request, str(e))
             return
 
     _release_sources.short_description = 'Release sources'
-
-
-class RunAdminInline(ModelAdminInline):
-    model = Run
-    list_display = ['id', 'name', 'created', 'sanity_thresholds', 'run_products_download']
-    fields = list_display
-    readonly_fields = fields
-
-    def run_products_download(self, obj):
-        url = reverse('run_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
-
-    run_products_download.short_description = 'Products'
 
 
 class TaskAdmin(ModelAdmin):
@@ -1296,7 +1167,6 @@ admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
 admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
-admin.site.register(TagDetection, TagDetectionAdmin)
 
 #if settings.KINEMATICS:
 #    admin.site.register(KinematicModel, KinematicModelAdmin)
@@ -1305,5 +1175,4 @@ admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
 admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Observation, ObservationAdmin)
 admin.site.register(Tile, TileAdmin)
-#admin.site.register(Postprocessing, PostprocessingAdmin)
 admin.site.register(Task, TaskAdmin)

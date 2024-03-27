@@ -7,7 +7,7 @@ RUN apt update && \
 COPY requirements.txt requirements.txt
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
-    
+
 COPY . .
 RUN python manage.py collectstatic --no-input
 

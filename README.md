@@ -1,44 +1,17 @@
-# SofiAX Services
+# HI Survey source finding portal
 
-Code deploying database and web services for SoFiAX survey runs.
-
-[![Linting](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml/badge.svg)](https://github.com/AusSRC/SoFiAX_services/actions/workflows/lint.yml)
+Web portal used for managing source detections in HI surveys. Currently used for WALLABY and DINGO ASKAP surveys. Developed be used with [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX). This repository provides the database and web services (Django admin portal).
 
 <HR>
 
 ## Installation
 
-Clone package
-```
-https://github.com/AusSRC/SoFiAX_services.git
-```
+There are a few steps required to deploy the services
 
-Create docker network
-```
-docker network create survey_network
-```
+### 1. Set environment variables
 
-Instantiate Database
-```
-docker-compose up -d survey_db
-```
+The environoment file contains information regarding project type and database connection details. Create a ``.env`` file under `web/survey_web` with:
 
-If the database is instantiated for a specific project rename the schema and database
-
-```
-ALTER SCHEMA survey RENAME TO wallaby;
-ALTER DATABASE surveydb RENAME TO wallabydb;
-```
-
-Create environment file
-The environoment file contains information regarding project type and database connection details.
-
-```
-cd SoFiAX_services/web/survey_web/
-vim .env
-```
-
-The ``.env`` file:
 ```
 PROJECT=DINGO
 DEBUG=True
@@ -59,37 +32,34 @@ DATABASE_PASSWORD=postgres
 SEARCH_PATH=survey,public
 ```
 
-**NOTE: the first search path is the schema where Django database model migrations will be applied
-
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
 
 * The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
 
-
-Sync the databases
+### 2. Deploy services
 
 ```
-docker-compose build survey_web
+docker network create survey_network
+docker-compose up --build -d
+```
+
+### 3. Database migrations
+
+```
 docker-compose run survey_web python manage.py migrate
 docker-compose run survey_web python manage.py makemigrations survey
 docker-compose run survey_web python manage.py migrate survey
 ```
 
-Create Site superuser
+### 4. Create site superuser
+
 ```
 docker-compose run -e DJANGO_SUPERUSER_PASSWORD=admin survey_web python manage.py createsuperuser --username=admin --email=admin@admin.com --noinput
 ```
 
+<HR>
 
-Start Web Services
-```
-docker-compose up -d survey_nginx survey_web
-```
-
-VO TAP Serices
-```
-docker-compose up -d survey_vo
-```
+## Other
 
 TAP URL:
 ```
@@ -100,7 +70,3 @@ Website URL
 ```
 https://localhost
 ```
-
-Once the service are running then a SoFiAX run can be performed.
-
-The SoFiAX can be found here: https://github.com/AusSRC/SoFiAX

@@ -1,12 +1,6 @@
 import io
-import math
-import numpy as np
 import binascii
-from astropy.visualization import PercentileInterval
-from astropy.io import fits
-from astropy.wcs import WCS
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
 import matplotlib.image as mpimg
 from django.utils.safestring import mark_safe
 

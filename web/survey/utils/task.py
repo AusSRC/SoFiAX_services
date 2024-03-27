@@ -1,4 +1,3 @@
-import os
 import functools
 import threading
 import json
@@ -69,10 +68,10 @@ def task(exclusive_func_with=[]):
                     break
 
             # Create new task to track, in PENDING
-            t = Task.objects.create(func=func.__name__, 
+            t = Task.objects.create(func=func.__name__,
                                     args=json.dumps([str(a) for a in args]),
                                     queryset=query_set,
-                                    state='PENDING', 
+                                    state='PENDING',
                                     user=req.user.username)
             t.save()
 
