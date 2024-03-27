@@ -222,7 +222,7 @@ CREATE TABLE survey.tile_obs (
 );
 ALTER TABLE survey.tile_obs ADD FOREIGN KEY ("tile_id") REFERENCES survey.tile ("id") ON DELETE NO ACTION;
 ALTER TABLE survey.tile_obs ADD FOREIGN KEY ("obs_id") REFERENCES survey.observation ("id") ON DELETE NO ACTION;
-ALTER TABLE survey.tile OWNER TO admin;
+ALTER TABLE survey.tile_obs OWNER TO admin;
 
 CREATE TABLE survey.survey_component (
     id bigserial primary key NOT NULL,
