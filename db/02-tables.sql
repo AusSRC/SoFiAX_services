@@ -196,9 +196,9 @@ ALTER TABLE survey.observation OWNER TO admin;
 
 CREATE TABLE survey.tile (
     id bigserial primary key NOT NULL,
-    ra numeric NOT NULL,
-    "dec" numeric NOT NULL,
-    identifier character varying NOT NULL,
+    name character varying NOT NULL,
+    ra_deg numeric NOT NULL,
+    "dec_deg" numeric NOT NULL,
     description character varying,
     phase character varying,
     "footprint_A" bigint,
