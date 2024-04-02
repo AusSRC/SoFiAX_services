@@ -1,13 +1,31 @@
 ## Tests
 
-We have written functional tests to ensure key functionality of the HI source finding portal works with your deployment. The tests are intended to target a development system and require a small amount of setup to run.
+**Do not run these in a production environment**
 
-1. Deploy system
-2. Injest data with SoFiAX
-3. Add summary figures
-4. Run the test suite
+A suite of functional tests to ensure the deployment is working correctly. This requires a small amount of setup.
 
-### Running test suite
+### 1. Deploy
+
+See repo [README](/README.md)
+
+### 2. Injest data
+
+- Download test data
+- Run SoFiAX
+- Run `dss_image` scripts for summary plots
+
+### 4. Running test suite
+
+- Create [`.env`](/tests/.env) with the following
+
+```
+URL = "127.0.0.1"
+USERNAME = "admin"
+PASSWORD = "admin"
+TITLE = "survey"
+```
+
+Then run the tests pointing to the development environment
 
 ```
 pytest
