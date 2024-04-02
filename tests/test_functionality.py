@@ -78,8 +78,7 @@ def test_comment(login):
     comment_form.send_keys(comment)
     detection_select = Select(login.find_element(By.XPATH, '//select[contains(@id, "id_detection")]'))
     detection_select.select_by_index(1)
-    login.find_element(By.XPATH, '//a[contains(@href, "/admin/survey/comment/")]').click()
-    # login.find_element(By.XPATH, '//input[contains(@value, "Save")]').click()
+    login.find_element(By.XPATH, '//input[contains(@value, "Save")]').click()
     time.sleep(WAIT)
     assert_element_exists_xpath(login, f'//a[contains(., "{comment}")]')
 
@@ -114,9 +113,9 @@ def test_tag(login):
     tag_name_form = login.find_element(By.ID, value='id_name')
     tag_description_form = login.find_element(By.ID, value='id_description')
     tag_type_form = login.find_element(By.ID, value='id_type')
-    tag_name_form.send_keys(tag['name])
+    tag_name_form.send_keys(tag['name'])
     tag_description_form.send_keys(tag['description'])
-    tag_type_form.send_keys(tag['type])
+    tag_type_form.send_keys(tag['type'])
     login.find_element(By.XPATH, '//input[contains(@value, "Save")]').click()
 
     # Read
@@ -132,3 +131,40 @@ def test_tag(login):
     login.find_element(By.XPATH, '//option[contains(@value, "delete_selected")]').click()
     login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
     login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+
+def test_survey_component(login):
+    """Create survey components"""
+    login.find_element(By.XPATH, '//a[contains(@href, "admin/survey/surveycomponent/add")]').click()
+    name_form = login.find_element(By.ID, value='id_name')
+    name_form.send_keys('Pilot 1')
+    login.find_element(By.XPATH, '//span[contains(@class, "select2-container")]').click()
+    login.find_element(By.XPATH, '//li[contains(., "SB51506")]').click()
+    login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+    time.sleep(WAIT)
+    login.find_element(By.XPATH, '//a[contains(@href, "admin/survey/surveycomponent/add")]').click()
+    name_form = login.find_element(By.ID, value='id_name')
+    name_form.send_keys('Pilot 2')
+    login.find_element(By.XPATH, '//span[contains(@class, "select2-container")]').click()
+    login.find_element(By.XPATH, '//li[contains(., "SB51535")]').click()
+    login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+    time.sleep(WAIT)
+
+def test_inspection_navigation(login):
+    """Test simple navigation through detections in a manual inspection view"""
+    login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
+    login.find_elements(By.XPATH, '//a[contains(., "Manual inspection")]')[0].click()
+    login.find_element(By.XPATH, '//input[contains(@id, "next")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "previous")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "last")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "first")]').click()
+    login.find_element(By.XPATH, '//input[contains(@name, "index")]').send_keys(5)
+    login.find_element(By.XPATH, '//input[contains(@id, "go_to_index")]').click()
+    time.sleep(WAIT)
+
+def test_select_sources(login):
+    """Test the manual inspection workflow for selecting sources from a run.
+
+    """
+    login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
+    login.find_element(By.XPATH, '//tr[.//*[contains(., "SB51506")]]/td[contains(@class, "field-run_manual_inspection")]/a').click()
+    pass

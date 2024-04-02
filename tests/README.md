@@ -10,11 +10,11 @@ See repo [README](/README.md)
 
 ### 2. Injest data
 
-- Download test data
+- Download test data (cutouts of SBIDs 51506 and 51535)
 - Run SoFiAX
 - Run `dss_image` scripts for summary plots
 
-### 4. Running test suite
+### 3. Running test suite
 
 - Create [`.env`](/tests/.env) with the following
 
