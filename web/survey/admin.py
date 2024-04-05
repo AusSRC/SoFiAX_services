@@ -288,7 +288,7 @@ class DetectionAdmin(ModelAdmin):
     list_display = ('id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq',
                     'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr',
                     'detection_products_download')
-    search_fields = ['run__name', 'name']
+    search_fields = ['id', 'run__name', 'name']
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
 
     def display_ra(self, obj):
@@ -1300,9 +1300,11 @@ admin.site.register(TagSourceDetection, TagSourceDetectionAdmin)
 #if settings.KINEMATICS:
 #    admin.site.register(KinematicModel, KinematicModelAdmin)
 
-admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
-admin.site.register(SurveyComponent, SurveyComponentAdmin)
-admin.site.register(Observation, ObservationAdmin)
-admin.site.register(Tile, TileAdmin)
-#admin.site.register(Postprocessing, PostprocessingAdmin)
+if settings.PROJECT == 'WALLABY':
+    admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
+    admin.site.register(SurveyComponent, SurveyComponentAdmin)
+    admin.site.register(Observation, ObservationAdmin)
+    admin.site.register(Tile, TileAdmin)
+    #admin.site.register(Postprocessing, PostprocessingAdmin)
+
 admin.site.register(Task, TaskAdmin)
