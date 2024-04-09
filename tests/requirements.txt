@@ -1,3 +1,4 @@
 selenium
 pytest
 pytest-dotenv
+pytest-dependency

@@ -132,6 +132,7 @@ def test_tag(login):
     login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
     login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
 
+@pytest.mark.dependency()
 def test_survey_component(login):
     """Create survey components"""
     login.find_element(By.XPATH, '//a[contains(@href, "admin/survey/surveycomponent/add")]').click()
@@ -161,10 +162,73 @@ def test_inspection_navigation(login):
     login.find_element(By.XPATH, '//input[contains(@id, "go_to_index")]').click()
     time.sleep(WAIT)
 
+@pytest.mark.dependency()
+def test_add_tag_comment_during_inspection(login):
+    """Test adding tags and comments to detections in the manual inspection view"""
+    login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
+    login.find_element(By.XPATH, '//tr[.//*[contains(., "SB51506")]]/td[contains(@class, "field-run_manual_inspection")]/a').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "tag_create")]').send_keys('Test tag from manual inspection')
+    login.find_element(By.XPATH, '//textarea[contains(@id, "comment")]').send_keys('Test comment from manual inspection')
+    login.find_element(By.XPATH, '//input[contains(@id, "submit")]').click()
+
+@pytest.mark.dependency(depends=['test_add_tag_comment_during_inspection'])
+def test_delete_all_tags(login):
+    """Test delete all tag button"""
+    login.find_element(By.XPATH, '//a[contains(@href, "admin/survey/tag")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "action-toggle")]').click()
+    login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
+    login.find_element(By.XPATH, '//option[contains(@value, "delete_selected")]').click()
+    login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
+    login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+
+# @pytest.mark.dependency(depends=['test_add_tag_comment_during_inspection'])
+def test_delete_all_comments(login):
+    """Test delete all comment button"""
+    login.find_element(By.XPATH, '//a[contains(@href, "admin/survey/comment")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "action-toggle")]').click()
+    login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
+    login.find_element(By.XPATH, '//option[contains(@value, "delete_selected")]').click()
+    login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
+    login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+
+# @pytest.mark.dependency(depends=['test_add_tag_comment_during_inspection'])
+def test_accepted_detections(login):
+    """Test access to the accepted detections view and functionality for deselecting detections"""
+    login.find_element(By.XPATH, '//a[contains(@href, "/admin/survey/accepteddetection")]').click()
+    assert_element_exists_xpath(login, '//tr/td[contains(., "SB51506")]')
+
+    # deselect all detections
+    login.find_element(By.XPATH, '//input[contains(@id, "action-toggle")]').click()
+    login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
+    login.find_element(By.XPATH, '//option[contains(@value, "deselect")]').click()
+    login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
+    time.sleep(WAIT)
+
+    # assert none
+    list_items = login.find_elements(By.XPATH, '//tr/td[contains(., "SB51506")]')
+    assert not list_items
+
+@pytest.mark.dependency(depends='test_survey_component')
 def test_select_sources(login):
     """Test the manual inspection workflow for selecting sources from a run.
 
     """
+    # Accept detections in SB51506 run
+    accept_detection_SB51506_names = [
+    ]
     login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
     login.find_element(By.XPATH, '//tr[.//*[contains(., "SB51506")]]/td[contains(@class, "field-run_manual_inspection")]/a').click()
-    pass
+    while accept_detection_names:
+        name = login.find_element(By.XPATH, '//div[contains(@id, "content")]/h1').text
+        if name in accept_detection_names:
+            login.find_element(By.XPATH, '//input[contains(@id, "submit")]').click()
+        else:
+            login.find_element(By.XPATH, '//input[contains(@id, "next")]').click()
+
+    # Accept detections in SB51535 run
+
+    # Run internal cross match
+
+    # Run external cross match (+ add tags and comments)
+
+    # Release
