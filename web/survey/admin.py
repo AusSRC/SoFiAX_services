@@ -64,6 +64,7 @@ class TagAdmin(ModelAdmin):
 
 class CommentAdmin(ModelAdmin):
     list_display = ('comment', 'detection', 'updated_at')
+    readonly_fields = ['author']
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -601,7 +602,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    #readonly_fields = list_display
+    actions = ['deselect']
     fk_name = 'run'
 
     def display_x(self, obj):
@@ -641,6 +642,14 @@ class AcceptedDetectionAdmin(ModelAdmin):
         return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
 
     detection_products_download.short_description = 'Products'
+
+    def deselect(self, request, queryset):
+        with transaction.atomic():
+            for d in queryset:
+                d.accepted = False
+                d.save()
+        return len(queryset)
+    deselect.short_description = 'Deselect detection'
 
     @admin.display(empty_value=None)
     def summary(self, obj):
