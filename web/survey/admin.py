@@ -5,7 +5,7 @@ import threading
 
 from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils.html import format_html, format_html_join
+from django.utils.html import format_html, format_html_join, mark_safe
 from django.forms import forms
 from django.db import transaction
 from django.conf import settings
@@ -263,7 +263,14 @@ class SourceDetectionAdmin(ModelAdmin):
         return redirect('/admin/survey/task/')
 
     def get_list_display(self, request):
-        return 'source', 'detection_link', 'summary'
+        return 'source', 'detection_link', 'GAMA_matches', 'summary'
+
+    @admin.display(empty_value=None)
+    def GAMA_matches(self, obj):
+        if settings.PROJECT == 'DINGO':
+            return format_html("<br>".join([str(g.cata_id) for g in obj.detection.detectionnearestgama_set.all()]))
+        else:
+            return ""
 
     @admin.display(empty_value=None)
     def detection_link(self, obj):
