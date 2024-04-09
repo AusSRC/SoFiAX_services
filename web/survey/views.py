@@ -510,9 +510,14 @@ def manual_inspection_detection_view(request):
 
         if 'Accept' in body['action']:
             logging.info(f'Marking detection {detection.name} as an accepted detection.')
+            logging.debug(detection.__dict__)
             detection.accepted = True
             detection.save()
-            _add_tag(request, detection)
+
+            tag_select = request.POST['tag_select']
+            tag_create = str(request.POST['tag_create'])
+            if (tag_select != 'None') or (tag_create != ''):
+                _add_tag(request, detection)
             _add_comment(request, detection)
             url = handle_next(request, queryset, idx, url_base, url_params)
             return HttpResponseRedirect(url)
