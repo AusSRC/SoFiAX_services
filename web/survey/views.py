@@ -527,10 +527,12 @@ def inspect_detection_view(request):
         if 'Accept' in body['action']:
             logging.info(f'Marking detection {detection.name} as a real source.')
             source, _ = Source.objects.get_or_create(name=detection.name)
-            sd = SourceDetection.objects.create(
+            sd, created = SourceDetection.objects.get_or_create(
                 source=source,
                 detection=detection
             )
+            if not created:
+                messages.info(f'Source detection {sd.id} already exists with detection {detection.name} and source {source.name}')
 
             # add tags and comments if necessary
             add_tag(request, sd)
