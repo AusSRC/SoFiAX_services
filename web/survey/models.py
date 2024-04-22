@@ -385,11 +385,11 @@ class Detection(models.Model):
                 img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
                 return mark_safe(img_src)
 
-    def summary_image(self, size=(3, 2)):
+    def summary_image(self, size=(3, 2), binary_image=False):
         products = self.product_set.only('spec')
         if not products:
             return None
-        return product_summary_image(products[0], size=size)
+        return product_summary_image(products[0], size=size, binary_image=binary_image)
 
     class Meta:
         managed = False
