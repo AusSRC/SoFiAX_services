@@ -674,7 +674,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
                    'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
         else:
             return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
@@ -684,7 +684,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
 class AcceptedDetectionAdminInline(ModelAdminInline):
     model = AcceptedDetection
     list_display = (
-        'name', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50'
+        'source_name', 'name', 'tags', 'comments', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50'
     )
     exclude = [
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
@@ -697,6 +697,18 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
     readonly_fields = list_display
     ordering = ('x',)
     fk_name = 'run'
+
+    def tags(self, obj):
+        tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
+        if not tags:
+            return '-'
+        return ', '.join(tags)
+
+    def comments(self, obj):
+        comments = [c.comment for c in Comment.objects.filter(detection=obj)]
+        if not comments:
+            return '-'
+        return ', '.join(comments)
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
