@@ -692,7 +692,7 @@ def external_conflict_view(request):
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
-        url = handle_navigation(request, conflicts, idx, reverse('external_conflict'), 'run_id={run.id}&external_conflict_id=')
+        url = handle_navigation(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
         if not url:
             messages.warning(request, "Selected action that should not exist.")
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
