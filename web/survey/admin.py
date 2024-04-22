@@ -590,7 +590,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     # TODO(austin): probably want to show tags if there are any?
     model = Detection
     readonly_fields = (
-        'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
     exclude = [
@@ -604,6 +604,18 @@ class AcceptedDetectionAdmin(ModelAdmin):
     ]
     actions = ['deselect']
     fk_name = 'run'
+
+    def tags(self, obj):
+        tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
+        if not tags:
+            return '-'
+        return ', '.join(tags)
+
+    def comments(self, obj):
+        comments = [c.comment for c in Comment.objects.filter(detection=obj)]
+        if not comments:
+            return '-'
+        return ', '.join(comments)
 
     def display_x(self, obj):
         return round(obj.x, 4)
@@ -1036,8 +1048,7 @@ class RunAdmin(ModelAdmin):
             logging.info("Writing updates to database")
             # Accepted sources
             for d in accepted_detections:
-                release_name = get_release_name(d.name)
-                d.name = release_name
+                d.source_name = get_release_name(d.name)
                 d.save()
 
             # Renaming
