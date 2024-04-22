@@ -600,7 +600,7 @@ def external_conflict_view(request):
             'image': mark_safe(img_src),
             'properties': properties,
             'conflict_name': ex_c.conflict_detection.source_name,
-            'conflict_description': ex_c.confict_detection.description_string(),
+            'conflict_description': ex_c.conflict_detection.description_string(),
             'conflict_image': mark_safe(c_img_src),
             'conflict_properties': c_properties,
             'run_id': run_id,
