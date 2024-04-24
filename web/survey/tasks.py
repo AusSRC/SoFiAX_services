@@ -10,7 +10,7 @@ from survey.utils.task import task
 
 @task()
 def download_accepted_sources(request, queryset):
-    ids = [i.detection.id for i in queryset]
+    ids = [d.id for d in queryset]
     products = Product.objects.filter(detection_id__in=ids)
 
     uuid_id = str(uuid.uuid4())

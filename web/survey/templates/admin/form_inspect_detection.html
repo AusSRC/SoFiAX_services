@@ -40,6 +40,19 @@
                 </tr>
             </table>
 
+            <table>
+                <tr>
+                    {% for key, value in matches.items %}
+                    <td>{{ key }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    {% for key, value in matches.items %}
+                    <td>{{ value }}</a></td>
+                    {% endfor %}
+                </tr>
+            </table>
+
 
             <form style='padding: 2px' method="post">
                 {% csrf_token %}

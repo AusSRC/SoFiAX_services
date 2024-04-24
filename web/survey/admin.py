@@ -5,7 +5,7 @@ from random import choice
 
 from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils.html import format_html, format_html_join
+from django.utils.html import format_html, format_html_join, mark_safe
 from django.forms import forms
 from django.db import transaction
 from django.conf import settings
@@ -213,7 +213,7 @@ class DetectionAdmin(ModelAdmin):
     list_display = ('id', 'run', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq',
                     'display_f_sum', 'display_v_opt', 'display_rel', 'display_rms', 'display_snr',
                     'detection_products_download')
-    search_fields = ['run__name', 'name']
+    search_fields = ['id', 'run__name', 'name']
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
 
     def display_ra(self, obj):
@@ -588,6 +588,7 @@ class UnresolvedDetectionAdminInline(ModelAdminInline):
 
 class AcceptedDetectionAdmin(ModelAdmin):
     # TODO(austin): probably want to show tags if there are any?
+    list_per_page = 50
     model = Detection
     readonly_fields = (
         'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
@@ -602,8 +603,15 @@ class AcceptedDetectionAdmin(ModelAdmin):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    actions = ['deselect']
+    actions = ['deselect', 'download_products']
     fk_name = 'run'
+
+    @admin.display(empty_value=None)
+    def GAMA_matches(self, obj):
+        if settings.PROJECT == 'DINGO':
+            return format_html("<br>".join([str(g.cata_id) for g in obj.detectionnearestgama_set.all()]))
+        else:
+            return ""
 
     def tags(self, obj):
         tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
@@ -649,12 +657,6 @@ class AcceptedDetectionAdmin(ModelAdmin):
         return round(obj.w50, 4)
     display_w50.short_description = 'w50'
 
-    def detection_products_download(self, obj):
-        url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
-
-    detection_products_download.short_description = 'Products'
-
     def deselect(self, request, queryset):
         with transaction.atomic():
             for d in queryset:
@@ -662,6 +664,12 @@ class AcceptedDetectionAdmin(ModelAdmin):
                 d.save()
         return len(queryset)
     deselect.short_description = 'Deselect detection'
+
+    @admin.action(description='Download Products')
+    def download_products(self, request, queryset):
+        task_id = download_accepted_sources(request, queryset)
+        return redirect('/admin/survey/task/')
+    download_products.acts_on_all = True
 
     @admin.display(empty_value=None)
     def summary(self, obj):
@@ -674,7 +682,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
                    'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
         else:
             return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
@@ -1202,8 +1210,10 @@ admin.site.register(Tag, TagAdmin)
 #if settings.KINEMATICS:
 #    admin.site.register(KinematicModel, KinematicModelAdmin)
 
-admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
-admin.site.register(SurveyComponent, SurveyComponentAdmin)
-admin.site.register(Observation, ObservationAdmin)
-admin.site.register(Tile, TileAdmin)
+if settings.PROJECT == 'WALLABY':
+    admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
+    admin.site.register(SurveyComponent, SurveyComponentAdmin)
+    admin.site.register(Observation, ObservationAdmin)
+    admin.site.register(Tile, TileAdmin)
+
 admin.site.register(Task, TaskAdmin)

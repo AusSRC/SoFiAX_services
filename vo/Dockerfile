@@ -1,5 +1,8 @@
 ARG DEBIAN_IMAGE="latest"
+
 FROM "debian:$DEBIAN_IMAGE"
+
+ARG RD="vo.rd"
 
 RUN apt-get update && apt-get -y upgrade && \
     apt-get install -y subversion python3 python3-setuptools python3-pip \
@@ -42,7 +45,7 @@ COPY untrustedquery ${GAVO_ROOT}/etc/untrustedquery
 COPY startup.sh /startup.sh
 
 RUN mkdir -p ${GAVO_INPUTS}/survey
-COPY vo.rd ${GAVO_INPUTS}/survey/vo.rd
+COPY ${RD} ${GAVO_INPUTS}/survey/vo.rd
 
 RUN chmod +x /startup.sh
 CMD /startup.sh

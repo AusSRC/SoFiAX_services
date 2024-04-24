@@ -477,6 +477,11 @@ def manual_inspection_detection_view(request):
             "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768"
         }
 
+        matches = {}
+        if settings.PROJECT == 'DINGO':
+            gama = detection.detectionnearestgama_set.all()
+            matches['GAMA'] = ", ".join([str(g.cata_id) for g in gama])
+
         # Form content
         params = {
             'title': detection.name,
@@ -487,7 +492,8 @@ def manual_inspection_detection_view(request):
             'detection_id': detection.id,
             'image': mark_safe(img_src),
             'tags': Tag.objects.all(),
-            'links': links
+            'links': links,
+            'matches': matches
         }
 
         return render(request, 'admin/form_inspect_detection.html', params)
