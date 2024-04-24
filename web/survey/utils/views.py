@@ -36,7 +36,7 @@ def handle_next(request, queryset, idx, url_base, url_params):
     if len(queryset) == 1:
         return '/admin/survey/run'
     new_idx = idx + 1
-    if new_idx >= len(queryset) - 1:
+    if new_idx > len(queryset) - 1:
         new_idx = idx - 1
     url = f"{url_base}?{url_params}{queryset[new_idx].id}"
     return url

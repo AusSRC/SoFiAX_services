@@ -490,8 +490,8 @@ class TagDetection(models.Model):
 class ExternalConflict(models.Model):
     id = models.BigAutoField(primary_key=True)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    detection = models.ForeignKey(Detection, related_name='detection', on_delete=models.CASCADE)
-    conflict_detection = models.ForeignKey(Detection, related_name='conflict_detection', on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, db_column='detection_id', related_name='detection', to_field='id', on_delete=models.CASCADE)
+    conflict_detection = models.ForeignKey(Detection, db_column='conflict_detection_id', related_name='conflict_detection', to_field='id', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
