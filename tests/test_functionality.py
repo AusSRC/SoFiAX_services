@@ -219,6 +219,7 @@ def test_select_sources(login):
         'SoFiA J210507.12-551140.4',
         'SoFiA J205956.37-553345.7',
         'SoFiA J205656.22-554311.4',
+        'SoFiA J205956.39-553345.7',
     ]
     SB51535_detection_names = [
         'SoFiA J210732.51-545717.5',
@@ -281,6 +282,7 @@ def test_accept_first_run(login):
 
     """
     # External cross match (to get source names)
+    login.find_element(By.XPATH, '//a[contains(@href, "/admin")]').click()
     login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
     login.find_element(By.XPATH, '//tr[.//*[contains(., "SB51506")]]/td[contains(@class, "action-checkbox")]/input').click()
     login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
@@ -331,9 +333,6 @@ def test_external_cross_matching(login):
     login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
     login.find_element(By.XPATH, '//option[contains(@value, "_release_sources")]').click()
     login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
-    time.sleep(WAIT)
-    login.find_element(By.XPATH, '//input[contains(@id, "tag_create")]').send_keys('Should not work')
-    login.find_element(By.XPATH, '//input[contains(@id, "tag_description")]').send_keys('This action should fail')
     login.find_element(By.XPATH, '//input[contains(@name, "confirm")]').click()
     time.sleep(WAIT)
     login.find_element(By.XPATH, '//a[contains(@href, "/admin")]').click()
@@ -414,6 +413,15 @@ def test_cleanup(login):
     # Delete tags
     login.find_element(By.XPATH, '//a[contains(@href, "/admin")]').click()
     login.find_element(By.XPATH, '//a[contains(., "Tags")]').click()
+    login.find_element(By.XPATH, '//input[contains(@id, "action-toggle")]').click()
+    login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
+    login.find_element(By.XPATH, '//option[contains(@value, "delete_selected")]').click()
+    login.find_element(By.XPATH, '//button[contains(@title, "Run the selected action")]').click()
+    login.find_element(By.XPATH, '//input[contains(@type, "submit")]').click()
+
+    # Delete tasks
+    login.find_element(By.XPATH, '//a[contains(@href, "/admin")]').click()
+    login.find_element(By.XPATH, '//a[contains(., "Tasks")]').click()
     login.find_element(By.XPATH, '//input[contains(@id, "action-toggle")]').click()
     login.find_element(By.XPATH, '//select[contains(@name, "action")]').click()
     login.find_element(By.XPATH, '//option[contains(@value, "delete_selected")]').click()
