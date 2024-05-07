@@ -5,7 +5,7 @@ import matplotlib.image as mpimg
 from django.utils.safestring import mark_safe
 
 
-def product_summary_image(products, size=(3, 2)):
+def product_summary_image(products, size=(3, 2), binary_image=False):
     if not products:
         return None
     plot = products.plot
@@ -24,6 +24,10 @@ def product_summary_image(products, size=(3, 2)):
 
     with io.BytesIO() as image_data:
         fig.savefig(image_data, format='png')
+        if binary_image == True:
+            plt.close(fig)
+            return image_data.getvalue()
+
         base_img = binascii.b2a_base64(image_data.getvalue()).decode()
         img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
         plt.close(fig)

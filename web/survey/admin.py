@@ -22,6 +22,8 @@ from survey.models import Detection, UnresolvedDetection, AcceptedDetection, Ext
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
 
+from .tasks import download_accepted_sources, download_summaries_for_run
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -786,7 +788,7 @@ class RunAdmin(ModelAdmin):
     )
     ordering = ('-created',)
     search_fields = ['name']
-    actions = ['_internal_cross_match', '_external_cross_match',
+    actions = ['_download_summaries', '_internal_cross_match', '_external_cross_match',
                '_release_sources', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
@@ -850,7 +852,28 @@ class RunAdmin(ModelAdmin):
             return True
         return False
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
+    def download_summaries(self, request, queryset):
+        try:
+            return download_summaries_for_run(request, queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+
+    def _download_summaries(self, request, queryset):
+        try:
+            if queryset.count() == 0:
+                messages.error(request, "No Run(s) selected")
+                return
+
+            self.download_summaries(request, queryset)
+            return redirect('/admin/survey/task/')
+        except Exception as e:
+            messages.error(request, str(e))
+
+    _download_summaries.short_description = 'Download Summaries'
+
+
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
         names = [i.name for i in queryset]
         with transaction.atomic():
@@ -879,7 +902,7 @@ class RunAdmin(ModelAdmin):
         except Exception as e:
             messages.error(request, str(e))
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def internal_cross_match(self, request, queryset):
         """Run the internal cross matching workflow
 
@@ -923,7 +946,7 @@ class RunAdmin(ModelAdmin):
 
     _internal_cross_match.short_description = 'Internal cross matching'
 
-    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run'])
+    @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def external_cross_match(self, request, queryset):
         # Threshold values
         thresh_spat = 90.0
@@ -1170,7 +1193,7 @@ class RunAdmin(ModelAdmin):
 
 
 class TaskAdmin(ModelAdmin):
-    list_display = ['id', 'func', 'queryset', 'start', 'end', 'state', 'error', 'get_retval', 'get_return_link']
+    list_display = ['id', 'func', 'view_queryset', 'start', 'end', 'state', 'error', 'get_retval', 'get_return_link']
 
     def delete_queryset(self, request, queryset):
         for i in queryset:
@@ -1182,6 +1205,18 @@ class TaskAdmin(ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(user__contains=str(request.user))
+
+    def view_queryset(self, obj):
+        qs = obj.queryset
+        if not qs:
+            return ""
+
+        if len(qs) > 5:
+            return f"{qs[0]} , ... , {qs[-1]}"
+
+        return ",".join(qs)
+
+    view_queryset.short_description = 'Query Set'
 
     def get_retval(self, obj):
         ret = obj.get_return()
