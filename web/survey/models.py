@@ -497,164 +497,6 @@ class ExternalConflict(models.Model):
         managed = False
         db_table = 'external_conflict'
 
-class Observation(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True)
-    name = models.TextField()
-    sbid = models.CharField(max_length=64, null=True)
-    ra = models.FloatField()
-    dec = models.FloatField()
-    rotation = models.FloatField(null=True)
-    description = models.TextField(null=True)
-    phase = models.CharField(max_length=64, null=True)
-    image_cube_file = models.TextField(null=True)
-    weights_cube_file = models.TextField(null=True)
-    quality = models.CharField(max_length=64, null=True)
-    status = models.CharField(max_length=64, null=True)
-    scheduled = models.BooleanField(null=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        managed = False
-        db_table = 'observation'
-
-
-class Tile(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.TextField()
-    ra_deg = models.FloatField()
-    dec_deg = models.FloatField()
-    phase = models.TextField(null=True)
-    description = models.TextField(null=True)
-    image_cube_file = models.TextField(null=True)
-    weights_cube_file = models.TextField(null=True)
-    footprint_A = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_A', related_name='footprint_A', to_field='id', null=True)
-    footprint_B = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_B', related_name='footprint_B', to_field='id', null=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        managed = False
-        db_table = 'tile'
-
-
-class TileObs(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING, db_column='tile_id', to_field='id')
-    obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
-
-    class Meta:
-        managed = False
-        db_table = 'tile_obs'
-
-
-class SpatialRefSys(models.Model):
-    srid = models.IntegerField(primary_key=True)
-    auth_name = models.CharField(max_length=256, blank=True, null=True)
-    auth_srid = models.IntegerField(blank=True, null=True)
-    srtext = models.CharField(max_length=2048, blank=True, null=True)
-    proj4text = models.CharField(max_length=2048, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'spatial_ref_sys'
-
-
-class SurveyComponent(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=2048, blank=True, null=True)
-    runs = ArrayField(models.TextField(), editable=False)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        managed = False
-        db_table = 'survey_component'
-
-
-class SurveyComponentRun(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    sc = models.ForeignKey(SurveyComponent, on_delete=models.CASCADE)
-
-    class Meta:
-        managed = False
-        db_table = 'survey_component_run'
-        unique_together = (('run', 'sc'),)
-
-
-class SourceExtractionRegion(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.TextField(null=True)
-    ra_deg = models.FloatField(null=True)
-    dec_deg = models.FloatField(null=True)
-    complete = models.BooleanField(null=True)
-    status = models.TextField(null=True)
-    scheduled = models.BooleanField(null=True)
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'source_extraction_region'
-
-
-class SourceExtractionRegionTile(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    ser = models.ForeignKey(SourceExtractionRegion, on_delete=models.DO_NOTHING)
-    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'source_extraction_region_tile'
-
-
-# ------------------------------------------------------------------------------
-# Kinematic model
-
-
-class KinematicModel(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.ForeignKey('Detection', models.DO_NOTHING)
-    ra = models.FloatField()
-    dec = models.FloatField()
-    freq = models.FloatField()
-    team_release = models.CharField(max_length=255)
-    team_release_kin = models.CharField(max_length=255)
-    vsys_model = models.FloatField()
-    e_vsys_model = models.FloatField()
-    x_model = models.FloatField()
-    e_x_model = models.FloatField()
-    y_model = models.FloatField()
-    e_y_model = models.FloatField()
-    ra_model = models.FloatField()
-    e_ra_model = models.FloatField()
-    dec_model = models.FloatField()
-    e_dec_model = models.FloatField()
-    inc_model = models.FloatField()
-    e_inc_model = models.FloatField()
-    pa_model = models.FloatField()
-    e_pa_model = models.FloatField()
-    pa_model_g = models.FloatField()
-    e_pa_model_g = models.FloatField()
-    qflag_model = models.IntegerField()
-    rad = models.CharField(max_length=255)
-    vrot_model = models.CharField(max_length=255)
-    e_vrot_model = models.CharField(max_length=255)
-    e_vrot_model_inc = models.CharField(max_length=255)
-    rad_sd = models.CharField(max_length=255)
-    sd_model = models.CharField(max_length=255)
-    e_sd_model = models.CharField(max_length=255)
-    sd_fo_model = models.CharField(max_length=255)
-    e_sd_fo_model_inc = models.CharField(max_length=255)
-
-    class Meta:
-        managed = False
-        db_table = 'kinematic_model'
-
 
 # ------------------------------------------------------------------------------
 # Project specific
@@ -670,3 +512,144 @@ if settings.PROJECT == 'DINGO':
         class Meta:
             managed = False
             db_table = 'detection_nearest_gama'
+
+
+if settings.PROJECT == 'WALLABY':
+
+    class Observation(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True)
+        name = models.TextField()
+        sbid = models.CharField(max_length=64, null=True)
+        ra = models.FloatField()
+        dec = models.FloatField()
+        rotation = models.FloatField(null=True)
+        description = models.TextField(null=True)
+        phase = models.CharField(max_length=64, null=True)
+        image_cube_file = models.TextField(null=True)
+        weights_cube_file = models.TextField(null=True)
+        quality = models.CharField(max_length=64, null=True)
+        status = models.CharField(max_length=64, null=True)
+        scheduled = models.BooleanField(null=True)
+
+        def __str__(self):
+            return self.name
+
+        class Meta:
+            managed = False
+            db_table = 'observation'
+
+    class Tile(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.TextField()
+        ra_deg = models.FloatField()
+        dec_deg = models.FloatField()
+        phase = models.TextField(null=True)
+        description = models.TextField(null=True)
+        image_cube_file = models.TextField(null=True)
+        weights_cube_file = models.TextField(null=True)
+        footprint_A = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_A', related_name='footprint_A', to_field='id', null=True)
+        footprint_B = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_B', related_name='footprint_B', to_field='id', null=True)
+
+        def __str__(self):
+            return self.name
+
+        class Meta:
+            managed = False
+            db_table = 'tile'
+
+    class TileObs(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING, db_column='tile_id', to_field='id')
+        obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
+
+        class Meta:
+            managed = False
+            db_table = 'tile_obs'
+
+    class KinematicModel(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.ForeignKey('Detection', models.DO_NOTHING)
+        ra = models.FloatField()
+        dec = models.FloatField()
+        freq = models.FloatField()
+        team_release = models.CharField(max_length=255)
+        team_release_kin = models.CharField(max_length=255)
+        vsys_model = models.FloatField()
+        e_vsys_model = models.FloatField()
+        x_model = models.FloatField()
+        e_x_model = models.FloatField()
+        y_model = models.FloatField()
+        e_y_model = models.FloatField()
+        ra_model = models.FloatField()
+        e_ra_model = models.FloatField()
+        dec_model = models.FloatField()
+        e_dec_model = models.FloatField()
+        inc_model = models.FloatField()
+        e_inc_model = models.FloatField()
+        pa_model = models.FloatField()
+        e_pa_model = models.FloatField()
+        pa_model_g = models.FloatField()
+        e_pa_model_g = models.FloatField()
+        qflag_model = models.IntegerField()
+        rad = models.CharField(max_length=255)
+        vrot_model = models.CharField(max_length=255)
+        e_vrot_model = models.CharField(max_length=255)
+        e_vrot_model_inc = models.CharField(max_length=255)
+        rad_sd = models.CharField(max_length=255)
+        sd_model = models.CharField(max_length=255)
+        e_sd_model = models.CharField(max_length=255)
+        sd_fo_model = models.CharField(max_length=255)
+        e_sd_fo_model_inc = models.CharField(max_length=255)
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model'
+
+    class SurveyComponent(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.CharField(max_length=2048, blank=True, null=True)
+        runs = ArrayField(models.TextField(), editable=False)
+
+        def __str__(self):
+            return self.name
+
+        class Meta:
+            managed = False
+            db_table = 'survey_component'
+
+
+    class SurveyComponentRun(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        run = models.ForeignKey(Run, on_delete=models.CASCADE)
+        sc = models.ForeignKey(SurveyComponent, on_delete=models.CASCADE)
+
+        class Meta:
+            managed = False
+            db_table = 'survey_component_run'
+            unique_together = (('run', 'sc'),)
+
+
+    class SourceExtractionRegion(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.TextField(null=True)
+        ra_deg = models.FloatField(null=True)
+        dec_deg = models.FloatField(null=True)
+        complete = models.BooleanField(null=True)
+        status = models.TextField(null=True)
+        scheduled = models.BooleanField(null=True)
+        run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
+
+        class Meta:
+            managed = False
+            db_table = 'source_extraction_region'
+
+
+    class SourceExtractionRegionTile(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        ser = models.ForeignKey(SourceExtractionRegion, on_delete=models.DO_NOTHING)
+        tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING)
+
+        class Meta:
+            managed = False
+            db_table = 'source_extraction_region_tile'
