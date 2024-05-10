@@ -12,7 +12,7 @@ from survey.utils.forms import _add_tag, _add_comment
 from survey.utils.views import handle_navigation, handle_next
 from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagDetection, \
-                          Comment, ExternalConflict, Task, FileTaskReturn
+    Comment, ExternalConflict, Task, FileTaskReturn
 from django.urls import reverse
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse

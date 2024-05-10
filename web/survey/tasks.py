@@ -2,10 +2,9 @@ import uuid
 import tarfile
 
 from survey.models import Product, FileTaskReturn
+from survey.utils.task import task
 from survey.utils.io import tarfile_write
 from urllib.request import pathname2url
-
-from survey.utils.task import task
 
 
 @task()

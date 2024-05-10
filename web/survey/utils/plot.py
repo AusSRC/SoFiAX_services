@@ -24,7 +24,7 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
 
     with io.BytesIO() as image_data:
         fig.savefig(image_data, format='png')
-        if binary_image == True:
+        if binary_image:
             plt.close(fig)
             return image_data.getvalue()
 

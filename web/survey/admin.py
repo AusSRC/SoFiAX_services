@@ -344,7 +344,8 @@ class DetectionAdminInline(ModelAdminInline):
         'name', 'display_x', 'display_y', 'display_z', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
-    exclude = ['x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
+    exclude = [
+        'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
         'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
         'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
@@ -352,7 +353,6 @@ class DetectionAdminInline(ModelAdminInline):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    #readonly_fields = list_display
     fk_name = 'run'
 
     def display_tags(self, obj):
@@ -461,10 +461,10 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+            return 'id', 'source', 'tags', 'summary', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
                    'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
+            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
                    'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
     def lookup_allowed(self, lookup, value):
@@ -684,10 +684,10 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min',\
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
                    'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
         else:
-            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj',\
+            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
                    'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
 
@@ -871,7 +871,6 @@ class RunAdmin(ModelAdmin):
             messages.error(request, str(e))
 
     _download_summaries.short_description = 'Download Summaries'
-
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
@@ -1242,7 +1241,8 @@ admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 
-#if settings.KINEMATICS:
+# NOTE: TBA
+# if settings.KINEMATICS:
 #    admin.site.register(KinematicModel, KinematicModelAdmin)
 
 if settings.PROJECT == 'WALLABY':

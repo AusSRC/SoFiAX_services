@@ -29,6 +29,7 @@ def _get_or_create_tag(request):
         messages.error(request, str(e))
         raise Exception(e)
 
+
 def _add_tag(request, detection, tag_select_input='tag_select', tag_create_input='tag_create'):
     try:
         tag = _get_or_create_tag(request)

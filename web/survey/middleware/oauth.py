@@ -7,15 +7,17 @@ from django.shortcuts import redirect
 from keycloak import KeycloakOpenID
 from django.http import HttpResponse
 
-class KeycloakMiddleware:
 
+class KeycloakMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.groups = settings.AUTH_GROUPS
-        self.openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
-                                     client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
-                                     realm_name=settings.REALM,
-                                     client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET)
+        self.openid = KeycloakOpenID(
+            server_url=settings.CLIENT_AUTH,
+            client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
+            realm_name=settings.REALM,
+            client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET
+        )
 
     def __call__(self, request):
         user = request.user
@@ -30,7 +32,7 @@ class KeycloakMiddleware:
             if auth is None:
                 response = self.get_response(request)
                 return response
-            
+
             extra = auth.extra_data
             if isinstance(extra, str):
                 extra = json.loads(extra)

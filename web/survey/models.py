@@ -134,6 +134,7 @@ class Task(models.Model):
 # ------------------------------------------------------------------------------
 # Astronomy data tables
 
+
 class Run(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.TextField()
@@ -618,7 +619,6 @@ if settings.PROJECT == 'WALLABY':
             managed = False
             db_table = 'survey_component'
 
-
     class SurveyComponentRun(models.Model):
         id = models.BigAutoField(primary_key=True)
         run = models.ForeignKey(Run, on_delete=models.CASCADE)
@@ -628,7 +628,6 @@ if settings.PROJECT == 'WALLABY':
             managed = False
             db_table = 'survey_component_run'
             unique_together = (('run', 'sc'),)
-
 
     class SourceExtractionRegion(models.Model):
         id = models.BigAutoField(primary_key=True)
@@ -643,7 +642,6 @@ if settings.PROJECT == 'WALLABY':
         class Meta:
             managed = False
             db_table = 'source_extraction_region'
-
 
     class SourceExtractionRegionTile(models.Model):
         id = models.BigAutoField(primary_key=True)
