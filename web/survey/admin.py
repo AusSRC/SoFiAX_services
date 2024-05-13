@@ -591,7 +591,7 @@ class UnresolvedDetectionAdminInline(ModelAdminInline):
 class AcceptedDetectionAdmin(ModelAdmin):
     # TODO(austin): probably want to show tags if there are any?
     list_per_page = 50
-    model = Detection
+    model = AcceptedDetection
     readonly_fields = (
         'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
@@ -690,11 +690,17 @@ class AcceptedDetectionAdmin(ModelAdmin):
             return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
                    'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    detection_products_download.short_description = 'Products'
+
 
 class AcceptedDetectionAdminInline(ModelAdminInline):
     model = AcceptedDetection
     list_display = (
-        'source_name', 'name', 'tags', 'comments', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50'
+        'source_name', 'name', 'tags', 'comments', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
     )
     exclude = [
         'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
@@ -723,6 +729,16 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
         return qs.filter(accepted=True)
+
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    detection_products_download.short_description = 'Products'
+
+    def get_queryset(self, request):
+        qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
+        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
 
 class InstanceAdmin(ModelAdmin):
