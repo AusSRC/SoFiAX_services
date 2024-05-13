@@ -348,6 +348,9 @@ class Detection(models.Model):
                     x.append(float(data[1]))
                     y.append(float(data[2]))
 
+        if not x or not y:
+            return None
+
         x = np.array(x)
         y = np.array(y)
 
