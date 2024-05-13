@@ -1,12 +1,6 @@
 import io
-import math
-import numpy as np
 import binascii
-from astropy.visualization import PercentileInterval
-from astropy.io import fits
-from astropy.wcs import WCS
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
 import matplotlib.image as mpimg
 from django.utils.safestring import mark_safe
 
@@ -30,7 +24,7 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
 
     with io.BytesIO() as image_data:
         fig.savefig(image_data, format='png')
-        if binary_image == True:
+        if binary_image:
             plt.close(fig)
             return image_data.getvalue()
 

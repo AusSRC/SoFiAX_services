@@ -1,0 +1,26 @@
+\connect surveydb
+
+GRANT ALL ON DATABASE surveydb TO gavo;
+GRANT ALL ON DATABASE surveydb TO gavoadmin;
+GRANT CONNECT ON DATABASE surveydb TO untrusted;
+
+GRANT ALL ON SCHEMA public TO gavo;
+GRANT ALL ON SCHEMA public TO gavoadmin;
+GRANT USAGE ON SCHEMA public TO untrusted;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA survey TO survey_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA survey TO gavoadmin;
+GRANT SELECT ON ALL TABLES IN SCHEMA survey TO gavo;
+GRANT SELECT ON ALL TABLES IN SCHEMA survey TO untrusted;
+
+GRANT USAGE ON SCHEMA survey TO survey_user;
+GRANT USAGE ON SCHEMA survey TO gavoadmin;
+GRANT USAGE ON SCHEMA survey TO gavo;
+GRANT USAGE ON SCHEMA survey TO untrusted;
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON ALL TABLES IN SCHEMA survey TO survey_user;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA survey TO survey_user;
+
+-- Required extensions
+CREATE EXTENSION IF NOT EXISTS "postgis";
+CREATE EXTENSION IF NOT EXISTS "pg_sphere";

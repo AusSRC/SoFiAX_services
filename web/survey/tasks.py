@@ -2,15 +2,14 @@ import uuid
 import tarfile
 
 from survey.models import Product, FileTaskReturn
+from survey.utils.task import task
 from survey.utils.io import tarfile_write
 from urllib.request import pathname2url
-
-from survey.utils.task import task
 
 
 @task()
 def download_accepted_sources(request, queryset):
-    ids = [i.detection.id for i in queryset]
+    ids = [d.id for d in queryset]
     products = Product.objects.filter(detection_id__in=ids)
 
     uuid_id = str(uuid.uuid4())

@@ -1,6 +1,6 @@
 import re
 from django.conf import settings
-from survey.models import Run, Detection, SurveyComponent
+from survey.models import SurveyComponent
 
 
 def get_survey_components():

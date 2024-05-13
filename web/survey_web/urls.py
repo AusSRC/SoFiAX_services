@@ -6,7 +6,7 @@ from django.conf import settings
 from survey.views import detection_products, instance_products, \
     run_products, run_catalog, \
     logout_view, test, summary_image, \
-    inspect_detection_view, external_conflict_view, task_file_download
+    manual_inspection_detection_view, external_conflict_view, task_file_download
 
 admin.site.site_header = settings.SITE_HEADER
 admin.site.site_title = settings.SITE_TITLE
@@ -22,7 +22,7 @@ urlpatterns = [
     path('task_file_download', task_file_download, name='task_file_download'),
     path('run_products', run_products, name='run_products'),
     path('catalog', run_catalog, name='run_catalog'),
-    path('inspect_detection', inspect_detection_view, name='inspect_detection'),
+    path('inspect_detection', manual_inspection_detection_view, name='inspect_detection'),
     path('external_conflict', external_conflict_view, name='external_conflict')
 ]
 

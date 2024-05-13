@@ -19,6 +19,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.conf import settings
 
+
 from survey.utils.fields import PostgresDecimalField
 from survey.utils.plot import product_summary_image
 
@@ -129,7 +130,7 @@ class Task(models.Model):
             raise ValueError("Unknown return type")
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'task'
 
 # ------------------------------------------------------------------------------
@@ -156,7 +157,7 @@ class Instance(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
     filename = models.TextField()
     boundary = models.TextField()
     run_date = models.DateTimeField(auto_now_add=True)
@@ -186,9 +187,10 @@ class Detection(models.Model):
 
     """
     id = models.BigAutoField(primary_key=True)
-    instance = models.ForeignKey(Instance, on_delete=models.DO_NOTHING)
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
+    instance = models.ForeignKey(Instance, on_delete=models.CASCADE)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
     name = models.TextField(blank=True, null=True)
+    source_name = models.TextField(blank=True, null=True)
     x = PostgresDecimalField()
     y = PostgresDecimalField()
     z = PostgresDecimalField()
@@ -221,12 +223,13 @@ class Detection(models.Model):
     dec = PostgresDecimalField(blank=True, null=True)
     freq = PostgresDecimalField(blank=True, null=True)
     flag = models.IntegerField(blank=True, null=True)
-    l = PostgresDecimalField(blank=True, null=True)  # noqa
+    l = PostgresDecimalField(blank=True, null=True)
     b = PostgresDecimalField(blank=True, null=True)
     v_rad = PostgresDecimalField(blank=True, null=True)
     v_opt = PostgresDecimalField(blank=True, null=True)
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
+    accepted = models.BooleanField(default=False)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
@@ -391,11 +394,24 @@ class Detection(models.Model):
             return None
         return product_summary_image(products[0], size=size, binary_image=binary_image)
 
+    def description_string(self):
+        description = ''
+        description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection_id=self.id)])
+        description += ', '.join([c.comment for c in Comment.objects.filter(detection_id=self.id)])
+        if description == '':
+            description = 'No tags or comments'
+        return description
+
     class Meta:
         managed = False
         db_table = 'detection'
         ordering = ("x",)
         unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
+
+
+class AcceptedDetection(Detection):
+    class Meta:
+        proxy = True
 
 
 class UnresolvedDetection(Detection):
@@ -410,7 +426,7 @@ class InternalConflictSource(Detection):
 
 class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
-    detection = models.ForeignKey(Detection, on_delete=models.DO_NOTHING)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
     cube = models.BinaryField(blank=True, null=True)
     mask = models.BinaryField(blank=True, null=True)
     mom0 = models.BinaryField(blank=True, null=True)
@@ -419,7 +435,7 @@ class Product(models.Model):
     chan = models.BinaryField(blank=True, null=True)
     snr = models.BinaryField(blank=True, null=True)
     spec = models.BinaryField(blank=True, null=True)
-    summary = models.BinaryField(blank=True, null=True)
+    pv = models.BinaryField(blank=True, null=True)
     plot = models.BinaryField(blank=True, null=True)
 
     class Meta:
@@ -428,172 +444,14 @@ class Product(models.Model):
         unique_together = (('detection',),)
 
 
-class Source(models.Model):
-    """Subset of quality checked detections to include in the
-    final source catalog.
-
-    """
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=128)
-
-    def __str__(self):
-        return f"{self.name}"
-
-    def save(self, *args, **kwargs):
-        """Do not save changes for released sources."""
-        release_tags = Tag.objects.filter(type='release')
-        sds = SourceDetection.objects.filter(source__name=self.name)
-        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
-        is_tagged = False
-        for tsd in tsds:
-            if tsd.tag in release_tags:
-                is_tagged = True
-
-        if (settings.PROJECT in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released source {self.name}.")
-        super(Source, self).save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Cannot delete released sources."""
-        release_tags = Tag.objects.filter(type='release')
-        sds = SourceDetection.objects.filter(source=self)
-        tsds = TagSourceDetection.objects.filter(source_detection__in=sds)
-        is_tagged = False
-        for tsd in tsds:
-            if tsd.tag in release_tags:
-                is_tagged = True
-        if (settings.PROJECT in self.name) and is_tagged:
-            raise Exception(f"Cannot overwrite a released source {self.name}.")
-        super(Source, self).delete(*args, **kwargs)
-
-    class Meta:
-        managed = False
-        db_table = 'source'
-        unique_together = (('name', ),)
-
-
-class SourceDetection(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    source = models.ForeignKey(Source, on_delete=models.DO_NOTHING)
-    detection = models.OneToOneField(Detection, on_delete=models.DO_NOTHING)
-    added_at = models.DateTimeField(blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        """Do not save changes for released source detections."""
-        internal_release_tag = Tag.objects.get(name='Internal Release')
-        tsds = TagSourceDetection.objects.filter(source_detection__detection__name=self.detection.name)
-        is_released = False
-        if internal_release_tag in tsds:
-            is_released = True
-        if (settings.PROJECT in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to a released source {self.source.name}.")
-        super(SourceDetection, self).save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        """Do not delete released sources."""
-        internal_release_tag = Tag.objects.get(name='Internal Release')
-        tsds = TagSourceDetection.objects.filter(source_detection=self)
-        is_released = False
-        if internal_release_tag in tsds:
-            is_released = True
-        if (settings.PROJECT in self.source.name) and is_released:
-            raise Exception(f"Cannot change source detection pointing to released source {self.source.name}.")
-        super(SourceDetection, self).delete(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.source}, {self.detection}"
-
-    class Meta:
-        managed = False
-        db_table = 'source_detection'
-
-
-class ExternalConflict(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
-    detection = models.ForeignKey(Detection, on_delete=models.DO_NOTHING)
-    conflict_source_detection_ids = ArrayField(
-        models.IntegerField()
-    )
-
-    class Meta:
-        managed = False
-        db_table = 'external_conflict'
-
-
-class SpatialRefSys(models.Model):
-    srid = models.IntegerField(primary_key=True)
-    auth_name = models.CharField(max_length=256, blank=True, null=True)
-    auth_srid = models.IntegerField(blank=True, null=True)
-    srtext = models.CharField(max_length=2048, blank=True, null=True)
-    proj4text = models.CharField(max_length=2048, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'spatial_ref_sys'
-
-
-class KinematicModel(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.ForeignKey('Source', models.DO_NOTHING, db_column='name', to_field='name')
-    ra = models.FloatField()
-    dec = models.FloatField()
-    freq = models.FloatField()
-    team_release = models.CharField(max_length=255)
-    team_release_kin = models.CharField(max_length=255)
-    vsys_model = models.FloatField()
-    e_vsys_model = models.FloatField()
-    x_model = models.FloatField()
-    e_x_model = models.FloatField()
-    y_model = models.FloatField()
-    e_y_model = models.FloatField()
-    ra_model = models.FloatField()
-    e_ra_model = models.FloatField()
-    dec_model = models.FloatField()
-    e_dec_model = models.FloatField()
-    inc_model = models.FloatField()
-    e_inc_model = models.FloatField()
-    pa_model = models.FloatField()
-    e_pa_model = models.FloatField()
-    pa_model_g = models.FloatField()
-    e_pa_model_g = models.FloatField()
-    qflag_model = models.IntegerField()
-    rad = models.CharField(max_length=255)
-    vrot_model = models.CharField(max_length=255)
-    e_vrot_model = models.CharField(max_length=255)
-    e_vrot_model_inc = models.CharField(max_length=255)
-    rad_sd = models.CharField(max_length=255)
-    sd_model = models.CharField(max_length=255)
-    e_sd_model = models.CharField(max_length=255)
-    sd_fo_model = models.CharField(max_length=255)
-    e_sd_fo_model_inc = models.CharField(max_length=255)
-
-    class Meta:
-        managed = False
-        db_table = 'kinematic_model'
-
-
-if settings.PROJECT == 'DINGO':
-
-    class DetectionNearestGAMA(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        detection_id = models.ForeignKey('Detection', models.DO_NOTHING, db_column='detection_id', to_field='id')
-        cata_id = models.BigIntegerField()
-
-        class Meta:
-            managed = False
-            db_table = 'detection_nearest_gama'
-
-
 # ------------------------------------------------------------------------------
 # Metadata tables
-
 
 class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=2048, blank=True, null=True)
-    detection = models.ForeignKey('Detection', on_delete=models.DO_NOTHING)
+    detection = models.ForeignKey('Detection', on_delete=models.CASCADE)
     updated_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
@@ -616,59 +474,48 @@ class Tag(models.Model):
         db_table = 'tag'
 
 
-class TagSourceDetection(models.Model):
+class TagDetection(models.Model):
     id = models.BigAutoField(primary_key=True)
-    tag = models.ForeignKey(Tag, models.DO_NOTHING)
-    source_detection = models.ForeignKey(SourceDetection, on_delete=models.DO_NOTHING)
+    tag = models.ForeignKey(Tag, models.CASCADE)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
     author = models.CharField(max_length=2048, blank=True, null=True)
     added_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
         managed = False
-        db_table = 'tag_source_detection'
-        unique_together = (('tag', 'source_detection'),)
+        db_table = 'tag_detection'
+        unique_together = (('tag', 'detection'),)
+
 
 # ------------------------------------------------------------------------------
 # Operational tables
 
-
-class SurveyComponent(models.Model):
+class ExternalConflict(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=2048, blank=True, null=True)
-    runs = ArrayField(models.TextField(), editable=False)
-
-    def __str__(self):
-        return self.name
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    detection = models.ForeignKey(Detection, db_column='detection_id', related_name='detection', to_field='id', on_delete=models.CASCADE)
+    conflict_detection = models.ForeignKey(Detection, db_column='conflict_detection_id', related_name='conflict_detection', to_field='id', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
-        db_table = 'survey_component'
-
-
-class SurveyComponentRun(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING)
-    sc = models.ForeignKey(SurveyComponent, on_delete=models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'survey_component_run'
-        unique_together = (('run', 'sc'),)
+        db_table = 'external_conflict'
 
 
 class Observation(models.Model):
     id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True)
     name = models.TextField()
-    sbid = models.CharField(max_length=64)
+    sbid = models.CharField(max_length=64, null=True)
     ra = models.FloatField()
     dec = models.FloatField()
-    rotation = models.FloatField()
-    description = models.TextField()
-    phase = models.CharField(max_length=64)
-    quality = models.CharField(max_length=64)
-    status = models.CharField(max_length=64)
-    scheduled = models.BooleanField()
-    run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
+    rotation = models.FloatField(null=True)
+    description = models.TextField(null=True)
+    phase = models.CharField(max_length=64, null=True)
+    image_cube_file = models.TextField(null=True)
+    weights_cube_file = models.TextField(null=True)
+    quality = models.CharField(max_length=64, null=True)
+    status = models.CharField(max_length=64, null=True)
+    scheduled = models.BooleanField(null=True)
 
     def __str__(self):
         return self.name
@@ -683,8 +530,13 @@ class Tile(models.Model):
     name = models.TextField()
     ra_deg = models.FloatField()
     dec_deg = models.FloatField()
-    phase = models.TextField()
-    
+    phase = models.TextField(null=True)
+    description = models.TextField(null=True)
+    image_cube_file = models.TextField(null=True)
+    weights_cube_file = models.TextField(null=True)
+    footprint_A = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_A', related_name='footprint_A', to_field='id', null=True)
+    footprint_B = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_B', related_name='footprint_B', to_field='id', null=True)
+
     def __str__(self):
         return self.name
 
@@ -703,14 +555,38 @@ class TileObs(models.Model):
         db_table = 'tile_obs'
 
 
+class SurveyComponent(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=2048, blank=True, null=True)
+    runs = ArrayField(models.TextField(), editable=False)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        managed = False
+        db_table = 'survey_component'
+
+
+class SurveyComponentRun(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    sc = models.ForeignKey(SurveyComponent, on_delete=models.CASCADE)
+
+    class Meta:
+        managed = False
+        db_table = 'survey_component_run'
+        unique_together = (('run', 'sc'),)
+
+
 class SourceExtractionRegion(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.TextField()
-    ra_deg = models.FloatField()
-    dec_deg = models.FloatField()
-    complete = models.BooleanField()
-    status = models.TextField()
-    scheduled = models.BooleanField()
+    name = models.TextField(null=True)
+    ra_deg = models.FloatField(null=True)
+    dec_deg = models.FloatField(null=True)
+    complete = models.BooleanField(null=True)
+    status = models.TextField(null=True)
+    scheduled = models.BooleanField(null=True)
     run = models.ForeignKey(Run, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
@@ -728,17 +604,59 @@ class SourceExtractionRegionTile(models.Model):
         db_table = 'source_extraction_region_tile'
 
 
-class Postprocessing(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    name = models.TextField()
-    region = models.TextField()
-    sofia_parameter_file = models.TextField()
-    s2p_setup = models.TextField()
-    status = models.CharField(max_length=64)
-
-    class Meta:
-        managed = False
-        db_table = 'postprocessing'
-
 # ------------------------------------------------------------------------------
+# Project specific
+
+
+if settings.PROJECT == 'DINGO':
+
+    class DetectionNearestGAMA(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        detection_id = models.ForeignKey('Detection', models.DO_NOTHING, db_column='detection_id', to_field='id')
+        cata_id = models.BigIntegerField()
+
+        class Meta:
+            managed = False
+            db_table = 'detection_nearest_gama'
+
+
+if settings.PROJECT == 'WALLABY':
+
+    class KinematicModel(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.ForeignKey('Detection', models.DO_NOTHING)
+        ra = models.FloatField()
+        dec = models.FloatField()
+        freq = models.FloatField()
+        team_release = models.CharField(max_length=255)
+        team_release_kin = models.CharField(max_length=255)
+        vsys_model = models.FloatField()
+        e_vsys_model = models.FloatField()
+        x_model = models.FloatField()
+        e_x_model = models.FloatField()
+        y_model = models.FloatField()
+        e_y_model = models.FloatField()
+        ra_model = models.FloatField()
+        e_ra_model = models.FloatField()
+        dec_model = models.FloatField()
+        e_dec_model = models.FloatField()
+        inc_model = models.FloatField()
+        e_inc_model = models.FloatField()
+        pa_model = models.FloatField()
+        e_pa_model = models.FloatField()
+        pa_model_g = models.FloatField()
+        e_pa_model_g = models.FloatField()
+        qflag_model = models.IntegerField()
+        rad = models.CharField(max_length=255)
+        vrot_model = models.CharField(max_length=255)
+        e_vrot_model = models.CharField(max_length=255)
+        e_vrot_model_inc = models.CharField(max_length=255)
+        rad_sd = models.CharField(max_length=255)
+        sd_model = models.CharField(max_length=255)
+        e_sd_model = models.CharField(max_length=255)
+        sd_fo_model = models.CharField(max_length=255)
+        e_sd_fo_model_inc = models.CharField(max_length=255)
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model'

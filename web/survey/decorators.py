@@ -26,7 +26,7 @@ def require_confirmation(func):
             return TemplateResponse(request, "admin/action_confirmation.html", context)
 
         return func(modeladmin, request, queryset)
-    
+
     wrapper.__name__ = func.__name__
     return wrapper
 
