@@ -210,7 +210,7 @@ ALTER TABLE survey.tile ADD FOREIGN KEY ("footprint_B") REFERENCES survey.observ
 ALTER TABLE survey.tile ADD FOREIGN KEY ("footprint_A") REFERENCES survey.observation ("id") ON DELETE SET NULL;
 ALTER TABLE survey.tile ADD CONSTRAINT "tile_footprint_A_key" UNIQUE ("footprint_A");
 ALTER TABLE survey.tile ADD CONSTRAINT "tile_footprint_B_key" UNIQUE ("footprint_B");
-ALTER TABLE survey.tile ADD CONSTRAINT tile_identifier_key UNIQUE (identifier);
+ALTER TABLE survey.tile ADD CONSTRAINT tile_name_key UNIQUE (name);
 ALTER TABLE survey.tile ADD CONSTRAINT tile_image_cube_file_key UNIQUE (image_cube_file);
 ALTER TABLE survey.tile ADD CONSTRAINT tile_weights_cube_file_key UNIQUE (weights_cube_file);
 ALTER TABLE survey.tile OWNER TO admin;
