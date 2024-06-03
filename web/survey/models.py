@@ -663,3 +663,64 @@ if settings.PROJECT == 'WALLABY':
         class Meta:
             managed = False
             db_table = 'kinematic_model'
+
+class KinematicModel_3KIDNAS(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        name = models.ForeignKey('Detection', models.DO_NOTHING)
+        ra = models.FloatField()
+        dec = models.FloatField()
+        freq = models.FloatField()
+        team_release = models.CharField(max_length=255)
+        team_release_kin = models.CharField(max_length=255)
+    
+        rms = models.FloatField()
+        sn_Integrated = models.FloatField()
+        sn_peak = models.FloatField()
+        sn_avg = models.FloatField()
+        sn_median = models.FloatField()
+    
+        vsys_model = models.FloatField()
+        e_vsys_model = models.FloatField()
+        x_model = models.FloatField()
+        e_x_model = models.FloatField()
+        y_model = models.FloatField()
+        e_y_model = models.FloatField()
+        ra_model = models.FloatField()
+        e_ra_model = models.FloatField()
+        dec_model = models.FloatField()
+        e_dec_model = models.FloatField()
+        inc_model = models.FloatField()
+        e_inc_model = models.FloatField()
+        pa_model = models.FloatField()
+        e_pa_model = models.FloatField()
+        pa_model_g = models.FloatField()
+        e_pa_model_g = models.FloatField()
+
+        vdisp_model = models.FloatField()
+        e_vdisp_model = models.FloatField()
+    
+        rad = models.CharField(max_length=255)
+        vrot_model = models.CharField(max_length=255)
+        e_vrot_model = models.CharField(max_length=255)
+        e_vrot_model_inc = models.CharField(max_length=255)
+        rad_sd = models.CharField(max_length=255)
+        sd_model = models.CharField(max_length=255)
+        e_sd_model = models.CharField(max_length=255)
+
+        sdmethodflag = models.IntegerField()
+        rhi_flag = models.FloatField()
+        rhi_as = models.FloatField()
+        rhi_low_as = models.FloatField()
+        rhi_high_as = models.FloatField()
+        dist_model = models.FloatField()
+        rhi_kpc = models.FloatField()
+        rhi_low_kpc = models.FloatField()
+        rhi_high_kpc = models.FloatField()
+        vhi_flag = models.IntegerField()
+        vhi = models.FloatField()
+        vhi_err = models.FloatField()
+        kflag = models.IntegerField()
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model_3kidnas'
