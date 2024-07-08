@@ -15,6 +15,7 @@ CREATE TABLE survey.run (
     created timestamp without time zone DEFAULT now()
 )
 WITH (autovacuum_enabled='on');
+ALTER TABLE survey.run ADD CONSTRAINT run_name_unique UNIQUE (name);
 ALTER TABLE survey.run ADD CONSTRAINT run_name_sanity_threshold_key UNIQUE (name, sanity_thresholds);
 ALTER TABLE survey.run OWNER TO admin;
 
