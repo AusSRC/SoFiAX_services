@@ -282,6 +282,14 @@ CREATE TABLE survey.task (
 );
 ALTER TABLE survey.task OWNER TO admin;
 
+CREATE TABLE survey.quality_check (
+    id bigint primary key not null,
+    run_id bigint not null,
+    mom0 bytea,
+    frequency bytea
+);
+ALTER TABLE survey.quality_check ADD FOREIGN KEY ("run_id") REFERENCES survey.run ("id") ON DELETE CASCADE;
+
 ------------------------------------------------------------------------------
 -- Required extensions
 CREATE EXTENSION IF NOT EXISTS "postgis";
