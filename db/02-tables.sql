@@ -283,7 +283,7 @@ CREATE TABLE survey.task (
 ALTER TABLE survey.task OWNER TO admin;
 
 CREATE TABLE survey.quality_check (
-    id bigint primary key not null,
+    id bigserial primary key not null,
     run_id bigint not null unique,
     mom0 bytea,
     frequency bytea
