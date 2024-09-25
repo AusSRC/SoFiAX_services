@@ -608,6 +608,9 @@ class AcceptedDetectionAdmin(ModelAdmin):
     actions = ['deselect', 'download_products']
     fk_name = 'run'
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     @admin.display(empty_value=None)
     def GAMA_matches(self, obj):
         if settings.PROJECT == 'DINGO':
