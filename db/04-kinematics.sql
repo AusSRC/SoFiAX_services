@@ -89,7 +89,6 @@ CREATE TABLE wallaby.kinematic_model_3kidnas (
   "rad" varchar NOT NULL,
   "vrot_model" varchar NOT NULL,
   "e_vrot_model" varchar NOT NULL,
-  "e_vrot_model_inc" varchar NOT NULL,
   "rad_sd" varchar NOT NULL,
   "sd_model" varchar NOT NULL,
   "e_sd_model" varchar NULL,
