@@ -14,9 +14,10 @@ ARG APT_REPO="release"
 ENV LC_ALL=C.UTF-8
 RUN echo LC_ALL="$LC_ALL" > /etc/default/locale
 
-RUN echo "deb http://vo.ari.uni-heidelberg.de/debian ${APT_REPO} main" \
-        > /etc/apt/sources.list.d/gavo.list                         && \
-    wget -qO - http://docs.g-vo.org/archive-key.asc | apt-key add -
+# This registry is not available - need to workout how to get the packages
+# RUN echo "deb http://vo.ari.uni-heidelberg.de/debian ${APT_REPO} main" \
+#         > /etc/apt/sources.list.d/gavo.list                         && \
+#     wget -qO - http://docs.g-vo.org/archive-key.asc | apt-key add -
 
 
 RUN DEBIAN_FRONTEND='noninteractive'                  && \

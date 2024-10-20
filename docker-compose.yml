@@ -12,10 +12,10 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
-      - /data:/var/lib/postgresql/data
-
+      - /mnt/shared/backup/survey_db/data:/var/lib/postgresql/data
+      - ./db/db_files/:/db_files
     networks:
       - survey_network
 
@@ -25,13 +25,11 @@ services:
     build:
       context: web
     ports:
-      - 8000:8000
+      - 8001:8000
     volumes:
       - ./web:/opt/services/survey_web/src
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
-    depends_on:
-      - survey_db
     networks:
       - survey_network
 
@@ -46,15 +44,14 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/ssl.conf:/config/nginx/ssl.conf
+      - ./nginx/ssl:/etc/ssl
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
-    depends_on:
-      - survey_web
     networks:
       - survey_network
 
   survey_vo:
-    image: survey_vo
+    image: aussrc/survey_vo
     container_name: survey_vo
     build:
       context: vo
@@ -66,15 +63,13 @@ services:
       - /var/gavo/tmp:/var/gavo/tmp
     ports:
       - 8080:8080
-    depends_on:
-      - survey_web
     networks:
       - survey_network
 
 networks:
   survey_network:
-    external: true
     name: survey_network
+    driver: bridge
 
 volumes:
   static_volume:
