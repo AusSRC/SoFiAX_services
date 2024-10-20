@@ -1,26 +1,8 @@
 version: '3.5'
 
 services:
-  survey_db:
-    image: survey_db
-    container_name: survey_db
-    shm_size: '32gb'
-    build:
-      context: db/
-      shm_size: '32gb'
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - 5433:5432
-    volumes:
-      - /mnt/shared/backup/survey_db/data:/var/lib/postgresql/data
-      - ./db/db_files/:/db_files
-    networks:
-      - survey_network
-
   survey_web:
-    image: survey_web
+    image: aussrc/survey_web
     container_name: survey_web
     build:
       context: web
@@ -34,7 +16,7 @@ services:
       - survey_network
 
   survey_nginx:
-    image: survey_nginx
+    image: aussrc/survey_nginx
     container_name: survey_nginx
     build:
       context: nginx

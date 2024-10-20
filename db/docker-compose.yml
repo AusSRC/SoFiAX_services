@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+  wallabydb:
+    image: aussrc/wallabydb:latest
+    container_name: wallabydb
+    shm_size: '32gb'
+    build:
+      context: .
+      shm_size: '32gb'
+    env_file:
+      - psql.env
+    ports:
+      - 5433:5432
+    volumes:
+      - /data/wallabydb:/var/lib/postgresql/data

@@ -15,4 +15,4 @@ RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen
 
 # Copy db_files directory to the container
-COPY *.sql /db-files/
+COPY init.sql /db-files/init.sql
