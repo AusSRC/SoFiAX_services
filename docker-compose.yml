@@ -2,7 +2,7 @@ version: '3.5'
 
 services:
   survey_web:
-    image: aussrc/survey_web
+    image: survey_web
     container_name: survey_web
     build:
       context: web
@@ -16,7 +16,7 @@ services:
       - survey_network
 
   survey_nginx:
-    image: aussrc/survey_nginx
+    image: survey_nginx
     container_name: survey_nginx
     build:
       context: nginx
@@ -33,7 +33,7 @@ services:
       - survey_network
 
   survey_vo:
-    image: aussrc/survey_vo
+    image: survey_vo
     container_name: survey_vo
     build:
       context: vo
