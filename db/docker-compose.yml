@@ -6,6 +6,8 @@ services:
        shm_size: '32gb'
     image: dingo_db
     container_name: dingo_db
+    env_file:
+      - psql.env
     ports:
       - 5434:5432
     volumes:
