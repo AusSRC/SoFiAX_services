@@ -1,24 +1,4 @@
-version: '3.5'
-
 services:
-  survey_db:
-    image: survey_db
-    container_name: survey_db
-    shm_size: '32gb'
-    build:
-      context: db/
-      shm_size: '32gb'
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - 5432:5432
-    volumes:
-      - /data:/var/lib/postgresql/data
-
-    networks:
-      - survey_network
-
   survey_web:
     image: survey_web
     container_name: survey_web
@@ -42,12 +22,24 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/ssl.conf:/config/nginx/ssl.conf
+      - ./nginx/conf/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/certs/www:/var/www/certbot
+      - ./nginx/certs/letsencrypt:/etc/letsencrypt
+      - ./nginx/logs:/var/log/nginx
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
     depends_on:
       - survey_web
+    networks:
+      - survey_network
+
+  survey_certbot:
+    image: certbot/certbot:latest
+    container_name: survey_certbot
+    volumes:
+      - ./nginx/certs/www:/var/www/certbot
+      - ./nginx/certs/letsencrypt:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - survey_network
 

@@ -105,6 +105,10 @@ venv.bak/
 
 # other
 secrets
-db
 migrations
 ssl
+*.env
+*/nginx/certs/letsencrypt/
+*/nginx/certs/www/
+*logs/
+*settings.py

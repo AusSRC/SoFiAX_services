@@ -1,0 +1,16 @@
+services:
+  dingo_db:
+    shm_size: '32gb'
+    build:
+       context: .
+       shm_size: '32gb'
+    image: dingo_db
+    container_name: dingo_db
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - /data:/var/lib/postgresql/data
+    networks:
+      - dingo_network
