@@ -11,4 +11,4 @@ services:
     ports:
       - 5434:5432
     volumes:
-      - /data:/var/lib/postgresql/data
+      - /data/dingo_db:/var/lib/postgresql/data
