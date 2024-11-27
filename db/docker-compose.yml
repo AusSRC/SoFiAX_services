@@ -12,5 +12,3 @@ services:
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - /data:/var/lib/postgresql/data
-    networks:
-      - dingo_network
