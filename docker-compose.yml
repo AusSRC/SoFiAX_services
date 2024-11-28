@@ -61,7 +61,7 @@ services:
 
 networks:
   survey_network:
-    external: true
+    driver: bridge
     name: survey_network
 
 volumes:
