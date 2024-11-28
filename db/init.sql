@@ -24,9 +24,9 @@ $$;
 -- Create wallaby user if it does not exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'survey_user') THEN
-        CREATE USER "survey_user";
-        ALTER USER "survey_user" WITH PASSWORD 'survey_user';
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'dingo_user') THEN
+        CREATE USER "dingo_user";
+        ALTER USER "dingo_user" WITH PASSWORD 'dingo_user';
     END IF;
 END
 $$;
