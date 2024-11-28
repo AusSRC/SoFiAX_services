@@ -14,8 +14,8 @@ services:
       - survey_network
 
   survey_nginx:
-    image: survey_nginx
-    container_name: survey_nginx
+    image: nginx:latest
+    container_name: chad_nginx
     build:
       context: nginx
     ports:
