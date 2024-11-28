@@ -15,7 +15,7 @@ services:
 
   survey_nginx:
     image: nginx:latest
-    container_name: chad_nginx
+    container_name: survey_nginx
     build:
       context: nginx
     ports:
