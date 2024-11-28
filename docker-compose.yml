@@ -44,7 +44,7 @@ services:
       - survey_network
 
   survey_vo:
-    image: survey_vo
+    image: aussrc/survey_vo
     container_name: survey_vo
     build:
       context: vo
