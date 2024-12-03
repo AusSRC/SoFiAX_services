@@ -3,7 +3,7 @@
     <meta name="creationDate">2023-06-06T12:00:00Z</meta>
     <meta name="description">ASKAP Survey</meta>
     <meta name="copyright" format="plain"></meta>
-    <meta name="_dataUpdated">2023-06-06T12:00:00Z</meta>
+    <meta name="_dataUpdated">2024-11-28T12:00:00Z</meta>
 
    <table id="run" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
@@ -38,6 +38,7 @@
       <column name="instance_id" type="bigint" unit="" ucd="meta.id" required="True"/>
       <column name="access_url" type="text"  ucd="meta.ref.url;meta.data.datalink" tablehead="Datalink" verbLevel="15" displayHint="type=url"/>
       <column name="access_format" type="text"  ucd="meta.code.mime"/>
+      <column name="source_name" type="text" unit="" ucd="meta.id"/>
       <column type="double precision" name="x" unit="pix" ucd="pos.cartesian.x"/>
       <column type="double precision" name="y" unit="pix" ucd="pos.cartesian.y"/>
       <column type="double precision" name="z" unit="pix" ucd="pos.cartesian.z"/>
@@ -221,20 +222,6 @@
 
 	</service>
 
-   <table id="source" onDisk="True" adql="True">
-      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
-      <column name="name" type="text" unit="" ucd="meta.id"/>
-   </table>
-
-   <table id="source_detection" onDisk="True" adql="True">
-      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
-      <column name="source_id" type="bigint" unit="" ucd="meta.id" required="True"/>
-      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
-      <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
-      <foreignKey source="source_id" dest="id" inTable="source"/>
-      <foreignKey source="detection_id" dest="id" inTable="detection"/>
-   </table>
-
    <table id="comment" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
       <column name="comment" type="text" unit="" ucd="meta.id"/>
@@ -244,6 +231,7 @@
       <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
 
+
    <table id="tag" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
       <column name="name" type="text" unit="" ucd="meta.id"/>
@@ -251,14 +239,15 @@
       <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
    </table>
 
-   <table id="tag_source_detection" onDisk="True" adql="True">
+
+   <table id="tag_detection" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
       <column name="tag_id" type="bigint" unit="" ucd="meta.id" required="True"/>
-      <column name="source_detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
       <column name="author" type="text" unit="" ucd="meta.id"/>
       <column name="added_at" type="timestamp" unit="" ucd="meta.id"/>
       <foreignKey source="tag_id" dest="id" inTable="tag"/>
-      <foreignKey source="source_detection_id" dest="id" inTable="source_detection"/>
+      <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
 
 
@@ -319,11 +308,9 @@
       <make table="run"/>
       <make table="instance"/>
       <make table="detection"/>
-      <make table="source"/>
-      <make table="source_detection"/>
       <make table="comment"/>
       <make table="tag"/>
-      <make table="tag_source_detection"/>
+      <make table="tag_detection"/>
       <make table="observation"/>
       <make table="tile"/>
       <make table="source_extraction_region"/>
