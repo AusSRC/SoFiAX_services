@@ -797,7 +797,7 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
-        'run_unresolved_detections', 'run_accepted_detections', 'run_detections',
+        'run_unresolved_detections', 'run_accepted_detections',
         'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -837,12 +837,6 @@ class RunAdmin(ModelAdmin):
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>Accepted Detections</a>")
     run_accepted_detections.short_description = 'Accepted Detections'
-
-    def run_detections(self, obj):
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_detection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>All Detections</a>")
-    run_detections.short_description = 'All Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
