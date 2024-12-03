@@ -10,7 +10,6 @@ from survey.utils.plot import product_summary_image
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import _add_tag, _add_comment
 from survey.utils.views import handle_navigation, handle_next
-from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagDetection, \
     Comment, ExternalConflict, Task, FileTaskReturn
 from django.urls import reverse
@@ -34,7 +33,6 @@ def logout_view(request):
     return redirect(url)
 
 
-@basic_auth
 def test(request):
     return HttpResponse('Authorized', status=200)
 
@@ -49,7 +47,6 @@ def summary_image(request):
         return HttpResponse(img, status=200)
 
 
-@basic_auth
 def instance_products(request):
     """Download products for all detections of an instance
     from the Admin portal.
@@ -113,7 +110,6 @@ def _read_in_chunks(filename, chunk_size=1024*64):
                 return
 
 
-@basic_auth
 def task_file_download(request):
     task_id = request.GET.get('id', None)
     if not task_id:
@@ -140,7 +136,6 @@ def task_file_download(request):
     return response
 
 
-@basic_auth
 def detection_products(request):
     detect_id = request.GET.get('id', None)
     if not detect_id:
@@ -237,7 +232,6 @@ def detection_products(request):
         return response
 
 
-@basic_auth
 def run_products(request):
     """Download products for all detections of a run
     from the Admin portal.
@@ -398,7 +392,6 @@ def _build_catalog(detections, date, version):
     return cat
 
 
-@basic_auth
 def run_catalog(request):
     run_id = request.GET.get('id', None)
     if not run_id:
