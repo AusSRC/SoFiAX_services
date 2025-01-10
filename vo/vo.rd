@@ -199,6 +199,10 @@
                   url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="SoFiA-2 Detection Spectrum", semantics="#auxiliary")
 
+                  params = {"id": descriptor.pubDID, "product": "plot"}
+                  url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="SoFiA-2 Detection Summary Plot", semantics="#auxiliary")
+
                   url = "{1}/detection_products?id={0}".format(descriptor.pubDID, server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="application/x-tar", description="SoFiA-2 Detection Products", semantics="#this")
               </code>
