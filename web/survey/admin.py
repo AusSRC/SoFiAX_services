@@ -247,6 +247,8 @@ class DetectionAdmin(ModelAdmin):
     display_rms.short_description = 'rms'
 
     def display_snr(self, obj):
+        if (obj.err_f_sum is None) or (obj.f_sum is None):
+            return None
         return round(obj.f_sum / obj.err_f_sum, 4)
     display_snr.short_description = 'snr'
 
