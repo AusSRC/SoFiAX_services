@@ -18,13 +18,20 @@ dachs admin adduser wallaby_user their_password
 dachs admin addtogroup wallaby_user tapusers
 ```
 
+On restart, it is necessary to recreate the `userconfig.rd` file. You can do this with the following commands:
+
+```
+cd `dachs config configDir`
+dachs admin dumpDF //userconfig > userconfig.rd
+```
+
 Edit the `userconfig.rd` file on the line below `<NXSTREAM id="tapdescription">` with:
 
 ```
 <limitTo>tapusers</limitTo>
 ```
 
-then restart the service or run `dachs serve exp //tap` (note this gave me an error so I restarted my service). The final step is to limit the query service to the users belonging to `tapusers` can access the system
+then restart the service or run `dachs serve exp //tap` (note this gave me an error so I restarted my Docker container). The final step is to limit the query service to the users belonging to `tapusers` can access the system
 
 ```
 mkdir -p /var/gavo/inputs/__system__
