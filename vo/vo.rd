@@ -51,17 +51,17 @@
       <column type="double precision" name="n_pix" unit="" ucd="meta.number;instr.pixel" description="Number of pixels in 3D source mask"/>
       <column type="double precision" name="f_min" unit="Jy/beam" ucd="phot.flux.density;stat.min" description="Lowest flux density value within 3D source mask"/>
       <column type="double precision" name="f_max" unit="Jy/beam" ucd="phot.flux.density;stat.max" description="Highest flux density value within 3D source mask"/>
-      <column type="double precision" name="f_sum" unit="Jy*Hz" ucd="phot.flux" description="Integrated flux within 3D source mask"/>
+      <column type="double precision" name="f_sum" unit="Jy*Hz" ucd="phot.flux;meta.main" description="Integrated flux within 3D source mask"/>
       <column type="double precision" name="rel" unit="" ucd="stat.probability" description="Statistical reliability of detection from 0 to 1"/>
       <column type="integer" name="flag" unit="" ucd="meta.code.qual" required="True"/>
       <column type="double precision" name="rms" unit="Jy/beam" ucd="instr.det.noise" description="Local RMS noise level near source"/>
-      <column type="double precision" name="w20" unit="Hz" ucd="spect.line.width" description="Spectral line width at 20% of the peak (w20)"/>
-      <column type="double precision" name="w50" unit="Hz" ucd="spect.line.width" description="Spectral line width at 50% of the peak (w50)"/>
-      <column type="double precision" name="ell_maj" unit="pix" ucd="phys.angSize" description="Major axis size of ellipse fitted to moment 0 map"/>
-      <column type="double precision" name="ell_min" unit="pix" ucd="phys.angSize" description="Minor axis size of ellipse fitted to moment 0 map"/>
+      <column type="double precision" name="w20" unit="Hz" ucd="spect.line.width;meta.main" description="Spectral line width at 20% of the peak (w20)"/>
+      <column type="double precision" name="w50" unit="Hz" ucd="spect.line.width;meta.main" description="Spectral line width at 50% of the peak (w50)"/>
+      <column type="double precision" name="ell_maj" unit="pix" ucd="phys.angSize.smajAxis" description="Major axis size of ellipse fitted to moment 0 map"/>
+      <column type="double precision" name="ell_min" unit="pix" ucd="phys.angSize.sminAxis" description="Minor axis size of ellipse fitted to moment 0 map"/>
       <column type="double precision" name="ell_pa" unit="deg" ucd="pos.posAng" description="Position angle of ellipse fitted to moment 0 map"/>
-      <column type="double precision" name="ell3s_maj" unit="pix" ucd="phys.angSize" description="Same as ell maj but &gt; 3 sigma pixels only and equal weight"/>
-      <column type="double precision" name="ell3s_min" unit="pix" ucd="phys.angSize" description="Same as ell min but &gt; 3 sigma pixels only and equal weight"/>
+      <column type="double precision" name="ell3s_maj" unit="pix" ucd="phys.angSize.smajAxis" description="Same as ell maj but &gt; 3 sigma pixels only and equal weight"/>
+      <column type="double precision" name="ell3s_min" unit="pix" ucd="phys.angSize.sminAxis" description="Same as ell min but &gt; 3 sigma pixels only and equal weight"/>
       <column type="double precision" name="ell3s_pa" unit="deg" ucd="pos.posAng" description="Same as ell pa but &gt; 3 sigma pixels only and equal weight"/>
       <column type="double precision" name="kin_pa" unit="deg" ucd="pos.posAng" description="Position angle of kinematic major axis"/>
       <column type="double precision" name="err_x" unit="pix" ucd="stat.error;pos.cartesian.x" description="Statistical uncertainty of centroid position"/>
@@ -70,7 +70,7 @@
       <column type="double precision" name="err_f_sum" unit="Jy*Hz" ucd="stat.error;phot.flux" description="Statistical uncertainty of integrated flux"/>
       <column type="double precision" name="ra" unit="deg" ucd="pos.eq.ra;meta.main" description="Right ascension (J2000) of centroid position" verbLevel="1"/>
       <column type="double precision" name="dec" unit="deg" ucd="pos.eq.dec;meta.main" description="Declination (J2000) of centroid position" verbLevel="1"/>
-      <column type="double precision" name="freq" unit="Hz" ucd="em.freq" description="Barycentric frequency of centroid position"/>
+      <column type="double precision" name="freq" unit="Hz" ucd="em.freq;meta.main" description="Barycentric frequency of centroid position"/>
       <column type="double precision" name="l" unit="deg" ucd="pos.galactic.lon"/>
       <column type="double precision" name="b" unit="deg" ucd="pos.galactic.lat"/>
       <column type="double precision" name="v_rad" unit="m/s" ucd="spect.dopplerVeloc.radio"/>
