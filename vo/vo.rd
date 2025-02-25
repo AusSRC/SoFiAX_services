@@ -308,6 +308,48 @@
    </table>
 
 
+   <table id="kinematic_model" onDisk="True" adql="True">
+      <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="name" type="text" unit=""/>
+      <column name="ra" type="double precision" unit=""/>
+      <column name="dec" type="double precision" unit=""/>
+      <column name="freq" type="double precision" unit=""/>
+      <column name="team_release" type="text" unit=""/>
+      <column name="team_release_kin" type="text" unit=""/>
+      <column name="vsys_model" type="double precision" unit=""/>
+      <column name="e_vsys_model" type="double precision" unit=""/>
+      <column name="x_model" type="double precision" unit=""/>
+      <column name="e_x_model" type="double precision" unit=""/>
+      <column name="y_model" type="double precision" unit=""/>
+      <column name="e_y_model" type="double precision" unit=""/>
+      <column name="ra_model" type="double precision" unit=""/>
+      <column name="e_ra_model" type="double precision" unit=""/>
+      <column name="dec_model" type="double precision" unit=""/>
+      <column name="e_dec_model" type="double precision" unit=""/>
+      <column name="inc_model" type="double precision" unit=""/>
+      <column name="e_inc_model" type="double precision" unit=""/>
+      <column name="pa_model" type="double precision" unit=""/>
+      <column name="e_pa_model" type="double precision" unit=""/>
+      <column name="pa_model_g" type="double precision" unit=""/>
+      <column name="e_pa_model_g" type="double precision" unit=""/>
+      <column name="qflag_model" type="integer" unit=""/>
+      <column name="rad" type="text" unit=""/>
+      <column name="vrot_model" type="text" unit=""/>
+      <column name="e_vrot_model" type="text" unit=""/>
+      <column name="e_vrot_model_inc" type="text" unit=""/>
+      <column name="rad_sd" type="text" unit=""/>
+      <column name="sd_model" type="text" unit=""/>
+      <column name="e_sd_model" type="text" unit=""/>
+      <column name="sd_fo_model" type="text" unit=""/>
+      <column name="e_sd_fo_model_inc" type="text" unit=""/>
+      <column name="r_hi" type="double precision" unit=""/>
+      <column name="v_disp" type="double precision" unit=""/>
+      <column name="v_rhi" type="double precision" unit=""/>
+      <column name="kinver" type="text" unit=""/>
+      <foreignKey source="detection_id" dest="id" inTable="detection"/>
+   </table>
+
+
    <data id="import">
       <make table="run"/>
       <make table="instance"/>
@@ -319,8 +361,8 @@
       <make table="tile"/>
       <make table="source_extraction_region"/>
       <make table="source_extraction_region_tile"/>
-      <make table="tile_obs">
-      </make>
+      <make table="tile_obs"/>
+      <make table="kinematic_model"/>
    </data>
 
 </resource>
