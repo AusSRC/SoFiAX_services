@@ -310,7 +310,7 @@
 
    <table id="kinematic_model" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
-      <column name="name" type="text" unit="" ucd="meta.id"//>
+      <column name="name" type="text" unit="" ucd="meta.id"/>
       <column type="double precision" name="ra" unit="deg" ucd="pos.eq.ra;meta.main" description="Right ascension (J2000) of centroid position" verbLevel="1"/>
       <column type="double precision" name="dec" unit="deg" ucd="pos.eq.dec;meta.main" description="Declination (J2000) of centroid position" verbLevel="1"/>
       <column type="double precision" name="freq" unit="Hz" ucd="em.freq;meta.main" description="Barycentric frequency of centroid position"/>
@@ -322,7 +322,7 @@
       <column name="e_x_model" type="double precision" unit="pix" ucd="stat.error;pos.cartesian.x" description="Statistical uncertainty of modelled center position in X"/>
       <column name="y_model" type="double precision" unit="pix" ucd="pos.cartesian.y" description="Kinematically modelled center position in Y"/>
       <column name="e_y_model" type="double precision" unit="pix" ucd="stat.error;pos.cartesian.y" description="Statistical uncertainty of modelled center position in Y"/>
-      <column name="ra_model" type="double precision" unit="deg" ucd= description="Kinematically modelled center position in Right ascension (J2000)"/>
+      <column name="ra_model" type="double precision" unit="deg" description="Kinematically modelled center position in Right ascension (J2000)"/>
       <column name="e_ra_model" type="double precision" unit="deg" ucd="stat.error;pos.eq.ra" description="Statistical uncertainty of modelled center position in Right ascension (J2000)"/>
       <column name="dec_model" type="double precision" unit="deg" ucd="pos.eq.dec" description="Kinematically modelled center position in Declination (J2000)"/>
       <column name="e_dec_model" type="double precision" unit="deg" ucd="stat.error;pos.eq.dec" description="Statistical uncertainty of modelled center position in Declination (J2000)"/>
@@ -345,7 +345,7 @@
       <column name="r_hi" type="double precision" unit="arcsec" ucd="phys.size.radius" description="The radius where the surface density is 1 Msol/pc^2"/>
       <column name="v_disp" type="double precision" unit="km/s" ucd="phys.veloc.dispersion" description="The model velocity dispersion"/>
       <column name="v_rhi" type="double precision" unit="km/s" ucd="phys.veloc.rotat" description="The rotation velocity at r_hi"/>
-      <column name="kinver" type="text" unit="" ucd= description="The version of the software used to generate the kinematic model"/>
+      <column name="kinver" type="text" unit="" description="The version of the software used to generate the kinematic model"/>
       <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
 
@@ -360,7 +360,7 @@
       <column name="e_x_model" type="double precision" unit="pix" ucd="stat.error;pos.cartesian.x" description="Statistical uncertainty of modelled center position in X"/>
       <column name="y_model" type="double precision" unit="pix" ucd="pos.cartesian.y" description="Kinematically modelled center position in Y"/>
       <column name="e_y_model" type="double precision" unit="pix" ucd="stat.error;pos.cartesian.y" description="Statistical uncertainty of modelled center position in Y"/>
-      <column name="ra_model" type="double precision" unit="deg" ucd= description="Kinematically modelled center position in Right ascension (J2000)"/>
+      <column name="ra_model" type="double precision" unit="deg" description="Kinematically modelled center position in Right ascension (J2000)"/>
       <column name="e_ra_model" type="double precision" unit="deg" ucd="stat.error;pos.eq.ra" description="Statistical uncertainty of modelled center position in Right ascension (J2000)"/>
       <column name="dec_model" type="double precision" unit="deg" ucd="pos.eq.dec" description="Kinematically modelled center position in Declination (J2000)"/>
       <column name="e_dec_model" type="double precision" unit="deg" ucd="stat.error;pos.eq.dec" description="Statistical uncertainty of modelled center position in Declination (J2000)"/>
@@ -391,7 +391,7 @@
       <column name="vhi" type="double precision" unit="km/s" ucd="phys.veloc.rotat" description="The rotation velocity at rhi"/>
       <column name="e_vhi" type="double precision" unit="km/s" ucd="phys.veloc.rotat" description="Statistical uncertainty of vhi"/>
       <column name="kflag" type="integer" unit="" ucd="meta.code.qual" description="A flag indicating the robustness of the kinematic model"/>
-      <column name="kinver" type="text" unit="" ucd= description="The version of the software used to generate the kinematic model"/>
+      <column name="kinver" type="text" unit="" description="The version of the software used to generate the kinematic model"/>
       <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
 
