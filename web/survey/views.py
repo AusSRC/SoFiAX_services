@@ -667,7 +667,6 @@ def external_conflict_view(request):
                 logging.info(f'Deleting external conflicts for detection {ex_c.detection}')
                 for c in ExternalConflict.objects.filter(detection=ex_c.detection):
                     c.delete()
-                conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
                 # NOTE: issue with indexing here if multiple conflicts have been deleted
                 url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
