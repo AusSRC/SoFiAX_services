@@ -1092,15 +1092,12 @@ class RunAdmin(ModelAdmin):
                     accepted_detections.append(d)
                     logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} will be accepted')
 
-                else:
-                    raise Exception(f'Uncaught external cross matching logic path for detection {d.name}')
-
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
             # Release name check
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)])
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
