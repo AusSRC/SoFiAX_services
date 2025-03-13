@@ -649,12 +649,6 @@ def external_conflict_view(request):
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
-        if 'Ignore conflict' in body['action']:
-            logging.info(f'Ignoring conflict {ex_c.id}. Deleting conflict instance.')
-            ex_c.delete()
-            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
-            return HttpResponseRedirect(url)
-
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted for this detection
@@ -688,6 +682,13 @@ def external_conflict_view(request):
                 ex_c.detection.save()
                 ex_c.conflict_detection.source_name = None
                 ex_c.conflict_detection.save()
+
+                # Remove release tag detection entry for replaced detection
+                remove_tagdetections = TagDetection.objects.filter(detection=ex_c.conflict_detection, tag__type='release')
+                for td in remove_tagdetections:
+                    logging.info(f'Removing tag detection objects: {td.id} [tag: {td.tag_id}, detection: {td.detection_id}]')
+                    td.delete()
+
                 ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
