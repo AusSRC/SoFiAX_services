@@ -1092,6 +1092,9 @@ class RunAdmin(ModelAdmin):
                     accepted_detections.append(d)
                     logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} will be accepted')
 
+                else:
+                    raise Exception(f'Uncaught external cross matching logic path for detection {d.name}')
+
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
@@ -1157,9 +1160,8 @@ class RunAdmin(ModelAdmin):
                 if any([d.unresolved for d in release_detections]):
                     raise Exception('There cannot be any unresolved detections when releasing sources.')
 
-                logging.info(f"{len(release_detections)} detections to release, {len(reject_detections)} detections to reject.")
-
                 # Release sources
+                logging.info(f"{len(release_detections)} detections to release")
                 for idx, d in enumerate(release_detections):
                     existing = TagDetection.objects.filter(tag=tag, detection=d)
                     if not existing:
@@ -1172,7 +1174,7 @@ class RunAdmin(ModelAdmin):
                         logging.info(f'Tag already created for Source {d.source_name}')
 
                 # Delete sources
-                logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
+                logging.info(f'De-selecting remaining detections {len(reject_detections)}')
                 for idx, d in enumerate(reject_detections):
                     logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
                     d.accepted = False
