@@ -247,6 +247,8 @@ class DetectionAdmin(ModelAdmin):
     display_rms.short_description = 'rms'
 
     def display_snr(self, obj):
+        if (obj.err_f_sum is None) or (obj.f_sum is None):
+            return None
         return round(obj.f_sum / obj.err_f_sum, 4)
     display_snr.short_description = 'snr'
 
@@ -797,7 +799,7 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
-        'run_unresolved_detections', 'run_accepted_detections', 'run_detections',
+        'run_unresolved_detections', 'run_accepted_detections',
         'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
@@ -837,12 +839,6 @@ class RunAdmin(ModelAdmin):
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
         return format_html(f"<a href='{url}?run={obj.id}'>Accepted Detections</a>")
     run_accepted_detections.short_description = 'Accepted Detections'
-
-    def run_detections(self, obj):
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_detection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>All Detections</a>")
-    run_detections.short_description = 'All Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
@@ -1101,7 +1097,7 @@ class RunAdmin(ModelAdmin):
 
             # Release name check
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)])
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
@@ -1161,9 +1157,8 @@ class RunAdmin(ModelAdmin):
                 if any([d.unresolved for d in release_detections]):
                     raise Exception('There cannot be any unresolved detections when releasing sources.')
 
-                logging.info(f"{len(release_detections)} detections to release, {len(reject_detections)} detections to reject.")
-
                 # Release sources
+                logging.info(f"{len(release_detections)} detections to release")
                 for idx, d in enumerate(release_detections):
                     existing = TagDetection.objects.filter(tag=tag, detection=d)
                     if not existing:
@@ -1176,7 +1171,7 @@ class RunAdmin(ModelAdmin):
                         logging.info(f'Tag already created for Source {d.source_name}')
 
                 # Delete sources
-                logging.info('Deleting remaining source detections and source objects (with SoFiA name).')
+                logging.info(f'De-selecting remaining detections {len(reject_detections)}')
                 for idx, d in enumerate(reject_detections):
                     logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
                     d.accepted = False

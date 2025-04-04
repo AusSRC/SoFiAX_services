@@ -376,7 +376,7 @@ class Detection(models.Model):
 
         with fits.open(BytesIO(product[0].mom0)) as hdu:
             data = hdu[0].data
-            img = 255 * ((data - data.min()) / data.ptp())
+            img = 255 * ((data - data.min()) / np.ptp(data))
             img = img.astype(np.uint8)
             img = cv2.applyColorMap(img, cv2.COLORMAP_HSV)
             img = Image.fromarray(img, 'RGB')
