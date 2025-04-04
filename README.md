@@ -1,14 +1,21 @@
 # HI Survey source finding portal
 
-Web portal used for managing source detections in HI surveys. Currently used for WALLABY and DINGO ASKAP surveys. Developed be used with [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX). This repository provides the database and web services (Django admin portal).
+A collection of web services (Django web interface, PostgreSQL database, NGINX reverse proxy and GAVO DACHS service for TAP) used for managing source detections in HI surveys. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be used with [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX) source finding codes.
 
-<HR>
+## Setup
 
-## Installation
+### Database
 
-There are a few steps required to deploy the services
+1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
+2. Update the `db/01-create.sql` script with custom passwords for users
+3. Deploy the service (you will need to create a Docker network first)
 
-### 1. Set environment variables
+```
+docker network create survey_network
+docker-compose up --build -d survey_db
+```
+
+## Web
 
 The environoment file contains information regarding project type and database connection details. Create a ``.env`` file under `web/survey_web` with:
 
