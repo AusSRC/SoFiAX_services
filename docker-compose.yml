@@ -1,6 +1,22 @@
 version: '3.5'
 
 services:
+  survey_db:
+    image: survey_db
+    container_name: survey_db
+    shm_size: '32gb'
+    build:
+      context: db/
+      shm_size: '32gb'
+    env_file:
+      - db/psql.env
+    ports:
+      - 5432:5432
+    volumes:
+      - /data:/var/lib/postgresql/data
+    networks:
+      - survey_network
+
   survey_web:
     image: survey_web
     container_name: survey_web

@@ -112,7 +112,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 
-ROOT_URLCONF = 'survey_web.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -134,7 +134,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'survey_web.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 # ---------------------------------------------------------------------------------------
 # Database
@@ -201,7 +201,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'survey/templates/')]
-
-#MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'media')
+MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'media')
 
 # ---------------------------------------------------------------------------------------
