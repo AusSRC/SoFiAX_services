@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.12
 WORKDIR /opt/services/survey_web/src
 
 RUN apt update && \
@@ -12,4 +12,4 @@ COPY . .
 RUN python manage.py collectstatic --no-input
 
 EXPOSE 8000
-CMD ["gunicorn", "--bind", ":8000", "--keep-alive", "5000", "--timeout", "5000",  "--workers", "8", "survey_web.wsgi:application"]
+CMD ["gunicorn", "--bind", ":8000", "--keep-alive", "5000", "--timeout", "5000",  "--workers", "8", "config.wsgi:application"]

@@ -1,8 +1,15 @@
-# HI Survey source finding portal
+# HI survey portal
 
-A collection of web services (Django web interface, PostgreSQL database, NGINX reverse proxy and GAVO DACHS service for TAP) used for managing source detections in HI surveys. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be used with [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX) source finding codes.
+A web platform for interactively selecting and managing detections for large HI surveys. Deployed as a collection of containerised services using Docker. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be handle source finding outputs from [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX).
 
-## Setup
+## Services
+
+- survey_db (PostgreSQL database)
+- survey_web (Django web application)
+- survey_nginx (NGINX reverse proxy)
+- survey_vo (GAVO DACHS TAP service)
+
+## Deploy
 
 ### Database
 
@@ -15,66 +22,59 @@ docker network create survey_network
 docker-compose up --build -d survey_db
 ```
 
-## Web
+### Web
 
-The environoment file contains information regarding project type and database connection details. Create a ``.env`` file under `web/survey_web` with:
+The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
+
+1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
 
 ```
-PROJECT=DINGO
-DEBUG=True
-SITE_NAME=DINGO Catalog
-SITE_HEADER=DINGO Catalog
-SITE_TITLE=DINGO Catalog
-INDEX_TITLE=DINGO Catalog
-KINEMATICS=False
-AUTH_GROUPS=dingo
+PROJECT = WALLABY
+DEBUG = True
+LOCAL = True
+SITE_NAME = WALLABY Catalog
+SITE_HEADER = WALLABY Catalog
+SITE_TITLE = WALLABY Catalog
+INDEX_TITLE = WALLABY Catalog
+AUTH_GROUPS = wallaby
 
-DJANGO_SECRET_KEY=<django key>
-DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
+DJANGO_SECRET_KEY = <django key>
+DJANGO_ALLOWED_HOSTS = 127.0.0.1 localhost
 
-DATABASE_HOST=surveydb
-DATABASE_PORT=5432
-DATABASE_NAME=surveydb
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-SEARCH_PATH=survey,public
+DATABASE_HOST = surveydb
+DATABASE_PORT = 5432
+DATABASE_NAME = surveydb
+DATABASE_USER = postgres
+DATABASE_PASSWORD = postgres
+SEARCH_PATH = survey,public
 ```
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
-
 * The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
 
-### 2. Deploy services
+2. Deploy the service
 
 ```
-docker network create survey_network
-docker-compose up --build -d
+docker-compose up --build -d survey_web
 ```
 
-### 3. Database migrations
+3. Migrations and create user
+
+This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
+
 
 ```
-docker-compose run survey_web python manage.py migrate
-docker-compose run survey_web python manage.py makemigrations survey
-docker-compose run survey_web python manage.py migrate survey
+docker exec -it survey_web /bin/bash
 ```
 
-### 4. Create site superuser
+and then inside of the container run the following
 
 ```
-docker-compose run -e DJANGO_SUPERUSER_PASSWORD=admin survey_web python manage.py createsuperuser --username=admin --email=admin@admin.com --noinput
+python manage.py migrate
+python manage.py createsuperuser --username <username>
 ```
 
-<HR>
+### GAVO DACHS
 
-## Other
+### NGINX reverse proxy
 
-TAP URL:
-```
-https://localhost/tap
-```
-
-Website URL
-```
-https://localhost
-```
