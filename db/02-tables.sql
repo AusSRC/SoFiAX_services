@@ -225,23 +225,23 @@ ALTER TABLE wallaby.tile_obs ADD FOREIGN KEY ("tile_id") REFERENCES wallaby.tile
 ALTER TABLE wallaby.tile_obs ADD FOREIGN KEY ("obs_id") REFERENCES wallaby.observation ("id") ON DELETE NO ACTION;
 ALTER TABLE wallaby.tile_obs OWNER TO admin;
 
-CREATE TABLE wallaby.wallaby_component (
+CREATE TABLE wallaby.survey_component (
     id bigserial primary key NOT NULL,
     name character varying NOT NULL,
     runs character varying[]
 );
-ALTER TABLE wallaby.wallaby_component ADD CONSTRAINT wallaby_component_name_key UNIQUE (name);
-ALTER TABLE wallaby.wallaby_component OWNER TO admin;
+ALTER TABLE wallaby.survey_component ADD CONSTRAINT survey_component_name_key UNIQUE (name);
+ALTER TABLE wallaby.survey_component OWNER TO admin;
 
-CREATE TABLE wallaby.wallaby_component_run (
+CREATE TABLE wallaby.survey_component_run (
     id bigserial primary key NOT NULL,
     run_id bigint NOT NULL,
     sc_id bigint NOT NULL
 );
-ALTER TABLE wallaby.wallaby_component_run ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
-ALTER TABLE wallaby.wallaby_component_run ADD FOREIGN KEY ("sc_id") REFERENCES wallaby.wallaby_component ("id") ON DELETE CASCADE;
-ALTER TABLE wallaby.wallaby_component_run ADD CONSTRAINT run_id_sc UNIQUE (run_id, sc_id);
-ALTER TABLE wallaby.wallaby_component_run OWNER TO admin;
+ALTER TABLE wallaby.survey_component_run ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
+ALTER TABLE wallaby.survey_component_run ADD FOREIGN KEY ("sc_id") REFERENCES wallaby.survey_component ("id") ON DELETE CASCADE;
+ALTER TABLE wallaby.survey_component_run ADD CONSTRAINT run_id_sc UNIQUE (run_id, sc_id);
+ALTER TABLE wallaby.survey_component_run OWNER TO admin;
 
 CREATE TABLE wallaby.source_extraction_region (
     id bigserial primary key NOT NULL,
