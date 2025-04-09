@@ -28,8 +28,6 @@ services:
       - ./web:/opt/services/survey_web/src
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
-    depends_on:
-      - survey_db
     networks:
       - survey_network
 
