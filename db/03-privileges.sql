@@ -1,24 +1,24 @@
-\connect surveydb
+\connect wallabydb
 
-GRANT ALL ON DATABASE surveydb TO gavo;
-GRANT ALL ON DATABASE surveydb TO gavoadmin;
-GRANT CONNECT ON DATABASE surveydb TO untrusted;
+GRANT ALL ON DATABASE wallabydb TO gavo;
+GRANT ALL ON DATABASE wallabydb TO gavoadmin;
+GRANT CONNECT ON DATABASE wallabydb TO untrusted;
 
 GRANT ALL ON SCHEMA public TO gavo;
 GRANT ALL ON SCHEMA public TO gavoadmin;
 GRANT USAGE ON SCHEMA public TO untrusted;
 
-GRANT SELECT ON ALL TABLES IN SCHEMA survey TO gavoadmin;
-GRANT SELECT ON ALL TABLES IN SCHEMA survey TO gavo;
-GRANT SELECT ON ALL TABLES IN SCHEMA survey TO untrusted;
+GRANT SELECT ON ALL TABLES IN SCHEMA wallaby TO gavoadmin;
+GRANT SELECT ON ALL TABLES IN SCHEMA wallaby TO gavo;
+GRANT SELECT ON ALL TABLES IN SCHEMA wallaby TO untrusted;
 
-GRANT USAGE ON SCHEMA survey TO gavoadmin;
-GRANT USAGE ON SCHEMA survey TO gavo;
-GRANT USAGE ON SCHEMA survey TO untrusted;
+GRANT USAGE ON SCHEMA wallaby TO gavoadmin;
+GRANT USAGE ON SCHEMA wallaby TO gavo;
+GRANT USAGE ON SCHEMA wallaby TO untrusted;
 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA survey to survey_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA survey to survey_user;
-GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA survey to survey_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA wallaby to wallaby_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA wallaby to wallaby_user;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA wallaby to wallaby_user;
 
 -- Required extensions
 CREATE EXTENSION IF NOT EXISTS "postgis";

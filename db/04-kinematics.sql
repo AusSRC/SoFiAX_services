@@ -1,4 +1,4 @@
-\connect surveydb
+\connect wallabydb
 
 -- WKAPP Kinematic model catalogue
 CREATE TABLE wallaby.kinematic_model (
