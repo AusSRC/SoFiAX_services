@@ -665,7 +665,7 @@ if settings.PROJECT == 'WALLABY':
             db_table = 'kinematic_model'
 
 
-if settings.PROJECT == 'WALLABY'
+if settings.PROJECT == 'WALLABY':
     class KinematicModel_3KIDNAS(models.Model):
             id = models.BigAutoField(primary_key=True)
             name = models.ForeignKey('Detection', models.DO_NOTHING)
@@ -674,13 +674,13 @@ if settings.PROJECT == 'WALLABY'
             freq = models.FloatField()
             team_release = models.CharField(max_length=255)
             team_release_kin = models.CharField(max_length=255)
-        
+
             rms = models.FloatField()
             sn_Integrated = models.FloatField()
             sn_peak = models.FloatField()
             sn_avg = models.FloatField()
             sn_median = models.FloatField()
-        
+
             vsys_model = models.FloatField()
             e_vsys_model = models.FloatField()
             x_model = models.FloatField()
@@ -697,10 +697,10 @@ if settings.PROJECT == 'WALLABY'
             e_pa_model = models.FloatField()
             pa_model_g = models.FloatField()
             e_pa_model_g = models.FloatField()
-    
+
             vdisp_model = models.FloatField()
             e_vdisp_model = models.FloatField()
-        
+
             rad = models.CharField(max_length=255)
             vrot_model = models.CharField(max_length=255)
             e_vrot_model = models.CharField(max_length=255)
@@ -708,7 +708,7 @@ if settings.PROJECT == 'WALLABY'
             rad_sd = models.CharField(max_length=255)
             sd_model = models.CharField(max_length=255)
             e_sd_model = models.CharField(max_length=255)
-    
+
             sdmethodflag = models.IntegerField()
             rhi_flag = models.FloatField()
             rhi_as = models.FloatField()
@@ -722,7 +722,7 @@ if settings.PROJECT == 'WALLABY'
             vhi = models.FloatField()
             vhi_err = models.FloatField()
             kflag = models.IntegerField()
-    
+
             class Meta:
                 managed = False
                 db_table = 'kinematic_model_3kidnas'
