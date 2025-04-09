@@ -104,7 +104,6 @@ WITH (autovacuum_enabled='on');
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("instance_id") REFERENCES wallaby.instance ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD CONSTRAINT detection_constraints UNIQUE (name, x, y, z, x_min, x_max, y_min, y_max, z_min, z_max, n_pix, f_min, f_max, f_sum, instance_id, run_id);
-ALTER TABLE wallaby.detection ADD CONSTRAINT detection_source_name_constraint UNIQUE (source_name);
 ALTER TABLE wallaby.detection OWNER TO admin;
 
 CREATE TABLE wallaby.product (
@@ -118,8 +117,9 @@ CREATE TABLE wallaby.product (
     snr bytea,
     chan bytea,
     spec bytea,
-    pv bytea,
-    plot bytea
+    summary bytea,
+    plot bytea,
+    pv bytea
 )
 WITH (autovacuum_enabled='on');
 ALTER TABLE wallaby.product ADD FOREIGN KEY ("detection_id") REFERENCES wallaby.detection ("id") ON DELETE CASCADE;
@@ -176,9 +176,9 @@ ALTER TABLE wallaby.external_conflict OWNER TO admin;
 
 CREATE TABLE wallaby.observation (
     id bigserial primary key NOT NULL,
-    run_id bigint NOT NULL,
+    run_id bigint,
     name character varying,
-    sbid bigint NOT NULL,
+    sbid character varying,
     ra numeric NOT NULL,
     "dec" numeric NOT NULL,
     rotation numeric,

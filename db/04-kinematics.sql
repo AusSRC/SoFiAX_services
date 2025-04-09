@@ -3,7 +3,8 @@
 -- WKAPP Kinematic model catalogue
 CREATE TABLE wallaby.kinematic_model (
   "id" BIGSERIAL PRIMARY KEY,
-  "name" varchar NOT NULL,
+  "detection_id" bigint NOT NULL,
+  "name" varchar,
   "ra" double precision NOT NULL,
   "dec" double precision NOT NULL,
   "freq" double precision NOT NULL,
@@ -40,6 +41,7 @@ CREATE TABLE wallaby.kinematic_model (
   "v_rhi" double precision NULL,
   "kinver" varchar NULL
 );
+ALTER TABLE wallaby.kinematic_model ADD FOREIGN KEY ("detection_id") REFERENCES wallaby.detection ("id") ON DELETE CASCADE;
 
 
 -- Kinematic model product files
