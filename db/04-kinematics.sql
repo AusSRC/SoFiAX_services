@@ -40,7 +40,6 @@ CREATE TABLE wallaby.kinematic_model (
   "v_rhi" double precision NULL,
   "kinver" varchar NULL
 );
-ALTER TABLE wallaby.kinematic_model ADD FOREIGN KEY ("name") REFERENCES wallaby.detection ("source_name") ON DELETE CASCADE;
 
 
 -- Kinematic model product files
