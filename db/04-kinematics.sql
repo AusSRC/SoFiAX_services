@@ -128,5 +128,7 @@ CREATE TABLE wallaby.wrkp_product (
 ALTER TABLE wallaby.wrkp_product ADD FOREIGN KEY ("kinematic_model_3kidnas") REFERENCES wallaby.kinematic_model_3kidnas ("id") ON DELETE CASCADE;
 
 -- Permissions
+ALTER TABLE wallaby.kinematic_model OWNER TO cirada;
+ALTER TABLE wallaby.wkapp_product OWNER TO cirada;
 ALTER TABLE wallaby.kinematic_model_3kidnas OWNER TO cirada;
 ALTER TABLE wallaby.wrkp_product OWNER TO cirada;

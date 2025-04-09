@@ -104,6 +104,7 @@ WITH (autovacuum_enabled='on');
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD FOREIGN KEY ("instance_id") REFERENCES wallaby.instance ("id") ON DELETE CASCADE;
 ALTER TABLE wallaby.detection ADD CONSTRAINT detection_constraints UNIQUE (name, x, y, z, x_min, x_max, y_min, y_max, z_min, z_max, n_pix, f_min, f_max, f_sum, instance_id, run_id);
+ALTER TABLE wallaby.detection ADD CONSTRAINT detection_source_name_constraint UNIQUE (source_name);
 ALTER TABLE wallaby.detection OWNER TO admin;
 
 CREATE TABLE wallaby.product (
@@ -289,6 +290,7 @@ CREATE TABLE wallaby.quality_check (
     frequency bytea
 );
 ALTER TABLE wallaby.quality_check ADD FOREIGN KEY ("run_id") REFERENCES wallaby.run ("id") ON DELETE CASCADE;
+ALTER TABLE wallaby.quality_check OWNER TO admin;
 
 ------------------------------------------------------------------------------
 -- Required extensions

@@ -11,6 +11,10 @@ ALTER DATABASE wallabydb OWNER TO "admin";
 CREATE USER "wallaby_user";
 ALTER USER "wallaby_user" WITH PASSWORD 'wallaby_user';
 
+-- Create CIRADA user
+CREATE USER "cirada";
+ALTER USER "cirada" WITH PASSWORD 'cirada';
+
 -- Create VO user
 CREATE USER "gavo";
 ALTER USER "gavo" WITH PASSWORD 'gavo';
