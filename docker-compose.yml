@@ -8,14 +8,12 @@ services:
     build:
       context: db/
       shm_size: '32gb'
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+    env_file:
+      - db/psql.env
     ports:
       - 5432:5432
     volumes:
       - /data:/var/lib/postgresql/data
-
     networks:
       - survey_network
 
@@ -30,8 +28,6 @@ services:
       - ./web:/opt/services/survey_web/src
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
-    depends_on:
-      - survey_db
     networks:
       - survey_network
 
