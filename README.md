@@ -62,7 +62,6 @@ docker-compose up --build -d survey_web
 
 This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
 
-
 ```
 docker exec -it survey_web /bin/bash
 ```
