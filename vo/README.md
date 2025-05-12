@@ -6,6 +6,14 @@ This service exposes the SoFiAX_services database to TAP so that it is publicly 
 
 Edit the `vo.rd` file to change the tables in the database that will be exposed via the TAP service.
 
+## Permissions
+
+It is also necessary to change the permissions of the folder
+
+```
+chown -R gavo:gavo /var/gavo
+```
+
 ## Basic Auth
 
 To set up basic auth you will need to follow the instructions here which are available from the links below

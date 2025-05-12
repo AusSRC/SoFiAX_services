@@ -352,6 +352,13 @@
 
    <table id="kinematic_model_3kidnas" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
+      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+
+      <meta name="_associatedDatalinkService">
+         <meta name="serviceId">kinematic_model_3kidnas_dl</meta>
+         <meta name="idColumn">id</meta>
+      </meta>
+
       <column name="team_release" type="text" unit="" ucd="meta.dataset;meta.main" description="Internal team release"/>
       <column name="team_release_kin" type="text" unit="" ucd="meta.dataset;meta.main" description="Internal kinematic team release"/>
       <column name="vsys_model" type="double precision" unit="km/s" ucd="phys.veloc" description="Model systemic velocity"/>
@@ -394,6 +401,96 @@
       <column name="kinver" type="text" unit="" description="The version of the software used to generate the kinematic model"/>
       <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
+
+   <service id="kinematic_model_3kidnas_dl" allowed="dlget,dlmeta">
+		<meta name="title">Kinematic model 3KIDNAS Datalink</meta>
+        <meta name="dlget.description">Kinematic model 3KIDNAS Datalink</meta>
+		<datalinkCore>
+           <descriptorGenerator>
+            <setup>
+              <code>
+                 class CustomDescriptor(ProductDescriptor):
+                     def __init__(self, id):
+                        super(ProductDescriptor, self).__init__()
+                        self.pubDID = id
+                        self.mime = ""
+                        self.accref = ""
+                        self.accessPath = ""
+                        self.access_url = ""
+                        self.suppressAutoLinks = True
+                 </code>
+             </setup>
+            <code>
+               return CustomDescriptor(pubDID)
+            </code>
+          </descriptorGenerator>
+
+           <metaMaker>
+              <code>
+                  import os
+                  from urllib.parse import urlencode
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+
+                  params = {"id": descriptor.pubDID, "product": "bootstrapfits"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS bootstrapfits", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "diagnosticplot"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS diagnosticplot", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "diffcube"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS diffcube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "flag"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS flag", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "modcube"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS modcube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "procdata"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS procdata", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "pvmajordata"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS pvmajordata", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "pvmajormod"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS pvmajormod", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "pvminordata"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS pvminordata", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "pvminormod"}
+                  url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model 3KIDNAS pvminormod", semantics="#auxiliary")
+
+                  url = "{1}/wrkp_products?id={0}".format(descriptor.pubDID, server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="application/x-tar", description="Kinematic model 3KIDNAS Products", semantics="#this")
+              </code>
+           </metaMaker>
+
+            <dataFunction>
+               <setup>
+                  <code>
+                     from gavo.svcs import WebRedirect
+                  </code>
+               </setup>
+               <code>
+                  import os
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  url = "{1}/wrkp_products?id={0}".format(descriptor.pubDID, server_url)
+                  raise WebRedirect(url)
+               </code>
+            </dataFunction>
+		</datalinkCore>
+	</service>
 
 
    <data id="import">
