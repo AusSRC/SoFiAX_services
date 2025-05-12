@@ -1248,6 +1248,24 @@ class TaskAdmin(ModelAdmin):
     get_return_link.short_description = 'Link'
 
 
+class KinematicModel_Admin(ModelAdmin):
+    model = KinematicModel
+    list_display = (
+        'detection_id', 'ra', 'dec', 'freq', 'team_release', 'team_release_kin', 'vsys_model', 'e_vsys_model', 'x_model',
+        'e_x_model', 'y_model', 'e_y_model', 'ra_model', 'e_ra_model', 'dec_model', 'e_dec_model', 'inc_model',
+        'e_inc_model', 'pa_model', 'e_pa_model', 'pa_model_g', 'e_pa_model_g', 'qflag_model', 'rad', 'vrot_model',
+        'e_vrot_model', 'e_vrot_model_inc', 'rad_sd', 'sd_model', 'e_sd_model', 'sd_fo_model', 'e_sd_fo_model_inc',
+        'kinematic_model_download'
+    )
+    readonly_fields = list_display
+
+    def kinematic_model_download(self, obj):
+        url = reverse('wkapp_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    kinematic_model_download.short_description = 'WKAPP Products'
+
+
 class KinematicModel_3KIDNAS_Admin(ModelAdmin):
     model = KinematicModel_3KIDNAS
     list_display = (
@@ -1264,7 +1282,7 @@ class KinematicModel_3KIDNAS_Admin(ModelAdmin):
         url = reverse('wrkp_products')
         return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
 
-    kinematic_model_3kidnas_download.short_description = '3KIDNAS models'
+    kinematic_model_3kidnas_download.short_description = 'WRKP Products'
 
 
 admin.site.register(Run, RunAdmin)
@@ -1281,6 +1299,7 @@ if settings.PROJECT == 'WALLABY':
     admin.site.register(SurveyComponent, SurveyComponentAdmin)
     admin.site.register(Observation, ObservationAdmin)
     admin.site.register(Tile, TileAdmin)
+    admin.site.register(KinematicModel, KinematicModel_Admin)
     admin.site.register(KinematicModel_3KIDNAS, KinematicModel_3KIDNAS_Admin)
 
 admin.site.register(Task, TaskAdmin)

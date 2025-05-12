@@ -716,7 +716,7 @@ if settings.PROJECT == 'WALLABY':
 
     class WKAPP_Product(models.Model):
         id = models.BigAutoField(primary_key=True)
-        kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model', to_field='id', on_delete=models.CASCADE)
+        kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
         baroloinput = models.BinaryField(blank=True, null=True)
         barolomod = models.BinaryField(blank=True, null=True)
         barolosurfdens = models.BinaryField(blank=True, null=True)
