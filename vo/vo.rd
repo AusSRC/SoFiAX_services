@@ -310,7 +310,13 @@
 
    <table id="kinematic_model" onDisk="True" adql="True">
       <column name="id" type="bigint" unit="" ucd="meta.id;meta.main" required="True"/>
-      <column name="name" type="text" unit="" ucd="meta.id"/>
+      <column name="detection_id" type="bigint" unit="" ucd="meta.id" required="True"/>
+
+      <meta name="_associatedDatalinkService">
+         <meta name="serviceId">kinematic_model_dl</meta>
+         <meta name="idColumn">id</meta>
+      </meta>
+
       <column type="double precision" name="ra" unit="deg" ucd="pos.eq.ra;meta.main" description="Right ascension (J2000) of centroid position" verbLevel="1"/>
       <column type="double precision" name="dec" unit="deg" ucd="pos.eq.dec;meta.main" description="Declination (J2000) of centroid position" verbLevel="1"/>
       <column type="double precision" name="freq" unit="Hz" ucd="em.freq;meta.main" description="Barycentric frequency of centroid position"/>
@@ -348,6 +354,101 @@
       <column name="kinver" type="text" unit="" description="The version of the software used to generate the kinematic model"/>
       <foreignKey source="detection_id" dest="id" inTable="detection"/>
    </table>
+
+
+   <service id="kinematic_model_dl" allowed="dlget,dlmeta">
+		<meta name="title">Kinematic model Datalink</meta>
+        <meta name="dlget.description">Kinematic model Datalink</meta>
+		<datalinkCore>
+           <descriptorGenerator>
+            <setup>
+              <code>
+                 class CustomDescriptor(ProductDescriptor):
+                     def __init__(self, id):
+                        super(ProductDescriptor, self).__init__()
+                        self.pubDID = id
+                        self.mime = ""
+                        self.accref = ""
+                        self.accessPath = ""
+                        self.access_url = ""
+                        self.suppressAutoLinks = True
+                 </code>
+             </setup>
+            <code>
+               return CustomDescriptor(pubDID)
+            </code>
+          </descriptorGenerator>
+
+           <metaMaker>
+              <code>
+                  import os
+                  from urllib.parse import urlencode
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+
+                  params = {"id": descriptor.pubDID, "product": "baroloinput"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model baroloinput", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "barolomod"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model barolomod", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "barolosurfdens"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model barolosurfdens", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "diagnosticplot"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model diagnosticplot", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "diffcube"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model diffcube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "fatinput"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model fatinput", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "fatmod"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model fatmod", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "fullresmodcube"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model fullresmodcube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "fullresproccube"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model fullresproccube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "modcube"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model modcube", semantics="#auxiliary")
+
+                  params = {"id": descriptor.pubDID, "product": "procdata"}
+                  url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="Kinematic model procdata", semantics="#auxiliary")
+
+                  url = "{1}/wkapp_products?id={0}".format(descriptor.pubDID, server_url)
+                  yield LinkDef(descriptor.pubDID, url, contentType="application/x-tar", description="Kinematic model Products", semantics="#this")
+              </code>
+           </metaMaker>
+
+            <dataFunction>
+               <setup>
+                  <code>
+                     from gavo.svcs import WebRedirect
+                  </code>
+               </setup>
+               <code>
+                  import os
+                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  url = "{1}/wkapp_products?id={0}".format(descriptor.pubDID, server_url)
+                  raise WebRedirect(url)
+               </code>
+            </dataFunction>
+		</datalinkCore>
+	</service>
 
 
    <table id="kinematic_model_3kidnas" onDisk="True" adql="True">

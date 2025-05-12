@@ -26,6 +26,7 @@ from django.utils.safestring import mark_safe
 logging.basicConfig(level=logging.INFO)
 
 PRODUCTS = ['mom0', 'mom1', 'mom2', 'cube', 'mask', 'chan', 'spec']
+KINEMATIC_MODEL_PRODUCTS = ['baroloinput', 'barolomod', 'barolosurfdens', 'diagnosticplot', 'diffcube', 'fatinput', 'fatmod', 'fullresmodcube', 'fullresproccube', 'modcube', 'procdata']
 KINEMATIC_MODEL_3KIDNAS_PRODUCTS = ['bootstrapfits', 'diagnosticplot', 'diffcube', 'flag', 'modcube', 'procdata', 'pvmajordata', 'pvmajormod', 'pvminordata', 'pvminormod']
 
 
@@ -703,6 +704,71 @@ def external_conflict_view(request):
     else:
         messages.warning(request, "Error, returning to run.")
         return HttpResponseRedirect('/admin/survey/run')
+
+
+def wkapp_products(request):
+    kinematic_model_id = request.GET.get('id', None)
+    if not kinematic_model_id:
+        return HttpResponse('id does not exist.', status=400)
+
+    try:
+        kinematic_model_id = int(kinematic_model_id)
+    except ValueError:
+        return HttpResponse('id is not an integer.', status=400)
+
+    # Get a specific product from the wkrp_product table
+    product_arg = request.GET.get('wkapp_product', None)
+    if product_arg is not None:
+        product_arg = product_arg.lower()
+        if product_arg not in KINEMATIC_MODEL_PRODUCTS:
+            return HttpResponse('not a valid kinematic_model wkapp_product.', status=400)
+
+    # Query model and products
+    kinematic_model = KinematicModel.objects.get(id=kinematic_model_id)
+    product = WKAPP_Product.objects.get(kinematic_model_id=kinematic_model)
+    run = Run.objects.get(id=kinematic_model.detection.run_id)
+    name = f"{run.name}_{kinematic_model.detection.name}"
+    name = pathname2url(name.replace(' ', '_'))
+    if not product:
+        return HttpResponse('Products not found.', status=404)
+
+    if product_arg is None:
+        fh = io.BytesIO()
+        with tarfile.open(fileobj=fh, mode='w:gz') as tar:
+            tarfile_write(tar, f'{name}_baroloinput.fits', product.baroloinput)
+            tarfile_write(tar, f'{name}_barolomod.fits', product.barolomod)
+            tarfile_write(tar, f'{name}_barolosurfdens.fits', product.barolosurfdens)
+            tarfile_write(tar, f'{name}_diagnosticplot.fits', product.diagnosticplot)
+            tarfile_write(tar, f'{name}_diffcube.fits', product.diffcube)
+            tarfile_write(tar, f'{name}_fatinput.fits', product.fatinput)
+            tarfile_write(tar, f'{name}_fatmod.fits', product.fatmod)
+            tarfile_write(tar, f'{name}_fullresmodcube.fits', product.fullresmodcube)
+            tarfile_write(tar, f'{name}_fullresproccube.fits', product.fullresproccube)
+            tarfile_write(tar, f'{name}_modcube.fits', product.modcube)
+            tarfile_write(tar, f'{name}_procdata.fits', product.procdata)
+
+        data = fh.getvalue()
+        size = len(data)
+
+        response = HttpResponse(data, content_type='application/x-tar')
+        response['Content-Disposition'] = f'attachment; filename={name}.tar.gz'
+        response['Content-Length'] = size
+        return response
+    else:
+        data = getattr(product, product_arg)
+        size = len(data)
+
+        content_type = 'image/fits'
+        ext = "fits"
+        if product_arg == "spec":
+            content_type = "text/plain"
+            ext = "txt"
+
+        response = HttpResponse(data, content_type=content_type)
+        response['Content-Disposition'] = f'attachment; \
+            filename={name}_{product_arg}.{ext}'
+        response['Content-Length'] = size
+        return response
 
 
 def wrkp_products(request):
