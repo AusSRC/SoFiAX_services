@@ -77,3 +77,10 @@ python manage.py createsuperuser --username <username>
 
 ### NGINX reverse proxy
 
+## Dependent services
+
+On changes to the deployment of these services you will also need to update the following configuration items:
+
+* `database.env` on Setonix (WALLABY pipeline)
+* `sofiax.ini` on Setonix (WALLABY pipeline)
+* `wallaby.ini` on AusSRC workflow service (triggers)
