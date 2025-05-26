@@ -1021,13 +1021,16 @@ class RunAdmin(ModelAdmin):
                 delete_detections = []
                 rename_detections = []
 
-                # Compare against close detections (accepted) from other runs.
+                # Compare against close detections (accepted) from other runs in the same survey component
                 # TODO: Fix this threshold for the poles with delta RA (cosine factor)
+                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+                sc_runs = Run.objects.filter(id__in=sc_run_ids)
                 close_detections = Detection.objects.filter(
                     accepted=True,
                     source_name__isnull=False,
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                    run__in=sc_runs
                 ).exclude(run=run)
 
                 for d_ext in list(set(close_detections)):
@@ -1096,9 +1099,11 @@ class RunAdmin(ModelAdmin):
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
-            # Release name check
+            # Release name check for detections in the same survey component
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(run=run)])
+            sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+            sc_runs = Run.objects.filter(id__in=sc_run_ids)
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False, run__in=sc_runs).exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
