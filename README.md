@@ -1,73 +1,80 @@
-# HI Survey source finding portal
+# HI survey portal
 
-Web portal used for managing source detections in HI surveys. Currently used for WALLABY and DINGO ASKAP surveys. Developed be used with [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX). This repository provides the database and web services (Django admin portal).
+A web platform for interactively selecting and managing detections for large HI surveys. Deployed as a collection of containerised services using Docker. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be handle source finding outputs from [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX).
 
-<HR>
+## Services
 
-## Installation
+- survey_db (PostgreSQL database)
+- survey_web (Django web application)
+- survey_nginx (NGINX reverse proxy)
+- survey_vo (GAVO DACHS TAP service)
 
-There are a few steps required to deploy the services
+## Deploy
 
-### 1. Set environment variables
+### Database
 
-The environoment file contains information regarding project type and database connection details. Create a ``.env`` file under `web/survey_web` with:
-
-```
-PROJECT=DINGO
-DEBUG=True
-SITE_NAME=DINGO Catalog
-SITE_HEADER=DINGO Catalog
-SITE_TITLE=DINGO Catalog
-INDEX_TITLE=DINGO Catalog
-KINEMATICS=False
-AUTH_GROUPS=dingo
-
-DJANGO_SECRET_KEY=<django key>
-DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
-
-DATABASE_HOST=surveydb
-DATABASE_PORT=5432
-DATABASE_NAME=surveydb
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-SEARCH_PATH=survey,public
-```
-
-* The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
-
-* The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
-
-### 2. Deploy services
+1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
+2. Update the `db/01-create.sql` script with custom passwords for users
+3. Deploy the service (you will need to create a Docker network first)
 
 ```
 docker network create survey_network
-docker-compose up --build -d
+docker-compose up --build -d survey_db
 ```
 
-### 3. Database migrations
+### Web
+
+The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
+
+1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
 
 ```
-docker-compose run survey_web python manage.py migrate
-docker-compose run survey_web python manage.py makemigrations survey
-docker-compose run survey_web python manage.py migrate survey
+PROJECT = WALLABY
+DEBUG = True
+LOCAL = True
+SITE_NAME = WALLABY Catalog
+SITE_HEADER = WALLABY Catalog
+SITE_TITLE = WALLABY Catalog
+INDEX_TITLE = WALLABY Catalog
+AUTH_GROUPS = wallaby
+
+DJANGO_SECRET_KEY = <django key>
+DJANGO_ALLOWED_HOSTS = 127.0.0.1 localhost
+
+DATABASE_HOST = surveydb
+DATABASE_PORT = 5432
+DATABASE_NAME = surveydb
+DATABASE_USER = postgres
+DATABASE_PASSWORD = postgres
+SEARCH_PATH = survey,public
 ```
 
-### 4. Create site superuser
+* The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
+* The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
+
+2. Deploy the service
 
 ```
-docker-compose run -e DJANGO_SUPERUSER_PASSWORD=admin survey_web python manage.py createsuperuser --username=admin --email=admin@admin.com --noinput
+docker-compose up --build -d survey_web
 ```
 
-<HR>
+3. Migrations and create user
 
-## Other
+This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
 
-TAP URL:
+
 ```
-https://localhost/tap
+docker exec -it survey_web /bin/bash
 ```
 
-Website URL
+and then inside of the container run the following
+
 ```
-https://localhost
+python manage.py migrate
+python manage.py createsuperuser --username <username>
 ```
+
+### GAVO DACHS
+
+### NGINX reverse proxy
+

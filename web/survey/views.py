@@ -10,7 +10,6 @@ from survey.utils.plot import product_summary_image
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import _add_tag, _add_comment
 from survey.utils.views import handle_navigation, handle_next
-from survey.decorators import basic_auth
 from survey.models import Product, Instance, Detection, Run, Tag, TagDetection, \
     Comment, ExternalConflict, Task, FileTaskReturn
 from django.urls import reverse
@@ -34,7 +33,6 @@ def logout_view(request):
     return redirect(url)
 
 
-@basic_auth
 def test(request):
     return HttpResponse('Authorized', status=200)
 
@@ -49,7 +47,6 @@ def summary_image(request):
         return HttpResponse(img, status=200)
 
 
-@basic_auth
 def instance_products(request):
     """Download products for all detections of an instance
     from the Admin portal.
@@ -114,7 +111,6 @@ def _read_in_chunks(filename, chunk_size=1024*64):
                 return
 
 
-@basic_auth
 def task_file_download(request):
     task_id = request.GET.get('id', None)
     if not task_id:
@@ -141,7 +137,6 @@ def task_file_download(request):
     return response
 
 
-@basic_auth
 def detection_products(request):
     detect_id = request.GET.get('id', None)
     if not detect_id:
@@ -174,7 +169,8 @@ def detection_products(request):
                 'cube',
                 'mask',
                 'chan',
-                'spec')\
+                'spec',
+                'plot')\
             .first()
 
         if not product:
@@ -194,6 +190,7 @@ def detection_products(request):
             tarfile_write(tar, f'{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{name}_spec.txt', product.spec)
             tarfile_write(tar, f'{name}_pv.fits', product.pv)
+            tarfile_write(tar, f'{name}_plot.png', product.plot)
 
         data = fh.getvalue()
         size = len(data)
@@ -239,7 +236,6 @@ def detection_products(request):
         return response
 
 
-@basic_auth
 def run_products(request):
     """Download products for all detections of a run
     from the Admin portal.
@@ -400,7 +396,6 @@ def _build_catalog(detections, date, version):
     return cat
 
 
-@basic_auth
 def run_catalog(request):
     run_id = request.GET.get('id', None)
     if not run_id:
@@ -656,12 +651,6 @@ def external_conflict_view(request):
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
-        if 'Ignore conflict' in body['action']:
-            logging.info(f'Ignoring conflict {ex_c.id}. Deleting conflict instance.')
-            ex_c.delete()
-            url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
-            return HttpResponseRedirect(url)
-
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted for this detection
@@ -674,7 +663,6 @@ def external_conflict_view(request):
                 logging.info(f'Deleting external conflicts for detection {ex_c.detection}')
                 for c in ExternalConflict.objects.filter(detection=ex_c.detection):
                     c.delete()
-                conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
                 # NOTE: issue with indexing here if multiple conflicts have been deleted
                 url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
@@ -696,6 +684,13 @@ def external_conflict_view(request):
                 ex_c.detection.save()
                 ex_c.conflict_detection.source_name = None
                 ex_c.conflict_detection.save()
+
+                # Remove release tag detection entry for replaced detection
+                remove_tagdetections = TagDetection.objects.filter(detection=ex_c.conflict_detection, tag__type='release')
+                for td in remove_tagdetections:
+                    logging.info(f'Removing tag detection objects: {td.id} [tag: {td.tag_id}, detection: {td.detection_id}]')
+                    td.delete()
+
                 ex_c.delete()
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
