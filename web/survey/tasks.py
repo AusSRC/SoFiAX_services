@@ -1,10 +1,14 @@
 import uuid
 import tarfile
+import logging
 
 from survey.models import Product, FileTaskReturn
 from survey.utils.task import task
 from survey.utils.io import tarfile_write
 from urllib.request import pathname2url
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 @task()
@@ -29,7 +33,11 @@ def download_accepted_sources(request, queryset):
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{folder}/{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spec)
-            tarfile_write(tar, f'{folder}/{name}_summary.png', detection.summary_image(size=(8, 6), binary_image=True))
+            tarfile_write(tar, f'{folder}/{name}_pv.fits', product.pv)
+            try:
+                tarfile_write(tar, f'{folder}/{name}_summary.png', detection.summary_image(size=(8, 6), binary_image=True))
+            except Exception as e:
+                logging.error(f'Failed to download summary figure for detection {detection}')
 
     return FileTaskReturn([uuid_filename])
 

@@ -1,4 +1,4 @@
-<resource schema="wallaby">
+<resource schema="dingo">
    <meta name="title">ASKAP Survey</meta>
     <meta name="creationDate">2023-06-06T12:00:00Z</meta>
     <meta name="description">ASKAP Survey</meta>

@@ -25,7 +25,7 @@ from django.utils.safestring import mark_safe
 
 logging.basicConfig(level=logging.INFO)
 PRODUCTS = ['mom0', 'mom1', 'mom2',
-            'cube', 'mask', 'chan', 'spec']
+            'cube', 'mask', 'chan', 'spec', 'pv']
 
 
 def logout_view(request):
@@ -91,6 +91,7 @@ def instance_products(request):
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{folder}/{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spec)
+            tarfile_write(tar, f'{folder}/{name}_pv.fits', product.pv)
 
     data = fh.getvalue()
     size = len(data)
@@ -192,6 +193,7 @@ def detection_products(request):
             tarfile_write(tar, f'{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{name}_spec.txt', product.spec)
+            tarfile_write(tar, f'{name}_pv.fits', product.pv)
 
         data = fh.getvalue()
         size = len(data)
