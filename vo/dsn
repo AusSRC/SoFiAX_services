@@ -1,5 +1,5 @@
 database = dingo_db
-host = 192.168.0.148
-port = 5432
+host =
+port = 5433
 user = admin
-password = vBCQuih3db6xTQ
+password =
