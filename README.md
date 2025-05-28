@@ -76,5 +76,15 @@ python manage.py createsuperuser --username <username>
 
 ### GAVO DACHS
 
+Edit the config file `vo/vo.rd` to configure the VO service
+
+```
+docker-compose up --build -d survey_vo
+```
+
 ### NGINX reverse proxy
+
+```
+docker-compose up --build -d survey_nginx
+```
 
