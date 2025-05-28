@@ -76,5 +76,21 @@ python manage.py createsuperuser --username <username>
 
 ### GAVO DACHS
 
+Edit the config file `vo/vo.rd` to configure the VO service
+
+```
+docker-compose up --build -d survey_vo
+```
+
+Sometimes I find that I need to give the `gavo` user ownership of the directory `/var/gavo`, otherwise there are warnings in the deployment. You can run
+
+```
+chown -R gavo:gavo /var/gavo/
+```
+
 ### NGINX reverse proxy
+
+```
+docker-compose up --build -d survey_nginx
+```
 
