@@ -270,7 +270,7 @@
       <make table="comment"/>
       <make table="tag"/>
       <make table="tag_detection"/>
-      <make table="detection_nearest_gama">
+      <make table="detection_nearest_gama"/>
    </data>
 
 </resource>
