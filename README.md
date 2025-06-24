@@ -15,7 +15,8 @@ A web platform for interactively selecting and managing detections for large HI 
 
 1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
 2. Update the `db/01-create.sql` script with custom passwords for users
-3. Deploy the service (you will need to create a Docker network first)
+3. Update volume mount point (`/data`) to a local volume
+4. Deploy the service (you will need to create a Docker network first)
 
 ```
 docker network create survey_network
@@ -29,24 +30,24 @@ The `survey_web` service provides core functionality for managing and selecting 
 1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
 
 ```
-PROJECT = WALLABY
-DEBUG = True
-LOCAL = True
-SITE_NAME = WALLABY Catalog
-SITE_HEADER = WALLABY Catalog
-SITE_TITLE = WALLABY Catalog
-INDEX_TITLE = WALLABY Catalog
-AUTH_GROUPS = wallaby
+PROJECT=WALLABY
+DEBUG=True
+LOCAL=True
+SITE_NAME=WALLABY Catalog
+SITE_HEADER=WALLABY Catalog
+SITE_TITLE=WALLABY Catalog
+INDEX_TITLE=WALLABY Catalog
+AUTH_GROUPS=wallaby
 
-DJANGO_SECRET_KEY = <django key>
-DJANGO_ALLOWED_HOSTS = 127.0.0.1 localhost
+DJANGO_SECRET_KEY=<django key>
+DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
 
-DATABASE_HOST = surveydb
-DATABASE_PORT = 5432
-DATABASE_NAME = surveydb
-DATABASE_USER = postgres
-DATABASE_PASSWORD = postgres
-SEARCH_PATH = survey,public
+DATABASE_HOST=surveydb
+DATABASE_PORT=5432
+DATABASE_NAME=surveydb
+DATABASE_USER=postgres
+DATABASE_PASSWORD=postgres
+SEARCH_PATH=survey,public
 ```
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
