@@ -920,6 +920,8 @@ class RunAdmin(ModelAdmin):
         except Exception as e:
             messages.error(request, str(e))
 
+    _auto_assign_to_component.short_description = 'Auto-assign Run to Survey Component'
+
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
         names = [i.name for i in queryset]
