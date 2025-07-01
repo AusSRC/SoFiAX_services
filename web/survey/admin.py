@@ -1,6 +1,8 @@
 import math
 import time
 import logging
+import re
+import warnings
 from random import choice
 
 from django.contrib import admin, messages
@@ -14,9 +16,10 @@ from django.db.models.aggregates import Count
 from django.db.models import Q
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
+from survey.utils.constants import RUN_NAME_TO_SURVEY_COMPONENT
 from survey.utils.task import task
 from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
-from survey.utils.components import get_survey_components, get_release_name
+from survey.utils.components import get_survey_components, get_survey_component_by_name, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
@@ -810,7 +813,7 @@ class RunAdmin(ModelAdmin):
     ordering = ('-created',)
     search_fields = ['name']
     actions = ['_download_summaries', '_internal_cross_match', '_external_cross_match',
-               '_release_sources', '_delete_run']
+               '_release_sources', '_auto_assign_to_component', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -886,6 +889,36 @@ class RunAdmin(ModelAdmin):
             messages.error(request, str(e))
 
     _download_summaries.short_description = 'Download Summaries'
+
+    def auto_assign_run_to_component(self, queryset):
+        """Auto assign runs to survey components based on the run name."""
+        survey_components_runs = get_survey_components().values()
+        for run in queryset:
+            if run.name in survey_components_runs:
+                warnings.warn(f"Run {run.name} already has a survey component assigned.",
+                    UserWarning)
+            for run_pattern in RUN_NAME_TO_SURVEY_COMPONENT:
+                if re.match(run_pattern, run.name):
+                    component_name = RUN_NAME_TO_SURVEY_COMPONENT.get(run_pattern)
+                    component = get_survey_component_by_name(component_name)
+                    if component:
+                        SurveyComponentRun.objects.create(run=run, component=component)
+                        logging.info('Run %s auto assigned to component %s',
+                            run.name, component.name)
+                    else:
+                        warnings.warn(f"Unable to auto assign {run.name}.\n" +
+                            "It does not match any known survey component patterns.", UserWarning)
+
+    def _auto_assign_to_component(self, request, queryset):
+        try:
+            if queryset.count() == 0:
+                messages.error(request, "No Run(s) selected")
+                return
+
+            self.auto_assign_run_to_component(queryset)
+            return redirect('/admin/survey/run/')
+        except Exception as e:
+            messages.error(request, str(e))
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
