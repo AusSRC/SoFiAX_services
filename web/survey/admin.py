@@ -23,7 +23,8 @@ from survey.utils.components import get_survey_components, get_survey_component_
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
-    Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
+    Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion, \
+    KinematicModel, KinematicModel_3KIDNAS
 
 from .tasks import download_accepted_sources, download_summaries_for_run
 
@@ -1059,13 +1060,16 @@ class RunAdmin(ModelAdmin):
                 delete_detections = []
                 rename_detections = []
 
-                # Compare against close detections (accepted) from other runs.
+                # Compare against close detections (accepted) from other runs in the same survey component
                 # TODO: Fix this threshold for the poles with delta RA (cosine factor)
+                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+                sc_runs = Run.objects.filter(id__in=sc_run_ids)
                 close_detections = Detection.objects.filter(
                     accepted=True,
                     source_name__isnull=False,
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                    run__in=sc_runs
                 ).exclude(run=run)
 
                 for d_ext in list(set(close_detections)):
@@ -1134,9 +1138,11 @@ class RunAdmin(ModelAdmin):
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
-            # Release name check
+            # Release name check for detections in the same survey component
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(run=run)])
+            sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+            sc_runs = Run.objects.filter(id__in=sc_run_ids)
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False, run__in=sc_runs).exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
@@ -1286,6 +1292,43 @@ class TaskAdmin(ModelAdmin):
     get_return_link.short_description = 'Link'
 
 
+class KinematicModel_Admin(ModelAdmin):
+    model = KinematicModel
+    list_display = (
+        'detection_id', 'ra', 'dec', 'freq', 'team_release', 'team_release_kin', 'vsys_model', 'e_vsys_model', 'x_model',
+        'e_x_model', 'y_model', 'e_y_model', 'ra_model', 'e_ra_model', 'dec_model', 'e_dec_model', 'inc_model',
+        'e_inc_model', 'pa_model', 'e_pa_model', 'pa_model_g', 'e_pa_model_g', 'qflag_model', 'rad', 'vrot_model',
+        'e_vrot_model', 'e_vrot_model_inc', 'rad_sd', 'sd_model', 'e_sd_model', 'sd_fo_model', 'e_sd_fo_model_inc',
+        'kinematic_model_download'
+    )
+    readonly_fields = list_display
+
+    def kinematic_model_download(self, obj):
+        url = reverse('wkapp_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    kinematic_model_download.short_description = 'WKAPP Products'
+
+
+class KinematicModel_3KIDNAS_Admin(ModelAdmin):
+    model = KinematicModel_3KIDNAS
+    list_display = (
+        'detection_id', 'team_release', 'team_release_kin', 'vsys_model', 'e_vsys_model', 'x_model',
+        'e_x_model', 'y_model', 'e_y_model', 'ra_model', 'e_ra_model', 'dec_model', 'e_dec_model',
+        'inc_model', 'e_inc_model', 'pa_model', 'e_pa_model', 'pa_model_g', 'e_pa_model_g', 'vdisp_model',
+        'e_vdisp_model', 'rad', 'vrot_model', 'e_vrot_model', 'rad_sd', 'sd_model', 'e_sd_model', 'sdmethodflag',
+        'rhi_flag', 'rhi_as', 'rhi_low_as', 'rhi_high_as', 'dist_model', 'rhi_kpc', 'rhi_low_kpc', 'rhi_high_kpc',
+        'vhi_flag', 'vhi', 'e_vhi', 'kflag', 'kinver', 'kinematic_model_3kidnas_download'
+    )
+    readonly_fields = list_display
+
+    def kinematic_model_3kidnas_download(self, obj):
+        url = reverse('wrkp_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    kinematic_model_3kidnas_download.short_description = 'WRKP Products'
+
+
 admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
@@ -1294,14 +1337,13 @@ admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 
-# NOTE: TBA
-# if settings.KINEMATICS:
-#    admin.site.register(KinematicModel, KinematicModelAdmin)
 
 if settings.PROJECT == 'WALLABY':
     admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
     admin.site.register(SurveyComponent, SurveyComponentAdmin)
     admin.site.register(Observation, ObservationAdmin)
     admin.site.register(Tile, TileAdmin)
+    admin.site.register(KinematicModel, KinematicModel_Admin)
+    admin.site.register(KinematicModel_3KIDNAS, KinematicModel_3KIDNAS_Admin)
 
 admin.site.register(Task, TaskAdmin)

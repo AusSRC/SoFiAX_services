@@ -6,7 +6,8 @@ from django.conf import settings
 from survey.views import detection_products, instance_products, \
     run_products, run_catalog, \
     logout_view, test, summary_image, \
-    manual_inspection_detection_view, external_conflict_view, task_file_download
+    manual_inspection_detection_view, external_conflict_view, task_file_download, \
+    wkapp_products, wrkp_products
 
 admin.site.site_header = settings.SITE_HEADER
 admin.site.site_title = settings.SITE_TITLE
@@ -19,6 +20,8 @@ urlpatterns = [
     path('summary_image', summary_image, name='summary_image'),
     path('detection_products', detection_products, name='detection_products'),
     path('instance_products', instance_products, name='instance_products'),
+    path('wkapp_products', wkapp_products, name='wkapp_products'),
+    path('wrkp_products', wrkp_products, name='wrkp_products'),
     path('task_file_download', task_file_download, name='task_file_download'),
     path('run_products', run_products, name='run_products'),
     path('catalog', run_catalog, name='run_catalog'),
