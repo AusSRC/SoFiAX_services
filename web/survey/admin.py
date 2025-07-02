@@ -914,7 +914,7 @@ class RunAdmin(ModelAdmin):
                         messages.error(request, f"Unable to auto-assign run '{run.name}' to\
                             survey component '{component_name}'.\
                             Survey component '{component_name}' does not exist.")
-                    #No need to look for another match
+                    # No need to look for another match
                     break
             if match_found is False:
                 messages.error(request, f"Run '{run.name}' does not match any known\
