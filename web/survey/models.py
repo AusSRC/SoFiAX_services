@@ -664,7 +664,6 @@ if settings.PROJECT == 'WALLABY':
             managed = False
             db_table = 'kinematic_model'
 
-
     class KinematicModel_3KIDNAS(models.Model):
         id = models.BigAutoField(primary_key=True)
         detection = models.ForeignKey(Detection, models.DO_NOTHING)
@@ -713,7 +712,6 @@ if settings.PROJECT == 'WALLABY':
             managed = False
             db_table = 'kinematic_model_3kidnas'
 
-
     class WKAPP_Product(models.Model):
         id = models.BigAutoField(primary_key=True)
         kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
@@ -732,7 +730,6 @@ if settings.PROJECT == 'WALLABY':
         class Meta:
             managed = False
             db_table = 'wkapp_product'
-
 
     class WRKP_Product(models.Model):
         id = models.BigAutoField(primary_key=True)
