@@ -904,17 +904,18 @@ class RunAdmin(ModelAdmin):
                 if re.match(run_pattern, run.name):
                     match_found = True
                     component_name = RUN_NAME_TO_SURVEY_COMPONENT.get(run_pattern)
-                    component = get_survey_component_by_name(component_name)
-                    if component:
-                        SurveyComponentRun.objects.create(run=run, sc=component)
-                        message = f"Successfully auto assigned run '{run.name}' to\
-                            survey component '{component.name}'"
-                        messages.info(request, message)
-                        logging.info(message)
-                    else:
-                        messages.error(request, f"Unable to auto-assign run '{run.name}' to\
-                            survey component '{component_name}'.\
-                            Survey component '{component_name}' does not exist.")
+                    with transaction.atomic():
+                        component = get_survey_component_by_name(component_name)
+                        if component:
+                            SurveyComponentRun.objects.create(run=run, sc=component)
+                            message = f"Successfully auto assigned run '{run.name}' to\
+                                survey component '{component.name}'"
+                            messages.info(request, message)
+                            logging.info(message)
+                        else:
+                            messages.error(request, f"Unable to auto-assign run '{run.name}' to\
+                                survey component '{component_name}'.\
+                                Survey component '{component_name}' does not exist.")
                     # No need to look for another match
                     break
             if match_found is False:
@@ -924,7 +925,6 @@ class RunAdmin(ModelAdmin):
     def _auto_assign_to_component(self, request, queryset):
         try:
             self.auto_assign_run_to_component(request, queryset)
-            return redirect('/admin/survey/run/')
         except Exception as e:
             messages.error(request, str(e))
 
