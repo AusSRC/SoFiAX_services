@@ -1,6 +1,7 @@
 import math
 import time
 import logging
+import re
 from random import choice
 
 from django.contrib import admin, messages
@@ -14,9 +15,11 @@ from django.db.models.aggregates import Count
 from django.db.models import Q
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
+from survey.utils.constants import RUN_NAME_TO_SURVEY_COMPONENT
 from survey.utils.task import task
 from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
-from survey.utils.components import get_survey_components, get_release_name
+from survey.utils.components import get_survey_components, get_survey_component_by_name, \
+    get_survey_component_runs, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
@@ -811,7 +814,7 @@ class RunAdmin(ModelAdmin):
     ordering = ('-created',)
     search_fields = ['name']
     actions = ['_download_summaries', '_internal_cross_match', '_external_cross_match',
-               '_release_sources', '_delete_run']
+               '_release_sources', '_auto_assign_to_component', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -887,6 +890,45 @@ class RunAdmin(ModelAdmin):
             messages.error(request, str(e))
 
     _download_summaries.short_description = 'Download Summaries'
+
+    def auto_assign_run_to_component(self, request, queryset):
+        """Auto assign runs to survey components based on the run name."""
+        survey_component_runs = get_survey_component_runs()
+        for run in queryset:
+            if run.name in survey_component_runs:
+                messages.error(request, f"Run '{run.name}' already has an existing\
+                    survey component.")
+                continue
+            match_found = False
+            for run_pattern in RUN_NAME_TO_SURVEY_COMPONENT:
+                if re.match(run_pattern, run.name):
+                    match_found = True
+                    component_name = RUN_NAME_TO_SURVEY_COMPONENT.get(run_pattern)
+                    with transaction.atomic():
+                        component = get_survey_component_by_name(component_name)
+                        if component:
+                            SurveyComponentRun.objects.create(run=run, sc=component)
+                            message = f"Successfully auto assigned run '{run.name}' to\
+                                survey component '{component.name}'"
+                            messages.info(request, message)
+                            logging.info(message)
+                        else:
+                            messages.error(request, f"Unable to auto-assign run '{run.name}' to\
+                                survey component '{component_name}'.\
+                                Survey component '{component_name}' does not exist.")
+                    # No need to look for another match
+                    break
+            if match_found is False:
+                messages.error(request, f"Run '{run.name}' does not match any known\
+                    survey component patterns.")
+
+    def _auto_assign_to_component(self, request, queryset):
+        try:
+            self.auto_assign_run_to_component(request, queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+
+    _auto_assign_to_component.short_description = 'Auto-assign to Survey Component'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
@@ -975,10 +1017,7 @@ class RunAdmin(ModelAdmin):
 
         # Check to make sure run is in survey_components
         run = queryset.first()
-        survey_component_runs = []
-        survey_components = get_survey_components()
-        for runs in survey_components.values():
-            survey_component_runs += runs
+        survey_component_runs = get_survey_component_runs()
 
         if run.name not in survey_component_runs:
             raise Exception("This run is not in the survey component list.")
