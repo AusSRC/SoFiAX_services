@@ -191,7 +191,8 @@ def detection_products(request):
             tarfile_write(tar, f'{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{name}_spec.txt', product.spec)
-            tarfile_write(tar, f'{name}_plot.png', product.plot)
+            if product.plot is not None:
+                tarfile_write(tar, f'{name}_plot.png', product.plot)
 
         data = fh.getvalue()
         size = len(data)
