@@ -2,6 +2,12 @@
 
 A web platform for interactively selecting and managing detections for large HI surveys. Deployed as a collection of containerised services using Docker. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be handle source finding outputs from [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX).
 
+## Local
+
+```
+python3 web/cli.py runserver
+```
+
 ## Services
 
 - survey_db (PostgreSQL database)

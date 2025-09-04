@@ -1,38 +1,39 @@
 import os
-import environ
+import psycopg2
+import logging
 from pathlib import Path
 
-# Initialise environment variables
-env = environ.Env(
-    KINEMATICS=(bool, True)
-)
-environ.Env.read_env()
+logging.basicConfig(level=logging.INFO)
 
 # ---------------------------------------------------------------------------------------
 # Deployment settings
 
-PROJECT = env('PROJECT')
-if not PROJECT:
-    raise Exception("Project not defined")
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'a0c%$cxr8$(n%y1%ui_ho4nso#%r4)!i^_0ql(1%d)lx!(db10')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1').split(' ')
 
-AUTH_GROUPS = env('AUTH_GROUPS').split(' ')
-PROJECT = PROJECT.upper()
-LOCAL = bool(env('LOCAL', default=True))
+# Project specific deployment
+LOCAL = os.getenv('LOCAL', True)
+DEBUG = os.getenv('DEBUG', True)
+PROJECT = os.getenv('PROJECT', 'HI Survey').upper()
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = env('DJANGO_SECRET_KEY')
-DEBUG = env('DEBUG')
+
+# HTTP stuff
 USE_X_FORWARDED_HOST = True
-CSRF_TRUSTED_ORIGINS=['https://*.aussrc.org']
-
-ALLOWED_HOSTS = env('DJANGO_ALLOWED_HOSTS').split(' ')
-SITE_NAME = env("SITE_NAME")
-SITE_HEADER = env("SITE_HEADER")
-SITE_TITLE = env("SITE_TITLE")
-INDEX_TITLE = env("INDEX_TITLE")
-
+CSRF_TRUSTED_ORIGINS = ['https://*.aussrc.org']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-KINEMATICS = env('KINEMATICS')
+# Site
+SITE_NAME = os.getenv('SITE_NAME', 'SoFiA web')
+SITE_HEADER = os.getenv('SITE_HEADER', 'SoFiA web')
+SITE_TITLE = os.getenv('SITE_TITLE', 'SoFiA web')
+INDEX_TITLE = os.getenv('INDEX_TITLE', 'SoFiA web')
+
+# Default user
+DEFAULT_USER = os.getenv('DJANGO_USERNAME', 'admin')
+DEFAULT_PASSWORD = os.getenv('DJANGO_PASSWORD', 'admin')
+
+# Other config
+KINEMATICS = os.getenv('KINEMATICS', False)
 
 # ---------------------------------------------------------------------------------------
 # Application definition
@@ -47,7 +48,6 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'sslserver',
     'django_extensions',
-    'social_django',
     'survey',
 ]
 
@@ -61,56 +61,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if LOCAL is False:
-    MIDDLEWARE.append('social_django.middleware.SocialAuthExceptionMiddleware',)
-    MIDDLEWARE.append('survey.middleware.oauth.KeycloakMiddleware',)
-
-AUTHENTICATION_BACKENDS = []
-
-if LOCAL is False:
-    AUTHENTICATION_BACKENDS.append('social_core.backends.keycloak.KeycloakOAuth2',)
-
-AUTHENTICATION_BACKENDS.append('django.contrib.auth.backends.ModelBackend')
-
-## Social Auth
-LOGIN_URL = '/oauth/login/keycloak'
-LOGIN_REDIRECT_URL = '/admin'
-LOGOUT_URL = env('LOGOUT_URL', default='/logout')
-
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-
-SOCIAL_AUTH_URL_NAMESPACE = 'social'
-SOCIAL_AUTH_JSONFIELD_ENABLED = True
-SOCIAL_AUTH_JSONFIELD_CUSTOM = 'django.db.models.JSONField'
-SOCIAL_AUTH_SESSION_EXPIRATION = True
-SOCIAL_AUTH_FORCE_POST_DISCONNECT = True
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
-
-SITE_ID = 1
-
-if LOCAL is False:
-    SOCIAL_AUTH_KEYCLOAK_KEY = env('KEY')
-    SOCIAL_AUTH_KEYCLOAK_SECRET = env('SECRET')
-    REALM = env('REALM')
-    SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = env('PUBLIC_KEY')
-    CLIENT_AUTH = env('CLIENT_AUTH')
-    SOCIAL_AUTH_KEYCLOAK_AUTHORIZATION_URL=env('AUTHORIZATION_URL')
-    SOCIAL_AUTH_KEYCLOAK_ACCESS_TOKEN_URL=env('ACCESS_TOKEN_URL')
-    ID_KEY = env('ID_KEY')
-## End Social Auth
-
-SOCIAL_AUTH_PIPELINE = (
-    'social_core.pipeline.social_auth.social_details',
-    'social_core.pipeline.social_auth.social_uid',
-    'social_core.pipeline.social_auth.auth_allowed',
-    'social_core.pipeline.social_auth.social_user',
-    'social_core.pipeline.user.create_user',
-    'social_core.pipeline.user.get_username',
-    'social_core.pipeline.social_auth.associate_user',
-    'social_core.pipeline.social_auth.load_extra_data',
-    'social_core.pipeline.user.user_details',
-)
+AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend']
 
 ROOT_URLCONF = 'config.urls'
 
@@ -140,26 +91,45 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASE_HOST = env('DATABASE_HOST')
-DATABASE_PORT = env('DATABASE_PORT')
-DATABASE_NAME = env('DATABASE_NAME')
-DATABASE_USER = env('DATABASE_USER')
-DATABASE_PASSWORD = env('DATABASE_PASSWORD')
-SEARCH_PATH = env('SEARCH_PATH')
+DATABASE_HOST = os.getenv('DATABASE_HOST', '127.0.0.1')
+DATABASE_PORT = os.getenv('DATABASE_PORT', '5432')
+DATABASE_NAME = os.getenv('DATABASE_NAME', 'survey')
+DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
+DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', 'postgres')
+SEARCH_PATH = os.getenv('SEARCH_PATH', 'survey')
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'options': f'-c search_path={SEARCH_PATH}'
+try:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'OPTIONS': {
+                'options': f'-c search_path={SEARCH_PATH}'
+            },
+            'NAME': DATABASE_NAME,
+            'USER': DATABASE_USER,
+            'PASSWORD': DATABASE_PASSWORD,
+            'HOST': DATABASE_HOST,
+            'PORT': DATABASE_PORT,
         },
-        'NAME': DATABASE_NAME,
-        'USER': DATABASE_USER,
-        'PASSWORD': DATABASE_PASSWORD,
-        'HOST': DATABASE_HOST,
-        'PORT': DATABASE_PORT,
-    },
-}
+    }
+    conn = psycopg2.connect(None, {
+        'host': DATABASE_HOST,
+        'user': DATABASE_USER,
+        'password': DATABASE_PASSWORD,
+        'name': DATABASE_NAME,
+        'port': DATABASE_PORT,
+    })
+    conn.close()
+except Exception as e:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
+    }
+    logging.info(os.path.join(BASE_DIR, "db.sqlite3"))
+
+    logging.warning('Database connection failed. Defaulting to sqlite3 database')
 
 # ---------------------------------------------------------------------------------------
 # Password validation
@@ -185,13 +155,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
 # ---------------------------------------------------------------------------------------
