@@ -1251,6 +1251,7 @@ admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
 admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
+admin.site.register(SurveyComponent, SurveyComponentAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 
@@ -1260,7 +1261,6 @@ admin.site.register(Tag, TagAdmin)
 
 if settings.PROJECT == 'WALLABY':
     admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
-    admin.site.register(SurveyComponent, SurveyComponentAdmin)
     admin.site.register(Observation, ObservationAdmin)
     admin.site.register(Tile, TileAdmin)
 
