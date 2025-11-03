@@ -637,7 +637,7 @@ def external_conflict_view(request):
             with transaction.atomic():
                 # Check against existing sources
                 new_name = get_release_name(ex_c.detection.name)
-                if new_name in [d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False)]:
+                if new_name in [d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(id=ex_c.detection.id)]:
                     messages.error(request, f"Existing source with name {new_name} exists so cannot accept this detection.")
                     url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
                     return HttpResponseRedirect(url)
@@ -645,24 +645,15 @@ def external_conflict_view(request):
                 logging.info(f'Adding official name {new_name} to detection {ex_c.detection.name}')
                 ex_c.detection.source_name = new_name
                 ex_c.detection.save()
-                ex_c.delete()
+                # Remove external conflicts that reference this detection
+                for c in conflicts:
+                    if c.detection == ex_c.detection:
+                        logging.info(f'Removing external conflict for this detection: {c.id}')
+                        c.delete()
+                conflicts = ExternalConflict.objects.filter(
+                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
+                )
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
-            return HttpResponseRedirect(url)
-
-        if 'Delete conflict' in body['action']:
-            with transaction.atomic():
-                # Remove any conflicts that may have previously been accepted for this detection
-                logging.info(f'De-selecting detection {ex_c.detection}')
-                ex_c.detection.source_name = None
-                ex_c.detection.accepted = False
-                ex_c.detection.save()
-
-                # Remove external conflicts
-                logging.info(f'Deleting external conflicts for detection {ex_c.detection}')
-                for c in ExternalConflict.objects.filter(detection=ex_c.detection):
-                    c.delete()
-                # NOTE: issue with indexing here if multiple conflicts have been deleted
-                url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
         if 'Copy old source name' in body['action']:
@@ -689,7 +680,14 @@ def external_conflict_view(request):
                     logging.info(f'Removing tag detection objects: {td.id} [tag: {td.tag_id}, detection: {td.detection_id}]')
                     td.delete()
 
-                ex_c.delete()
+                # Remove external conflicts that reference this detection
+                for c in conflicts:
+                    if c.detection == ex_c.detection:
+                        logging.info(f'Removing external conflict for this detection: {c.id}')
+                        c.delete()
+                conflicts = ExternalConflict.objects.filter(
+                    detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
+                )
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
 
