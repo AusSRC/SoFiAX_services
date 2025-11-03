@@ -83,10 +83,9 @@
         <br><hr><br>
         <input type="hidden" name="external_conflict_id" value={{ external_conflict_id }}>
         <input type="hidden" name="run_id" value={{ run_id }}>
-        <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="submit" type="submit" value="Add tags and comments">
+        <input name="action" id="submit" type="submit" value="Add tags and comments">
         <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="keep_new_source" type="submit" value="Keep new source name">
         <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="add_to_existing" type="submit" value="Copy old source name">
-        <input name="action" style="background-color: rgba(255, 0, 0, 0.729);" id="delete_detection" type="submit" value="Delete conflict">
         {% if same_survey_component %}
         <input name="action" style="background-color: rgba(6, 119, 0, 0.827);" id="replace_detection" type="submit" value="Replace detection in source">
         {% endif %}
