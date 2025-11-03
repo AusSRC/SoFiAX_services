@@ -15,7 +15,8 @@ A web platform for interactively selecting and managing detections for large HI 
 
 1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
 2. Update the `db/01-create.sql` script with custom passwords for users
-3. Deploy the service (you will need to create a Docker network first)
+3. Update volume mount point (`/data`) to a local volume
+4. Deploy the service (you will need to create a Docker network first)
 
 ```
 docker network create survey_network
@@ -29,24 +30,24 @@ The `survey_web` service provides core functionality for managing and selecting 
 1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
 
 ```
-PROJECT = WALLABY
-DEBUG = True
-LOCAL = True
-SITE_NAME = WALLABY Catalog
-SITE_HEADER = WALLABY Catalog
-SITE_TITLE = WALLABY Catalog
-INDEX_TITLE = WALLABY Catalog
-AUTH_GROUPS = wallaby
+PROJECT=WALLABY
+DEBUG=True
+LOCAL=True
+SITE_NAME=WALLABY Catalog
+SITE_HEADER=WALLABY Catalog
+SITE_TITLE=WALLABY Catalog
+INDEX_TITLE=WALLABY Catalog
+AUTH_GROUPS=wallaby
 
-DJANGO_SECRET_KEY = <django key>
-DJANGO_ALLOWED_HOSTS = 127.0.0.1 localhost
+DJANGO_SECRET_KEY=<django key>
+DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
 
-DATABASE_HOST = surveydb
-DATABASE_PORT = 5432
-DATABASE_NAME = surveydb
-DATABASE_USER = postgres
-DATABASE_PASSWORD = postgres
-SEARCH_PATH = survey,public
+DATABASE_HOST=survey_db
+DATABASE_PORT=5432
+DATABASE_NAME=surveydb
+DATABASE_USER=postgres
+DATABASE_PASSWORD=postgres
+SEARCH_PATH=survey,public
 ```
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
@@ -75,8 +76,21 @@ python manage.py createsuperuser --username <username>
 
 ### GAVO DACHS
 
+Edit the config file `vo/vo.rd` to configure the VO service
+
+```
+docker-compose up --build -d survey_vo
+```
+
+Sometimes I find that I need to give the `gavo` user ownership of the directory `/var/gavo`, otherwise there are warnings in the deployment. You can run
+
+```
+chown -R gavo:gavo /var/gavo/
+```
+
 ### NGINX reverse proxy
 
+<<<<<<< HEAD
 ## Dependent services
 
 On changes to the deployment of these services you will also need to update the following configuration items:
@@ -84,3 +98,9 @@ On changes to the deployment of these services you will also need to update the 
 * `database.env` on Setonix (WALLABY pipeline)
 * `sofiax.ini` on Setonix (WALLABY pipeline)
 * `wallaby.ini` on AusSRC workflow service (triggers)
+=======
+```
+docker-compose up --build -d survey_nginx
+```
+
+>>>>>>> 9fb0193e723fbafeb5ef14c385013de456e76eac
