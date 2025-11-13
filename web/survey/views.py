@@ -694,6 +694,22 @@ def external_conflict_view(request):
                 )
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
+        
+        if 'Delete conflict' in body['action']:
+            with transaction.atomic():
+                # Remove any conflicts that may have previously been accepted for this detection
+                logging.info(f'De-selecting detection {ex_c.detection}')
+                ex_c.detection.source_name = None
+                ex_c.detection.accepted = False
+                ex_c.detection.save()
+
+                # Remove external conflicts
+                logging.info(f'Deleting external conflicts for detection {ex_c.detection}')
+                for c in ExternalConflict.objects.filter(detection=ex_c.detection):
+                    c.delete()
+                # NOTE: issue with indexing here if multiple conflicts have been deleted
+                url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
+            return HttpResponseRedirect(url)
 
         url = handle_navigation(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
         if not url:
