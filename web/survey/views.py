@@ -473,7 +473,8 @@ def manual_inspection_detection_view(request):
 
         links = {
             "NED": f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5",
-            "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768"
+            "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768",
+            "DECaPS": f"https://decaps.legacysurvey.org/viewer/cutout.jpg?layer=decaps2&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768"
         }
 
         matches = {}
@@ -694,7 +695,7 @@ def external_conflict_view(request):
                 )
             url = handle_next(request, conflicts, idx, reverse('external_conflict'), f'run_id={run.id}&external_conflict_id=')
             return HttpResponseRedirect(url)
-        
+
         if 'Delete conflict' in body['action']:
             with transaction.atomic():
                 # Remove any conflicts that may have previously been accepted for this detection
