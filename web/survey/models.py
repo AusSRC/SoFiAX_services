@@ -748,3 +748,12 @@ if settings.PROJECT == 'WALLABY':
         class Meta:
             managed = False
             db_table = 'wrkp_product'
+
+    class KinematicModelState(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+        attempted = models.IntegerField()
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model_state'

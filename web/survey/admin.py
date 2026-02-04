@@ -24,7 +24,7 @@ from survey.decorators import action_form, add_tag_form, add_comment_form, requi
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion, \
-    KinematicModel, KinematicModel_3KIDNAS
+    KinematicModel, KinematicModel_3KIDNAS, KinematicModelState
 
 from .tasks import download_accepted_sources, download_summaries_for_run
 
@@ -1214,6 +1214,10 @@ class RunAdmin(ModelAdmin):
                             author=str(request.user))
                     else:
                         logging.info(f'Tag already created for Source {d.source_name}')
+
+                    # Mark detections for needing kinematic modelling
+                    KinematicModelState.objects.create(detection=d, attempted=0)
+                    logging.debug('Created kinematic_model_state entry for detection %s (%i)' % (d.source_name, d.id))
 
                 # Delete sources
                 logging.info(f'De-selecting remaining detections {len(reject_detections)}')
