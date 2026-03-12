@@ -519,6 +519,8 @@ class Observation(models.Model):
     quality = models.CharField(max_length=64, null=True)
     status = models.CharField(max_length=64, null=True)
     scheduled = models.BooleanField(null=True)
+    accepted = models.BooleanField(null=True)
+    flags = models.TextField(null=True)
 
     def __str__(self):
         return self.name

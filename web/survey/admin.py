@@ -88,12 +88,14 @@ class CommentAdmin(ModelAdmin):
 
 
 class ObservationAdmin(ModelAdmin):
-    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled']
+    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'accepted', 'flags']
+    readonly_fields = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled']
+    list_editable = ['accepted', 'flags']
     search_fields = ['name', 'sbid', 'quality', 'status', 'scheduled']
     ordering = ('quality',)
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return True
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -1062,7 +1064,8 @@ class RunAdmin(ModelAdmin):
 
                 # Compare against close detections (accepted) from other runs in the same survey component
                 # TODO: Fix this threshold for the poles with delta RA (cosine factor)
-                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+                this_sc_id = SurveyComponentRun.objects.get(run=run).sc_id
+                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=this_sc_id)]
                 sc_runs = Run.objects.filter(id__in=sc_run_ids)
                 close_detections = Detection.objects.filter(
                     accepted=True,
