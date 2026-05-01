@@ -3,6 +3,7 @@ import math
 import json
 import cv2
 import numpy as np
+import ast
 import binascii
 import logging
 from PIL import Image
@@ -18,7 +19,7 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.utils.html import format_html
 from django.conf import settings
-
+from django.core.exceptions import ValidationError
 
 from survey.utils.fields import PostgresDecimalField
 from survey.utils.plot import product_summary_image
@@ -512,18 +513,34 @@ class Observation(models.Model):
     ra = models.FloatField()
     dec = models.FloatField()
     rotation = models.FloatField(null=True)
-    description = models.TextField(null=True)
+    description = models.TextField(null=True, blank=True)
     phase = models.CharField(max_length=64, null=True)
-    image_cube_file = models.TextField(null=True)
-    weights_cube_file = models.TextField(null=True)
+    image_cube_file = models.TextField(null=True, blank=True)
+    weights_cube_file = models.TextField(null=True, blank=True)
     quality = models.CharField(max_length=64, null=True)
     status = models.CharField(max_length=64, null=True)
     scheduled = models.BooleanField(null=True)
-    accepted = models.BooleanField(null=True)
-    flags = models.TextField(null=True)
+    accepted = models.BooleanField(null=True, blank=True)
+    flags = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """Validate the format of the flags field, which should be a list of regions defined by (x1,x2,y1,y2,z1,z2)"""
+        # TODO: refactor into common util function
+        try:
+            flags = self.flags
+            region_list = flags.split(';')
+            region_list = [ast.literal_eval(r.strip()) for r in flags.split(';') if r.strip()]
+        except (ValueError, SyntaxError):
+            raise ValidationError('Invalid format for flags field. Use (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...')
+        for region in region_list:
+            if len(region) != 6:
+                raise ValidationError('Flag region should have 6 values: (x1,x2,y1,y2,z1,z2) separeted by semicolon')
+            x1, x2, y1, y2, z1, z2 = region
+            if not (x1 < x2 and y1 < y2 and z1 < z2):
+                raise ValidationError('Flag region values should satisfy x1 < x2, y1 < y2, z1 < z2')
 
     class Meta:
         managed = False

@@ -88,11 +88,13 @@ class CommentAdmin(ModelAdmin):
 
 
 class ObservationAdmin(ModelAdmin):
+    """Flag format: (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...
+
+    """
     list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'accepted', 'flags']
-    readonly_fields = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled']
-    list_editable = ['accepted', 'flags']
+    readonly_fields = ['id', 'name', 'ra', 'dec', 'rotation', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'description', 'image_cube_file', 'weights_cube_file']
     search_fields = ['name', 'sbid', 'quality', 'status', 'scheduled']
-    ordering = ('quality',)
+    ordering = ('-sbid',)
 
     def has_change_permission(self, request, obj=None):
         return True
@@ -104,8 +106,11 @@ class ObservationAdmin(ModelAdmin):
         return False
 
     def get_queryset(self, request):
+        """Show only Full Survey fields that have been observed
+
+        """
         qs = super(ObservationAdmin, self).get_queryset(request)
-        return qs.filter(phase='Full Survey')
+        return qs.filter(phase='Full Survey', sbid__isnull=False)
 
     def run_link(self, obj):
         if not obj.run:
