@@ -2,7 +2,7 @@ FROM python:3.12
 WORKDIR /opt/services/survey_web/src
 
 RUN apt update && \
-    apt install -y libgl1-mesa-glx
+    apt install -y libgl1-mesa-dev libglib2.0-0
 
 COPY requirements.txt requirements.txt
 RUN pip install --upgrade pip && \

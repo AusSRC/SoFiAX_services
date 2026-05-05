@@ -18,7 +18,7 @@ from survey.utils.task import task
 from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
 from survey.utils.components import get_survey_components, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
-from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
+from survey.models import Detection, UnresolvedDetection, RejectedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
 
@@ -106,7 +106,8 @@ class ObservationAdmin(ModelAdmin):
             return '-'
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_run_changelist')
-        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+        return format_html("<a href='{}?run={}'>{}</a>", url, obj.run_name, obj.run_name)
+        # return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
 
     run_link.short_description = 'Run'
 
@@ -268,7 +269,7 @@ class DetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
@@ -403,7 +404,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False)
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
@@ -456,7 +457,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
@@ -681,11 +682,11 @@ class AcceptedDetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdmin, self).get_queryset(request).select_related('run')
-        return qs.filter(accepted=True, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(accepted=True)
 
     def get_list_display(self, request):
         if request.GET:
@@ -743,7 +744,163 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(accepted=True, unresolved=False)
+
+
+class RejectedDetectionAdmin(ModelAdmin):
+    # TODO(austin): probably want to show tags if there are any?
+    list_per_page = 50
+    model = RejectedDetection
+    readonly_fields = (
+        'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
+    )
+    exclude = [
+        'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
+        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
+        'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
+        'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
+        'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
+    ]
+    actions = ['deselect', 'download_products']
+    fk_name = 'run'
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(empty_value=None)
+    def GAMA_matches(self, obj):
+        if settings.PROJECT == 'DINGO':
+            return format_html("<br>".join([str(g.cata_id) for g in obj.detectionnearestgama_set.all()]))
+        else:
+            return ""
+
+    def tags(self, obj):
+        tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
+        if not tags:
+            return '-'
+        return ', '.join(tags)
+
+    def comments(self, obj):
+        comments = [c.comment for c in Comment.objects.filter(detection=obj)]
+        if not comments:
+            return '-'
+        return ', '.join(comments)
+
+    def display_x(self, obj):
+        return round(obj.x, 4)
+    display_x.short_description = 'x'
+
+    def display_y(self, obj):
+        return round(obj.y, 4)
+    display_y.short_description = 'y'
+
+    def display_z(self, obj):
+        return round(obj.z, 4)
+    display_z.short_description = 'z'
+
+    def display_f_sum(self, obj):
+        return round(obj.f_sum, 4)
+    display_f_sum.short_description = 'f sum'
+
+    def display_ell_maj(self, obj):
+        return round(obj.ell_maj, 4)
+    display_ell_maj.short_description = 'ell maj'
+
+    def display_ell_min(self, obj):
+        return round(obj.ell_min, 4)
+    display_ell_min.short_description = 'ell min'
+
+    def display_w20(self, obj):
+        return round(obj.w20, 4)
+    display_w20.short_description = 'w20'
+
+    def display_w50(self, obj):
+        return round(obj.w50, 4)
+    display_w50.short_description = 'w50'
+
+    def deselect(self, request, queryset):
+        with transaction.atomic():
+            for d in queryset:
+                d.accepted = False
+                d.save()
+        return len(queryset)
+    deselect.short_description = 'Deselect detection'
+
+    @admin.action(description='Download Products')
+    def download_products(self, request, queryset):
+        task_id = download_accepted_sources(request, queryset)
+        return redirect('/admin/survey/task/')
+    download_products.acts_on_all = True
+
+    @admin.display(empty_value=None)
+    def summary(self, obj):
+        url = reverse('summary_image')
+        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+
+    def get_queryset(self, request):
+        qs = super(RejectedDetectionAdmin, self).get_queryset(request).select_related('run')
+        return qs.filter(rejected=True)
+
+    def get_list_display(self, request):
+        if request.GET:
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
+                   'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+        else:
+            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
+                   'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    detection_products_download.short_description = 'Products'
+
+
+class RejectedDetectionAdminInline(ModelAdminInline):
+    model = RejectedDetection
+    list_display = (
+        'source_name', 'name', 'tags', 'comments', 'x', 'y', 'z', 'f_sum', 'ell_maj', 'ell_min', 'w20', 'w50', 'detection_products_download'
+    )
+    exclude = [
+        'x_peak', 'y_peak', 'z_peak', 'ra_peak', 'dec_peak', 'freq_peak',
+        'b_peak', 'l_peak', 'v_rad_peak', 'v_opt_peak', 'v_app_peak',
+        'x_min', 'x_max', 'y_min', 'y_max', 'z_min', 'z_max', 'n_pix', 'f_min',
+        'f_max', 'rel', 'rms', 'ell_pa', 'ell3s_maj', 'ell3s_min', 'ell3s_pa',
+        'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
+        'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
+    ]
+    readonly_fields = list_display
+    ordering = ('x',)
+    fk_name = 'run'
+
+    def tags(self, obj):
+        tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
+        if not tags:
+            return '-'
+        return ', '.join(tags)
+
+    def comments(self, obj):
+        comments = [c.comment for c in Comment.objects.filter(detection=obj)]
+        if not comments:
+            return '-'
+        return ', '.join(comments)
+
+    def get_queryset(self, request):
+        qs = super(RejectedDetectionAdminInline, self).get_queryset(request)
+        return qs.filter(accepted=True)
+
+    def detection_products_download(self, obj):
+        url = reverse('detection_products')
+        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+
+    detection_products_download.short_description = 'Products'
+
+    def get_queryset(self, request):
+        qs = super(RejectedDetectionAdminInline, self).get_queryset(request)
+        return qs.filter(rejected=True)
 
 
 class InstanceAdmin(ModelAdmin):
@@ -800,10 +957,12 @@ class RunAdmin(ModelAdmin):
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
         'run_unresolved_detections', 'run_accepted_detections',
+        'run_rejected_detections',
         'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
         AcceptedDetectionAdminInline,
+        RejectedDetectionAdminInline,
         DetectionAdminInline,
         InstanceAdminInline
     )
@@ -820,34 +979,40 @@ class RunAdmin(ModelAdmin):
 
     def run_products_download(self, obj):
         url = reverse('run_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
     run_products_download.short_description = 'Products'
 
     def run_catalog(self, obj):
         url = reverse('run_catalog')
-        return format_html(f"<a href='{url}?id={obj.id}'>Catalog</a>")
+        return format_html("<a href='{}?id={}'>Catalog</a>", url, obj.id)
     run_catalog.short_description = 'Catalog'
 
     def run_unresolved_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Unresolved Detections</a>")
+        return format_html("<a href='{}?run={}'>Unresolved Detections</a>", url, obj.id)
     run_unresolved_detections.short_description = 'Unresolved Detections'
 
     def run_accepted_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Accepted Detections</a>")
+        return format_html("<a href='{}?run={}'>Accepted Detections</a>", url, obj.id)
     run_accepted_detections.short_description = 'Accepted Detections'
+
+    def run_rejected_detections(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_rejecteddetection_changelist')
+        return format_html("<a href='{}?run={}'>Rejected Detections</a>", url, obj.id)
+    run_rejected_detections.short_description = 'Rejected Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>Manual inspection</a>")
+        return format_html("<a href='{}'>Manual Inspection</a>", url)
     run_manual_inspection.short_description = 'Manual inspection'
 
     def run_external_conflicts(self, obj):
         url = f"{reverse('external_conflict')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>External conflicts</a>")
+        return format_html("<a href='{}'>External conflicts</a>", url)
     run_external_conflicts.short_description = 'External conflicts'
 
     def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
@@ -931,9 +1096,7 @@ class RunAdmin(ModelAdmin):
             Detection.objects.filter(run=run).select_for_update()
             all_run_detections = Detection.objects.filter(
                 run=run,
-                unresolved=False,
-                n_pix__gte=300,
-                rel__gte=0.7
+                unresolved=False
             )
 
             if any([d.unresolved for d in all_run_detections]):
@@ -1252,6 +1415,7 @@ admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
 admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
+admin.site.register(RejectedDetection, RejectedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 

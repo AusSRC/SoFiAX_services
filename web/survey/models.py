@@ -230,6 +230,7 @@ class Detection(models.Model):
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
     accepted = models.BooleanField(default=False)
+    rejected = models.BooleanField(default=False)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
@@ -334,40 +335,44 @@ class Detection(models.Model):
         return d_space <= sigma * d_space_err and d_spec <= sigma * d_spec_err
 
     def spectrum_image(self):
-        product = self.product_set.only('spec')
-        if not product:
+        try:
+            # TODO: fix this plot
+            product = self.product_set.only('spec')
+            if not product:
+                return None
+
+            x = []
+            y = []
+            with StringIO(product[0].spec.tobytes().decode('ascii')) as f:
+                for line in f:
+                    li = line.strip()
+                    if not li.startswith("#"):
+                        data = line.split()
+                        x.append(float(data[1]))
+                        y.append(float(data[2]))
+
+            if not x or not y:
+                return None
+
+            x = np.array(x)
+            y = np.array(y)
+
+            fig, ax = plt.subplots(nrows=1, ncols=1)
+            fig.set_size_inches(2, 1)
+            ax.plot(x, y, linewidth=1)
+            ax.axhline(y.max() * .5, linewidth=1, color='r', alpha=0.5)
+            ax.axhline(y.max() * .2, linewidth=1, color='r', alpha=0.5)
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+
+            with BytesIO() as image_data:
+                fig.savefig(image_data, format='png')
+                base_img = binascii.b2a_base64(image_data.getvalue()).decode()
+                img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
+                plt.close(fig)
+                return mark_safe(img_src)
+        except:
             return None
-
-        x = []
-        y = []
-        with StringIO(product[0].spec.tobytes().decode('ascii')) as f:
-            for line in f:
-                li = line.strip()
-                if not li.startswith("#"):
-                    data = line.split()
-                    x.append(float(data[1]))
-                    y.append(float(data[2]))
-
-        if not x or not y:
-            return None
-
-        x = np.array(x)
-        y = np.array(y)
-
-        fig, ax = plt.subplots(nrows=1, ncols=1)
-        fig.set_size_inches(2, 1)
-        ax.plot(x, y, linewidth=1)
-        ax.axhline(y.max() * .5, linewidth=1, color='r', alpha=0.5)
-        ax.axhline(y.max() * .2, linewidth=1, color='r', alpha=0.5)
-        ax.set_yticklabels([])
-        ax.set_xticklabels([])
-
-        with BytesIO() as image_data:
-            fig.savefig(image_data, format='png')
-            base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-            img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
-            plt.close(fig)
-            return mark_safe(img_src)
 
     def moment0_image(self):
         product = self.product_set.only('mom0')
@@ -413,6 +418,11 @@ class Detection(models.Model):
 
 
 class AcceptedDetection(Detection):
+    class Meta:
+        proxy = True
+
+
+class RejectedDetection(Detection):
     class Meta:
         proxy = True
 

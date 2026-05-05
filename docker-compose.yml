@@ -22,6 +22,8 @@ services:
     container_name: survey_web
     build:
       context: web
+    env_file:
+      - web/config/.env
     ports:
       - 8000:8000
     volumes:

@@ -188,7 +188,7 @@ def detection_products(request):
             tarfile_write(tar, f'{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{name}_spec.txt', product.spec)
-            tarfile_write(tar, f'{name}_plot.png', product.plot)
+            # tarfile_write(tar, f'{name}_plot.png', product.plot)
 
         data = fh.getvalue()
         size = len(data)
@@ -440,9 +440,8 @@ def manual_inspection_detection_view(request):
         queryset = Detection.objects.filter(
             run=run,
             accepted=False,
-            source_name__isnull=True,
-            n_pix__gte=300,
-            rel__gte=0.7
+            rejected=False,
+            source_name__isnull=True
         )
 
         if len(queryset) == 0:
@@ -454,11 +453,14 @@ def manual_inspection_detection_view(request):
 
         # Show image
         product = Product.objects.get(detection=detection)
-        img_src = product_summary_image(product, size=(12, 9))
+        try:
+            img_src = product.plot.tobytes().decode("utf-8")
+        except Exception as e:
+            img_src = product_summary_image(product, size=(12, 9))
 
         properties = {
-            'RA': round(detection.ra, 4),
-            'Dec': round(detection.dec, 4),
+            'RA': round(detection.ra, 4) if detection.ra is not None else None,
+            'Dec': round(detection.dec, 4) if detection.dec is not None else None,
             'freq [MHz]': round(detection.freq / 10**6, 2),
             'v_opt': round(299792.458 * (1.42040575e+9 / detection.freq - 1.0), 2),
             'f_sum': round(detection.f_sum, 2),
@@ -467,10 +469,19 @@ def manual_inspection_detection_view(request):
             'snr': round(detection.f_sum / detection.err_f_sum, 2),
         }
 
-        links = {
-            "NED": f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5",
-            "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768"
-        }
+        links = {}
+
+        if detection.ra is not None and detection.dec is not None:
+            links["NED"] = (
+                    f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?"
+                    f"search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0"
+                    f"&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5"
+            )
+            links["LS-DR10"] = (
+                    f"https://www.legacysurvey.org/viewer/jpeg-cutout?"
+                    f"layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}"
+                    f"&pixscale=0.262&size=768"
+            )
 
         matches = {}
         if settings.PROJECT == 'DINGO':
@@ -501,9 +512,8 @@ def manual_inspection_detection_view(request):
         queryset = Detection.objects.filter(
             run=run,
             accepted=False,
-            source_name__isnull=True,
-            n_pix__gte=300,
-            rel__gte=0.7
+            rejected=False,
+            source_name__isnull=True
         )
         idx = list(queryset).index(detection)
         url_base = reverse('inspect_detection')
