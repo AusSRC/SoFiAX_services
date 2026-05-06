@@ -16,7 +16,7 @@ RUN echo LC_ALL="$LC_ALL" > /etc/default/locale
 
 RUN echo "deb http://vo.ari.uni-heidelberg.de/debian ${APT_REPO} main" \
         > /etc/apt/sources.list.d/gavo.list                         && \
-    wget -qO - http://docs.g-vo.org/archive-key.asc | apt-key add -
+    wget -qO - http://docs.g-vo.org/archive-key.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/gavo.gpg
 
 
 RUN DEBIAN_FRONTEND='noninteractive'                  && \
