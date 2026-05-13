@@ -19,7 +19,7 @@ from survey.views import (
     wrkp_products,
 )
 
-from survey.serializers import ObservationViewSet, TileViewSet
+from survey.serializers import ObservationViewSet, TileViewSet, SourceExtractionRegionViewSet
 
 admin.site.site_header = settings.SITE_HEADER
 admin.site.site_title = settings.SITE_TITLE
@@ -59,6 +59,7 @@ if settings.LOCAL is False:
 router = routers.DefaultRouter()
 router.register("observations", ObservationViewSet, basename="observations")
 router.register("tiles", TileViewSet, basename="tiles")
+router.register("sers", SourceExtractionRegionViewSet, basename="source_extraction_regions")
 
 urlpatterns += [
     path("api/", include(router.urls)),
