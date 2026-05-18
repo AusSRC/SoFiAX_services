@@ -42,6 +42,15 @@
 
             <table>
                 <tr>
+                    {% for key, value in clipboard.items %}
+                    <input type="text" value="{{ value }}" id="{{ key }}" readonly>
+                    <button onclick="copyToClipboard()">{{ key }}</button>
+                    {% endfor %}
+                </tr>
+            </table>
+
+            <table>
+                <tr>
                     {% for key, value in matches.items %}
                     <td>{{ key }}</td>
                     {% endfor %}
@@ -52,7 +61,6 @@
                     {% endfor %}
                 </tr>
             </table>
-
 
             <form style='padding: 2px' method="post">
                 {% csrf_token %}

@@ -1,5 +1,6 @@
 import io
 import os
+import json
 import tarfile
 import urllib.parse
 import logging
@@ -471,15 +472,36 @@ def manual_inspection_detection_view(request):
 
         links = {}
 
-        if detection.ra is not None and detection.dec is not None:
+        # CARTA link
+        instance = Instance.objects.get(id=detection.instance.id)
+        links["CARTA"] = f"https://vis.pawsey.org.au/carta?file={instance.parameters['input.data']}"
+
+        # CARTA region snippet
+        clipboard = {}
+        clipboard["snippet"] = f"""
+            const x = {detection.x_peak};\n
+            const y = {detection.y_peak};\n
+            const z = {detection.z_peak};\n
+            const file = await app.openFile("{instance.parameters['input.data']}");\n
+            const regionSet = file.regionSet;\n
+            const region = await regionSet.addRegionAsync(0, [{{x,y}}]);\n
+            regionSet.selectRegion(region);\n
+            file.zoomToSizeXWcs('120');\n
+            file.zoomToSizeYWcs('120');\n
+            file.setCenter(x, y);\n
+            file.setChannel(z);\n
+            file.renderConfig.setPercentileRank(99.99);\n
+        """.strip()
+
+        if detection.l is not None and detection.b is not None:
             links["NED"] = (
                     f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?"
                     f"search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0"
-                    f"&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5"
+                    f"&lon={round(detection.l, 5)}d&lat={round(detection.b, 5)}d&radius=0.5"
             )
             links["LS-DR10"] = (
                     f"https://www.legacysurvey.org/viewer/jpeg-cutout?"
-                    f"layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}"
+                    f"layer=ls-dr10&ra={round(detection.l, 5)}&dec={round(detection.b, 5)}"
                     f"&pixscale=0.262&size=768"
             )
 
@@ -499,6 +521,7 @@ def manual_inspection_detection_view(request):
             'image': mark_safe(img_src),
             'tags': Tag.objects.all(),
             'links': links,
+            'clipboard': clipboard,
             'matches': matches
         }
 
