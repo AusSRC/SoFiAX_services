@@ -459,8 +459,8 @@ def manual_inspection_detection_view(request):
             img_src = product_summary_image(product, size=(12, 9))
 
         properties = {
-            'RA': round(detection.ra, 4) if detection.ra is not None else None,
-            'Dec': round(detection.dec, 4) if detection.dec is not None else None,
+            'RA': round(detection.l, 4) if detection.l is not None else None,
+            'Dec': round(detection.b, 4) if detection.b is not None else None,
             'freq [MHz]': round(detection.freq / 10**6, 2),
             'v_opt': round(299792.458 * (1.42040575e+9 / detection.freq - 1.0), 2),
             'f_sum': round(detection.f_sum, 2),
