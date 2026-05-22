@@ -482,7 +482,7 @@ def manual_inspection_detection_view(request):
             const x = {detection.x_peak};\n
             const y = {detection.y_peak};\n
             const z = {detection.z_peak};\n
-            const file = await app.openFile("{instance.parameters['input.data']}");\n
+            const file = app.activeFrame;\n
             const regionSet = file.regionSet;\n
             const region = await regionSet.addRegionAsync(0, [{{x,y}}]);\n
             regionSet.selectRegion(region);\n
