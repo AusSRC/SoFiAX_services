@@ -956,9 +956,9 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
-        'run_unresolved_detections', 'run_accepted_detections',
+        'run_accepted_detections',
         'run_rejected_detections',
-        'run_manual_inspection', 'run_external_conflicts',)
+        'run_manual_inspection')
     inlines = (
         UnresolvedDetectionAdminInline,
         AcceptedDetectionAdminInline,
@@ -987,12 +987,6 @@ class RunAdmin(ModelAdmin):
         return format_html("<a href='{}?id={}'>Catalog</a>", url, obj.id)
     run_catalog.short_description = 'Catalog'
 
-    def run_unresolved_detections(self, obj):
-        opts = self.model._meta
-        url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
-        return format_html("<a href='{}?run={}'>Unresolved Detections</a>", url, obj.id)
-    run_unresolved_detections.short_description = 'Unresolved Detections'
-
     def run_accepted_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
@@ -1009,11 +1003,6 @@ class RunAdmin(ModelAdmin):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
         return format_html("<a href='{}'>Manual Inspection</a>", url)
     run_manual_inspection.short_description = 'Manual inspection'
-
-    def run_external_conflicts(self, obj):
-        url = f"{reverse('external_conflict')}?run_id={obj.id}"
-        return format_html("<a href='{}'>External conflicts</a>", url)
-    run_external_conflicts.short_description = 'External conflicts'
 
     def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
         """Check if two detections are a match based on spatial and spectral separation.
