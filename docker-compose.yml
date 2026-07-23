@@ -46,8 +46,6 @@ services:
       - ./nginx/ssl.conf:/config/nginx/ssl.conf
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
-    depends_on:
-      - survey_web
     networks:
       - survey_network
 
@@ -64,8 +62,6 @@ services:
       - /var/gavo/tmp:/var/gavo/tmp
     ports:
       - 8080:8080
-    depends_on:
-      - survey_web
     networks:
       - survey_network
 

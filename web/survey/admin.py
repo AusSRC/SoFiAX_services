@@ -107,7 +107,6 @@ class ObservationAdmin(ModelAdmin):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_run_changelist')
         return format_html("<a href='{}?run={}'>{}</a>", url, obj.run_name, obj.run_name)
-        # return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
 
     run_link.short_description = 'Run'
 
@@ -173,7 +172,7 @@ class SourceExtractionRegionAdmin(ModelAdmin):
             return '-'
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_run_changelist')
-        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+        return format_html("<a href='{}?q={}'>{}</a>", url, obj.run.name, obj.run.name)
 
     run_link.short_description = 'Run'
 
@@ -220,11 +219,11 @@ class DetectionAdmin(ModelAdmin):
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
 
     def display_ra(self, obj):
-        return round(obj.ra, 4)
+        return round(obj.l, 4)
     display_ra.short_description = 'RA'
 
     def display_dec(self, obj):
-        return round(obj.dec, 4)
+        return round(obj.b, 4)
     display_dec.short_description = 'Dec'
 
     def display_freq(self, obj):
@@ -280,7 +279,7 @@ class DetectionAdmin(ModelAdmin):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -398,7 +397,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -596,7 +595,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     list_per_page = 50
     model = AcceptedDetection
     readonly_fields = (
-        'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
     exclude = [
@@ -614,13 +613,6 @@ class AcceptedDetectionAdmin(ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    @admin.display(empty_value=None)
-    def GAMA_matches(self, obj):
-        if settings.PROJECT == 'DINGO':
-            return format_html("<br>".join([str(g.cata_id) for g in obj.detectionnearestgama_set.all()]))
-        else:
-            return ""
-
     def tags(self, obj):
         tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
         if not tags:
@@ -633,17 +625,17 @@ class AcceptedDetectionAdmin(ModelAdmin):
             return '-'
         return ', '.join(comments)
 
-    def display_x(self, obj):
-        return round(obj.x, 4)
-    display_x.short_description = 'x'
+    def display_ra(self, obj):
+        return round(obj.l_peak, 4)
+    display_ra.short_description = 'ra_peak'
 
-    def display_y(self, obj):
-        return round(obj.y, 4)
-    display_y.short_description = 'y'
+    def display_dec(self, obj):
+        return round(obj.b_peak, 4)
+    display_dec.short_description = 'dec_peak'
 
-    def display_z(self, obj):
-        return round(obj.z, 4)
-    display_z.short_description = 'z'
+    def display_freq(self, obj):
+        return round(obj.freq_peak, 4)
+    display_freq.short_description = 'freq_peak'
 
     def display_f_sum(self, obj):
         return round(obj.f_sum, 4)
@@ -690,15 +682,15 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
-                   'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
+                   'display_w20', 'display_w50'
         else:
-            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
-                   'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', \
+                   'display_ell_min', 'display_w20', 'display_w50'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -738,7 +730,7 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -752,7 +744,7 @@ class RejectedDetectionAdmin(ModelAdmin):
     list_per_page = 50
     model = RejectedDetection
     readonly_fields = (
-        'source_name', 'name', 'tags', 'comments', 'display_x', 'display_y', 'display_z', 'display_f_sum',
+        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum',
         'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
     )
     exclude = [
@@ -770,13 +762,6 @@ class RejectedDetectionAdmin(ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    @admin.display(empty_value=None)
-    def GAMA_matches(self, obj):
-        if settings.PROJECT == 'DINGO':
-            return format_html("<br>".join([str(g.cata_id) for g in obj.detectionnearestgama_set.all()]))
-        else:
-            return ""
-
     def tags(self, obj):
         tags = [td.tag.name for td in TagDetection.objects.filter(detection=obj)]
         if not tags:
@@ -789,17 +774,17 @@ class RejectedDetectionAdmin(ModelAdmin):
             return '-'
         return ', '.join(comments)
 
-    def display_x(self, obj):
-        return round(obj.x, 4)
-    display_x.short_description = 'x'
+    def display_ra(self, obj):
+        return round(obj.l_peak, 4)
+    display_ra.short_description = 'ra_peak'
 
-    def display_y(self, obj):
-        return round(obj.y, 4)
-    display_y.short_description = 'y'
+    def display_dec(self, obj):
+        return round(obj.b_peak, 4)
+    display_dec.short_description = 'dec_peak'
 
-    def display_z(self, obj):
-        return round(obj.z, 4)
-    display_z.short_description = 'z'
+    def display_freq(self, obj):
+        return round(obj.freq_peak, 4)
+    display_freq.short_description = 'freq_peak'
 
     def display_f_sum(self, obj):
         return round(obj.f_sum, 4)
@@ -846,15 +831,15 @@ class RejectedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'GAMA_matches', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
-                   'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
+                   'display_w20', 'display_w50'
         else:
-            return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
-                   'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
+            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', \
+                   'display_ell_min', 'display_w20', 'display_w50'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -894,7 +879,7 @@ class RejectedDetectionAdminInline(ModelAdminInline):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -924,7 +909,7 @@ class InstanceAdmin(ModelAdmin):
 
     def instance_products_download(self, obj):
         url = reverse('instance_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     instance_products_download.short_description = 'Products'
 
@@ -947,7 +932,7 @@ class InstanceAdminInline(ModelAdminInline):
 
     def instance_products_download(self, obj):
         url = reverse('instance_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     instance_products_download.short_description = 'Products'
 
@@ -955,7 +940,7 @@ class InstanceAdminInline(ModelAdminInline):
 class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
-        'id', 'name', 'created', 'sanity_thresholds',
+        'id', 'name', 'created',
         'run_accepted_detections',
         'run_rejected_detections',
         'run_manual_inspection')
