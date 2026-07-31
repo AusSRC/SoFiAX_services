@@ -78,7 +78,7 @@ class FileTaskReturn(TaskReturn):
 
     def get_link(self, task):
         url = reverse('task_file_download')
-        return format_html(f"<a href='{url}?id={task.id}'>Download</a>")
+        return format_html("<a href='{}?id={}'>Download</a>", url, task.id)
 
     def cleanup(self):
         for f in self.return_values:
