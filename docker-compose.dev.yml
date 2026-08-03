@@ -1,0 +1,70 @@
+services:
+  survey_db_dev:
+    build:
+      context: db
+    image: survey_db:dev
+    container_name: survey_db_dev
+    shm_size: "1gb"
+    env_file:
+      - ./db/psql.dev.env
+    volumes:
+      - /data:/var/lib/postgresql/data
+    networks:
+      - survey_dev_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d wallabydb"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  survey_web_dev:
+    build:
+      context: web
+    image: survey_web:dev
+    container_name: survey_web_dev
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_HOST: "survey_db_dev"
+      CSRF_TRUSTED_ORIGINS: "http://localhost:8080"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+    volumes:
+      - ./web:/opt/services/survey_web/src
+      - survey_web_dev_static:/opt/services/survey_web/src/static
+      - survey_web_dev_media:/opt/services/survey_web/src/media
+    depends_on:
+      survey_db_dev:
+        condition: service_healthy
+    networks:
+      - survey_dev_network
+
+  survey_nginx_dev:
+    image: nginx:latest
+    container_name: survey_nginx_dev
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - survey_web_dev_static:/opt/services/survey_web/src/static:ro
+      - survey_web_dev_media:/opt/services/survey_web/src/media:ro
+    depends_on:
+      - survey_web_dev
+    networks:
+      - survey_dev_network
+
+networks:
+  survey_dev_network:
+    name: survey_dev_network
+
+volumes:
+  survey_db_dev_data:
+    name: survey_db_dev_data
+  survey_web_dev_static:
+    name: survey_web_dev_static
+  survey_web_dev_media:
+    name: survey_web_dev_media
