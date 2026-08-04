@@ -346,7 +346,7 @@ class DetectionAdmin(ModelAdmin):
         return len(queryset)
     add_comment.short_description = 'Add comments'
 
-    def lookup_allowed(self, lookup, value):
+    def lookup_allowed(self, lookup, value, request=None):
         return True
 
 
@@ -480,7 +480,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
                    'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
-    def lookup_allowed(self, lookup, value):
+    def lookup_allowed(self, lookup, value, request=None):
         if lookup is None:
             return True
         elif lookup != 'run':
