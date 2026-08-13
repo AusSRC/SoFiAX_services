@@ -387,6 +387,52 @@ def test_release_sources(login):
 
 
 @pytest.mark.dependency(depends=['test_release_sources'])
+def test_manual_inspection_rejections(login):
+    """Reject and RFI actions save their reason and remove the detection from the list."""
+    expected_reasons = {
+        'reject': 'noise',
+        'rfi': 'rfi',
+    }
+
+    for button_id, expected_reason in expected_reasons.items():
+        login.find_element(By.XPATH, '//a[contains(@href, "/admin")]').click()
+        login.find_element(By.XPATH, '//a[contains(., "Runs")]').click()
+        login.find_element(
+            By.XPATH,
+            '//tr[.//*[contains(., "SB51506")]]/'
+            'td[contains(@class, "field-run_manual_inspection")]/a'
+        ).click()
+
+        detection_id = login.find_element(
+            By.XPATH, '//input[contains(@name, "detection_id")]'
+        ).get_attribute('value')
+        detection_name = login.find_element(
+            By.XPATH, '//div[contains(@id, "content")]/h1'
+        ).text
+        counter_text = login.find_element(
+            By.XPATH, '//div[contains(@id, "content")]/h4'
+        ).text
+        counter_before = int(counter_text.split('/')[1].split()[0])
+        base_url = login.current_url.split('/inspect_detection')[0]
+
+        login.find_element(By.ID, button_id).click()
+
+        next_detection_name = login.find_element(
+            By.XPATH, '//div[contains(@id, "content")]/h1'
+        ).text
+        counter_text = login.find_element(
+            By.XPATH, '//div[contains(@id, "content")]/h4'
+        ).text
+        counter_after = int(counter_text.split('/')[1].split()[0])
+        assert next_detection_name != detection_name
+        assert counter_after == counter_before - 1
+
+        login.get(f'{base_url}/admin/survey/detection/{detection_id}/change/')
+        reason_input = login.find_element(By.ID, 'id_rejection_reason')
+        assert reason_input.get_attribute('value') == expected_reason
+
+
+@pytest.mark.dependency(depends=['test_manual_inspection_rejections'])
 def test_cleanup(login):
     """Delete the runs. Assert that no dangling database entries exist.
     Comments will cascade delete when their detections are deleted.

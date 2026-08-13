@@ -317,6 +317,8 @@ class DetectionAdmin(ModelAdmin):
                 # Create source and source detection entries
                 for d in detect_list:
                     d.accepted = True
+                    d.rejection_reason = None
+                    d.save(update_fields=['accepted', 'rejection_reason'])
                 messages.info(request, f"Accepted {len(detect_list)} detections.")
                 return
         except Exception as e:
@@ -679,7 +681,8 @@ class AcceptedDetectionAdmin(ModelAdmin):
         with transaction.atomic():
             for d in queryset:
                 d.accepted = False
-                d.save()
+                d.rejection_reason = None
+                d.save(update_fields=['accepted', 'rejection_reason'])
         return len(queryset)
     deselect.short_description = 'Deselect detection'
 
@@ -752,7 +755,7 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
 
     detection_products_download.short_description = 'Products'
 
-    def get_queryset(self, request):
+    def get_queryset(self, request): # TODO:Why two def get_queryset ?
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
         return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
@@ -1232,7 +1235,8 @@ class RunAdmin(ModelAdmin):
                 for idx, d in enumerate(reject_detections):
                     logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
                     d.accepted = False
-                    d.save()
+                    d.rejection_reason = None
+                    d.save(update_fields=['accepted', 'rejection_reason'])
 
                 logging.info("Release completed")
 

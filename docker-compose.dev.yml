@@ -26,8 +26,6 @@ services:
       context: web
     image: survey_web:dev
     container_name: survey_web_dev
-    ports:
-      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_HOST: "survey_db_dev"
       CSRF_TRUSTED_ORIGINS: "http://localhost:8080"

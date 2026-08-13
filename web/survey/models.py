@@ -231,6 +231,7 @@ class Detection(models.Model):
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
     accepted = models.BooleanField(default=False)
+    rejection_reason = models.CharField(max_length=255, blank=True, null=True)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
