@@ -69,9 +69,9 @@ KINEMATIC_MODEL_3KIDNAS_PRODUCTS = [
 def logout_view(request):
     logout(request)
     url = (
-        settings.LOGOUT_URL
-        + "?redirect_uri="
-        + urllib.parse.quote(f"https://{request.get_host()}/admin")
+        settings.LOGOUT_URL +
+        "?redirect_uri=" +
+        urllib.parse.quote(f"https://{request.get_host()}/admin")
     )
     return redirect(url)
 

@@ -755,7 +755,7 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
 
     detection_products_download.short_description = 'Products'
 
-    def get_queryset(self, request): # TODO:Why two def get_queryset ?
+    def get_queryset(self, request):  # TODO: Why are there two get_queryset definitions?
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
         return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
