@@ -69,9 +69,9 @@ KINEMATIC_MODEL_3KIDNAS_PRODUCTS = [
 def logout_view(request):
     logout(request)
     url = (
-        settings.LOGOUT_URL
-        + "?redirect_uri="
-        + urllib.parse.quote(f"https://{request.get_host()}/admin")
+        settings.LOGOUT_URL +
+        "?redirect_uri=" +
+        urllib.parse.quote(f"https://{request.get_host()}/admin")
     )
     return redirect(url)
 
@@ -480,6 +480,7 @@ def manual_inspection_detection_view(request):
         queryset = Detection.objects.filter(
             run=run,
             accepted=False,
+            rejection_reason__isnull=True,
             source_name__isnull=True,
             n_pix__gte=300,
             rel__gte=0.7,
@@ -542,6 +543,7 @@ def manual_inspection_detection_view(request):
         queryset = Detection.objects.filter(
             run=run,
             accepted=False,
+            rejection_reason__isnull=True,
             source_name__isnull=True,
             n_pix__gte=300,
             rel__gte=0.7,
@@ -550,19 +552,35 @@ def manual_inspection_detection_view(request):
         url_base = reverse("inspect_detection")
         url_params = f"run_id={run.id}&detection_id="
 
-        if "Accept" in body["action"]:
-            logging.info(
-                f"Marking detection {detection.name} as an accepted detection."
-            )
-            logging.debug(detection.__dict__)
-            detection.accepted = True
-            detection.save()
+        action = request.POST.get("action")
+        rejection_reasons = {
+            "Reject": "noise",
+            "RFI": "rfi",
+        }
+        if action == "Accept" or action in rejection_reasons:
+            with transaction.atomic():
+                detection = Detection.objects.select_for_update().get(id=detection.id)
+                if action == "Accept":
+                    logging.info(
+                        f"Marking detection {detection.name} as an accepted detection."
+                    )
+                    detection.accepted = True
+                    detection.rejection_reason = None
+                else:
+                    rejection_reason = rejection_reasons[action]
+                    logging.info(
+                        f"Rejecting detection {detection.name} as {rejection_reason}."
+                    )
+                    detection.accepted = False
+                    detection.rejection_reason = rejection_reason
+                logging.debug(detection.__dict__)
+                detection.save(update_fields=["accepted", "rejection_reason"])
 
-            tag_select = request.POST["tag_select"]
-            tag_create = str(request.POST["tag_create"])
-            if (tag_select != "None") or (tag_create != ""):
-                _add_tag(request, detection)
-            _add_comment(request, detection)
+                tag_select = request.POST["tag_select"]
+                tag_create = str(request.POST["tag_create"])
+                if (tag_select != "None") or (tag_create != ""):
+                    _add_tag(request, detection)
+                _add_comment(request, detection)
             url = handle_next(request, queryset, idx, url_base, url_params)
             return HttpResponseRedirect(url)
 
@@ -799,7 +817,10 @@ def external_conflict_view(request):
                 logging.info(f"De-selecting detection {ex_c.detection}")
                 ex_c.detection.source_name = None
                 ex_c.detection.accepted = False
-                ex_c.detection.save()
+                ex_c.detection.rejection_reason = None
+                ex_c.detection.save(
+                    update_fields=["source_name", "accepted", "rejection_reason"]
+                )
 
                 # Remove external conflicts
                 logging.info(

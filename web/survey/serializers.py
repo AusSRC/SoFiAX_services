@@ -40,6 +40,7 @@ class TileSerializer(serializers.ModelSerializer):
 
 class SourceExtractionRegionSerializer(serializers.ModelSerializer):
     sbids = serializers.SerializerMethodField('get_sbids')
+
     class Meta:
         model = SourceExtractionRegion
         fields = ["id", "name", "ra_deg", "dec_deg", "status", "sbids", "complete", "scheduled"]
