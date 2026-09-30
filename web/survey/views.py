@@ -460,14 +460,13 @@ def manual_inspection_detection_view(request):
             img_src = product_summary_image(product, size=(12, 9))
 
         properties = {
-            'RA': round(detection.l, 4) if detection.l is not None else None,
-            'Dec': round(detection.b, 4) if detection.b is not None else None,
-            'freq [MHz]': round(detection.freq / 10**6, 2),
-            'v_opt': round(299792.458 * (1.42040575e+9 / detection.freq - 1.0), 2),
-            'f_sum': round(detection.f_sum, 2),
-            'rel': round(detection.rel, 2),
-            'rms [mJy]': round(detection.rms * 10**3, 2),
-            'snr': round(detection.f_sum / detection.err_f_sum, 2),
+            'Glong[deg]': round(detection.l, 4) if detection.l is not None else None,
+            'Glat[deg]': round(detection.b, 4) if detection.b is not None else None,
+            'Peak_flux[Jy]': round(detection.f_max, 2),
+            'Vel_peak[km/s]': round(299792.458 * (1.42040575e+9 / float(detection.freq_peak) - 1.0), 2),
+            'Vel_range[km/s]': round(299792.458 * (1.42040575e+9 / float(detection.freq_peak) - 1.0), 2),
+            'RMS[mJy]': round(detection.rms * 10**3, 2),
+            'SNR': round(detection.f_sum / detection.err_f_sum, 2),
         }
 
         links = {}

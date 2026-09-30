@@ -595,8 +595,8 @@ class AcceptedDetectionAdmin(ModelAdmin):
     list_per_page = 50
     model = AcceptedDetection
     readonly_fields = (
-        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum',
-        'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
+        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak',
+        'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR', 'detection_products_download'
     )
     exclude = [
         'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
@@ -627,35 +627,33 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def display_ra(self, obj):
         return round(obj.l_peak, 4)
-    display_ra.short_description = 'ra_peak'
+    display_ra.short_description = 'Glong[deg]'
 
     def display_dec(self, obj):
         return round(obj.b_peak, 4)
-    display_dec.short_description = 'dec_peak'
+    display_dec.short_description = 'Glat[deg]'
 
-    def display_freq(self, obj):
-        return round(obj.freq_peak, 4)
-    display_freq.short_description = 'freq_peak'
+    def display_f_peak(self, obj):
+        return round(obj.f_max, 4)
+    display_f_peak.short_description = 'Peak_flux[Jy]'
 
-    def display_f_sum(self, obj):
-        return round(obj.f_sum, 4)
-    display_f_sum.short_description = 'f sum'
+    def display_vel_peak(self, obj):
+        # TODO: update this to use the correct velocity calculation
+        return round(299792.458 * (1.42040575e+9 / float(obj.freq_peak) - 1.0), 2),
+    display_vel_peak.short_description = 'Vel_peak[km/s]'
 
-    def display_ell_maj(self, obj):
-        return round(obj.ell_maj, 4)
-    display_ell_maj.short_description = 'ell maj'
+    def display_vel_range(self, obj):
+        # TODO: update this to use the correct velocity calculation
+        return round(299792.458 * (1.42040575e+9 / float(obj.freq_peak) - 1.0), 2),
+    display_vel_range.short_description = 'Vel_range[km/s]'
 
-    def display_ell_min(self, obj):
-        return round(obj.ell_min, 4)
-    display_ell_min.short_description = 'ell min'
+    def display_RMS(self, obj):
+        return round(obj.rms, 4)
+    display_RMS.short_description = 'RMS[mJy]'
 
-    def display_w20(self, obj):
-        return round(obj.w20, 4)
-    display_w20.short_description = 'w20'
-
-    def display_w50(self, obj):
-        return round(obj.w50, 4)
-    display_w50.short_description = 'w50'
+    def display_SNR(self, obj):
+        return round(obj.f_sum / obj.err_f_sum, 4) if obj.err_f_sum else None
+    display_SNR.short_description = 'SNR'
 
     def deselect(self, request, queryset):
         with transaction.atomic():
@@ -682,11 +680,12 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
-                   'display_w20', 'display_w50'
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak', \
+                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR'
+
         else:
-            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', \
-                   'display_ell_min', 'display_w20', 'display_w50'
+            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_f_peak' \
+                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
@@ -744,8 +743,8 @@ class RejectedDetectionAdmin(ModelAdmin):
     list_per_page = 50
     model = RejectedDetection
     readonly_fields = (
-        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum',
-        'display_ell_maj', 'display_ell_min', 'display_w20', 'display_w50', 'detection_products_download'
+        'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak',
+        'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR', 'detection_products_download'
     )
     exclude = [
         'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
@@ -776,35 +775,33 @@ class RejectedDetectionAdmin(ModelAdmin):
 
     def display_ra(self, obj):
         return round(obj.l_peak, 4)
-    display_ra.short_description = 'ra_peak'
+    display_ra.short_description = 'Glong[deg]'
 
     def display_dec(self, obj):
         return round(obj.b_peak, 4)
-    display_dec.short_description = 'dec_peak'
+    display_dec.short_description = 'Glat[deg]'
 
-    def display_freq(self, obj):
-        return round(obj.freq_peak, 4)
-    display_freq.short_description = 'freq_peak'
+    def display_f_peak(self, obj):
+        return round(obj.f_max, 4)
+    display_f_peak.short_description = 'Peak_flux[Jy]'
 
-    def display_f_sum(self, obj):
-        return round(obj.f_sum, 4)
-    display_f_sum.short_description = 'f sum'
+    def display_vel_peak(self, obj):
+        # TODO: update this to use the correct velocity calculation
+        return round(299792.458 * (1.42040575e+9 / float(obj.freq_peak) - 1.0), 2),
+    display_vel_peak.short_description = 'Vel_peak[km/s]'
 
-    def display_ell_maj(self, obj):
-        return round(obj.ell_maj, 4)
-    display_ell_maj.short_description = 'ell maj'
+    def display_vel_range(self, obj):
+        # TODO: update this to use the correct velocity calculation
+        return round(299792.458 * (1.42040575e+9 / float(obj.freq_peak) - 1.0), 2),
+    display_vel_range.short_description = 'Vel_range[km/s]'
 
-    def display_ell_min(self, obj):
-        return round(obj.ell_min, 4)
-    display_ell_min.short_description = 'ell min'
+    def display_RMS(self, obj):
+        return round(obj.rms, 4)
+    display_RMS.short_description = 'RMS[mJy]'
 
-    def display_w20(self, obj):
-        return round(obj.w20, 4)
-    display_w20.short_description = 'w20'
-
-    def display_w50(self, obj):
-        return round(obj.w50, 4)
-    display_w50.short_description = 'w50'
+    def display_SNR(self, obj):
+        return round(obj.f_sum / obj.err_f_sum, 4) if obj.err_f_sum else None
+    display_SNR.short_description = 'SNR'
 
     def deselect(self, request, queryset):
         with transaction.atomic():
@@ -831,11 +828,12 @@ class RejectedDetectionAdmin(ModelAdmin):
 
     def get_list_display(self, request):
         if request.GET:
-            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', 'display_ell_min', \
-                   'display_w20', 'display_w50'
+            return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak', \
+                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR'
+
         else:
-            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_freq', 'display_f_sum', 'display_ell_maj', \
-                   'display_ell_min', 'display_w20', 'display_w50'
+            return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_f_peak' \
+                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR'
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
