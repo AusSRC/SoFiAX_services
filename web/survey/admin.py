@@ -24,6 +24,7 @@ from survey.models import Detection, UnresolvedDetection, RejectedDetection, Acc
 
 from .tasks import download_accepted_sources, download_summaries_for_run
 
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -48,6 +49,18 @@ def sanity_check(request, queryset):
                     messages.error(request, msg)
     except Exception as e:
         messages.error(request, str(e))
+
+
+def render_summary(obj):
+    # Obj here is a detection object, we want to render the summary image and link to the full size image
+    img = obj.summary_image()
+    if img is None:
+        return None
+    url = reverse('summary_image')
+    return format_html(
+        "<div>{}</div><a href='{}?run={}' target='_blank'>Open full size</a>",
+        img, url, obj.id
+    )
 
 
 class TagAdmin(ModelAdmin):
@@ -267,8 +280,7 @@ class DetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
@@ -455,8 +467,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
@@ -596,7 +607,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     model = AcceptedDetection
     readonly_fields = (
         'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak',
-        'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR', 'detection_products_download'
+        'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR', 'detection_products_download', 'display_CARTA'
     )
     exclude = [
         'x', 'y', 'z', 'f_sum', 'ell_min', 'ell_maj', 'w20', 'w50', 'wm50',
@@ -655,6 +666,11 @@ class AcceptedDetectionAdmin(ModelAdmin):
         return round(obj.f_sum / obj.err_f_sum, 4) if obj.err_f_sum else None
     display_SNR.short_description = 'SNR'
 
+    def display_CARTA(self, obj):
+        url = f"https://vis.pawsey.org.au/carta?file={obj.instance.parameters['input.data']}"
+        return format_html("<a href='{}' target='_blank'>CARTA</a>", url)
+    display_CARTA.short_description = 'CARTA'
+
     def deselect(self, request, queryset):
         with transaction.atomic():
             for d in queryset:
@@ -671,8 +687,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdmin, self).get_queryset(request).select_related('run')
@@ -681,7 +696,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     def get_list_display(self, request):
         if request.GET:
             return 'id', 'summary', 'run', 'source_name', 'name', 'tags', 'comments', 'display_ra', 'display_dec', 'display_f_peak', \
-                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR'
+                'display_vel_peak', 'display_vel_range', 'display_RMS', 'display_SNR', 'display_CARTA'
 
         else:
             return 'id', 'run', 'name', 'display_ra', 'display_dec', 'display_f_peak' \
@@ -819,8 +834,7 @@ class RejectedDetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?run={} target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_queryset(self, request):
         qs = super(RejectedDetectionAdmin, self).get_queryset(request).select_related('run')
