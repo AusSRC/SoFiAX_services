@@ -22,7 +22,7 @@ from survey.models import Detection, UnresolvedDetection, RejectedDetection, Acc
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
 
-from .tasks import download_accepted_sources, download_summaries_for_run
+from .tasks import download_accepted_sources, download_summaries_for_run, download_accepted_sources_catalog
 
 
 logging.basicConfig(level=logging.INFO)
@@ -618,7 +618,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    actions = ['deselect', 'download_products']
+    actions = ['deselect', 'download_products', 'download_catalog']
     fk_name = 'run'
 
     def has_delete_permission(self, request, obj=None):
@@ -678,6 +678,12 @@ class AcceptedDetectionAdmin(ModelAdmin):
                 d.save()
         return len(queryset)
     deselect.short_description = 'Deselect detection'
+
+    @admin.action(description='Download Catalog')
+    def download_catalog(self, request, queryset):
+        task_id = download_accepted_sources_catalog(request, queryset)
+        return redirect('/admin/survey/task/')
+    download_catalog.acts_on_all = True
 
     @admin.action(description='Download Products')
     def download_products(self, request, queryset):

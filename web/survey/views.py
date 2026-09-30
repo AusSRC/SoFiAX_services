@@ -117,7 +117,7 @@ def task_file_download(request):
         return HttpResponse('task id does not exist.', status=400)
 
     task = Task.objects.filter(id=task_id).first()
-    if task.func not in ['download_accepted_sources', 'download_summaries']:
+    if task.func not in ['download_accepted_sources', 'download_accepted_sources_catalog', 'download_summaries']:
         return HttpResponse('No data.', status=404)
 
     if task.state != 'COMPLETED':
