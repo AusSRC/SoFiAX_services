@@ -3,6 +3,7 @@ import math
 import json
 import cv2
 import numpy as np
+import ast
 import binascii
 import logging
 from PIL import Image
@@ -18,7 +19,7 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.utils.html import format_html
 from django.conf import settings
-
+from django.core.exceptions import ValidationError
 
 from survey.utils.fields import PostgresDecimalField
 from survey.utils.plot import product_summary_image
@@ -77,7 +78,7 @@ class FileTaskReturn(TaskReturn):
 
     def get_link(self, task):
         url = reverse('task_file_download')
-        return format_html(f"<a href='{url}?id={task.id}'>Download</a>")
+        return format_html("<a href='{}?id={}'>Download</a>", url, task.id)
 
     def cleanup(self):
         for f in self.return_values:
@@ -230,6 +231,7 @@ class Detection(models.Model):
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
     accepted = models.BooleanField(default=False)
+    rejection_reason = models.CharField(max_length=255, blank=True, null=True)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
@@ -512,16 +514,34 @@ class Observation(models.Model):
     ra = models.FloatField()
     dec = models.FloatField()
     rotation = models.FloatField(null=True)
-    description = models.TextField(null=True)
+    description = models.TextField(null=True, blank=True)
     phase = models.CharField(max_length=64, null=True)
-    image_cube_file = models.TextField(null=True)
-    weights_cube_file = models.TextField(null=True)
+    image_cube_file = models.TextField(null=True, blank=True)
+    weights_cube_file = models.TextField(null=True, blank=True)
     quality = models.CharField(max_length=64, null=True)
     status = models.CharField(max_length=64, null=True)
     scheduled = models.BooleanField(null=True)
+    accepted = models.BooleanField(null=True, blank=True)
+    flags = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        """Validate the format of the flags field, which should be a list of regions defined by (x1,x2,y1,y2,z1,z2)"""
+        # TODO: refactor into common util function
+        try:
+            flags = self.flags
+            region_list = flags.split(';')
+            region_list = [ast.literal_eval(r.strip()) for r in flags.split(';') if r.strip()]
+        except (ValueError, SyntaxError):
+            raise ValidationError('Invalid format for flags field. Use (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...')
+        for region in region_list:
+            if len(region) != 6:
+                raise ValidationError('Flag region should have 6 values: (x1,x2,y1,y2,z1,z2) separeted by semicolon')
+            x1, x2, y1, y2, z1, z2 = region
+            if not (x1 < x2 and y1 < y2 and z1 < z2):
+                raise ValidationError('Flag region values should satisfy x1 < x2, y1 < y2, z1 < z2')
 
     class Meta:
         managed = False
@@ -627,7 +647,7 @@ if settings.PROJECT == 'WALLABY':
 
     class KinematicModel(models.Model):
         id = models.BigAutoField(primary_key=True)
-        name = models.ForeignKey('Detection', models.DO_NOTHING)
+        detection = models.ForeignKey(Detection, models.DO_NOTHING)
         ra = models.FloatField()
         dec = models.FloatField()
         freq = models.FloatField()
@@ -663,3 +683,97 @@ if settings.PROJECT == 'WALLABY':
         class Meta:
             managed = False
             db_table = 'kinematic_model'
+
+    class KinematicModel_3KIDNAS(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        detection = models.ForeignKey(Detection, models.DO_NOTHING)
+        team_release = models.CharField(max_length=255)
+        team_release_kin = models.CharField(max_length=255)
+        vsys_model = models.FloatField()
+        e_vsys_model = models.FloatField()
+        x_model = models.FloatField()
+        e_x_model = models.FloatField()
+        y_model = models.FloatField()
+        e_y_model = models.FloatField()
+        ra_model = models.FloatField()
+        e_ra_model = models.FloatField()
+        dec_model = models.FloatField()
+        e_dec_model = models.FloatField()
+        inc_model = models.FloatField()
+        e_inc_model = models.FloatField()
+        pa_model = models.FloatField()
+        e_pa_model = models.FloatField()
+        pa_model_g = models.FloatField()
+        e_pa_model_g = models.FloatField()
+        vdisp_model = models.FloatField()
+        e_vdisp_model = models.FloatField()
+        rad = models.CharField(max_length=255)
+        vrot_model = models.CharField(max_length=255)
+        e_vrot_model = models.CharField(max_length=255)
+        rad_sd = models.CharField(max_length=255)
+        sd_model = models.CharField(max_length=255)
+        e_sd_model = models.CharField(max_length=255)
+        sdmethodflag = models.IntegerField()
+        rhi_flag = models.FloatField()
+        rhi_as = models.FloatField()
+        rhi_low_as = models.FloatField()
+        rhi_high_as = models.FloatField()
+        dist_model = models.FloatField()
+        rhi_kpc = models.FloatField()
+        rhi_low_kpc = models.FloatField()
+        rhi_high_kpc = models.FloatField()
+        vhi_flag = models.IntegerField()
+        vhi = models.FloatField()
+        e_vhi = models.FloatField()
+        kflag = models.IntegerField()
+        kinver = models.CharField(max_length=255)
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model_3kidnas'
+
+    class WKAPP_Product(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
+        baroloinput = models.BinaryField(blank=True, null=True)
+        barolomod = models.BinaryField(blank=True, null=True)
+        barolosurfdens = models.BinaryField(blank=True, null=True)
+        diagnosticplot = models.BinaryField(blank=True, null=True)
+        diffcube = models.BinaryField(blank=True, null=True)
+        fatinput = models.BinaryField(blank=True, null=True)
+        fatmod = models.BinaryField(blank=True, null=True)
+        fullresmodcube = models.BinaryField(blank=True, null=True)
+        fullresproccube = models.BinaryField(blank=True, null=True)
+        modcube = models.BinaryField(blank=True, null=True)
+        procdata = models.BinaryField(blank=True, null=True)
+
+        class Meta:
+            managed = False
+            db_table = 'wkapp_product'
+
+    class WRKP_Product(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        kinematic_model_3kidnas = models.ForeignKey(KinematicModel_3KIDNAS, db_column='kinematic_model_3kidnas', to_field='id', on_delete=models.CASCADE)
+        bootstrapfits = models.BinaryField(blank=True, null=True)
+        diagnosticplot = models.BinaryField(blank=True, null=True)
+        diffcube = models.BinaryField(blank=True, null=True)
+        flag = models.BinaryField(blank=True, null=True)
+        modcube = models.BinaryField(blank=True, null=True)
+        procdata = models.BinaryField(blank=True, null=True)
+        pvmajordata = models.BinaryField(blank=True, null=True)
+        pvmajormod = models.BinaryField(blank=True, null=True)
+        pvminordata = models.BinaryField(blank=True, null=True)
+        pvminormod = models.BinaryField(blank=True, null=True)
+
+        class Meta:
+            managed = False
+            db_table = 'wrkp_product'
+
+    class KinematicModelState(models.Model):
+        id = models.BigAutoField(primary_key=True)
+        detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+        attempted = models.IntegerField()
+
+        class Meta:
+            managed = False
+            db_table = 'kinematic_model_state'

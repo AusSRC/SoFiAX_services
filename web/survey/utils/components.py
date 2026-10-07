@@ -10,6 +10,20 @@ def get_survey_components():
     return components_dict
 
 
+def get_survey_component_by_name(in_name):
+    """Return a SurveyComponent object by its name."""
+    return SurveyComponent.objects.filter(name=in_name).first()
+
+
+def get_survey_component_runs():
+    """Return a list of all runs associated with survey components."""
+    survey_component_runs = []
+    survey_components = get_survey_components()
+    for runs in survey_components.values():
+        survey_component_runs += runs
+    return survey_component_runs
+
+
 def get_release_name(name):
     """Return name of source depending on the project.
 

@@ -11,6 +11,10 @@ ALTER DATABASE surveydb OWNER TO "admin";
 CREATE USER "survey_user";
 ALTER USER "survey_user" WITH PASSWORD 'survey_user';
 
+-- Create CIRADA user
+CREATE USER "cirada";
+ALTER USER "cirada" WITH PASSWORD 'cirada';
+
 -- Create VO user
 CREATE USER "gavo";
 ALTER USER "gavo" WITH PASSWORD 'gavo';

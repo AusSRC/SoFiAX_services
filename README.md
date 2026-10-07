@@ -63,7 +63,6 @@ docker-compose up --build -d survey_web
 
 This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
 
-
 ```
 docker exec -it survey_web /bin/bash
 ```
@@ -98,3 +97,10 @@ chown -R gavo:gavo /var/gavo/
 docker-compose up --build -d survey_nginx
 ```
 
+## Dependent services
+
+On changes to the deployment of these services you will also need to update the following configuration items:
+
+* `database.env` on Setonix (WALLABY pipeline)
+* `sofiax.ini` on Setonix (WALLABY pipeline)
+* `wallaby.ini` on AusSRC workflow service (triggers)

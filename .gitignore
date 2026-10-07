@@ -105,6 +105,11 @@ venv.bak/
 
 # other
 secrets
-db
 migrations
 ssl
+
+# Local credentials and patch backups
+*.pass
+.local_pass
+*.orig
+db/*.env

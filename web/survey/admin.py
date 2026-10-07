@@ -1,6 +1,7 @@
 import math
 import time
 import logging
+import re
 from random import choice
 
 from django.contrib import admin, messages
@@ -14,13 +15,16 @@ from django.db.models.aggregates import Count
 from django.db.models import Q
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
+from survey.utils.constants import RUN_NAME_TO_SURVEY_COMPONENT
 from survey.utils.task import task
 from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
-from survey.utils.components import get_survey_components, get_release_name
+from survey.utils.components import get_survey_components, get_survey_component_by_name, \
+    get_survey_component_runs, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
 from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
-    Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion
+    Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion, \
+    KinematicModel, KinematicModel_3KIDNAS, KinematicModelState
 
 from .tasks import download_accepted_sources, download_summaries_for_run
 
@@ -84,12 +88,16 @@ class CommentAdmin(ModelAdmin):
 
 
 class ObservationAdmin(ModelAdmin):
-    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled']
+    """Flag format: (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...
+
+    """
+    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'accepted', 'flags']
+    readonly_fields = ['id', 'name', 'ra', 'dec', 'rotation', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'description', 'image_cube_file', 'weights_cube_file']
     search_fields = ['name', 'sbid', 'quality', 'status', 'scheduled']
-    ordering = ('quality',)
+    ordering = ('-sbid',)
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return True
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -98,15 +106,18 @@ class ObservationAdmin(ModelAdmin):
         return False
 
     def get_queryset(self, request):
+        """Show only Full Survey fields that have been observed
+
+        """
         qs = super(ObservationAdmin, self).get_queryset(request)
-        return qs.filter(phase='Full Survey')
+        return qs.filter(phase='Full Survey', sbid__isnull=False)
 
     def run_link(self, obj):
         if not obj.run:
             return '-'
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_run_changelist')
-        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+        return format_html("<a href='{}?q={}'>{}</a>", url, obj.run.name, obj.run.name)
 
     run_link.short_description = 'Run'
 
@@ -172,7 +183,7 @@ class SourceExtractionRegionAdmin(ModelAdmin):
             return '-'
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_run_changelist')
-        return format_html(f"<a href='{url}?q={obj.run.name}'>{obj.run.name}</a>")
+        return format_html("<a href='{}?q={}'>{}</a>", url, obj.run.name, obj.run.name)
 
     run_link.short_description = 'Run'
 
@@ -268,7 +279,7 @@ class DetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
@@ -279,7 +290,7 @@ class DetectionAdmin(ModelAdmin):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -306,6 +317,8 @@ class DetectionAdmin(ModelAdmin):
                 # Create source and source detection entries
                 for d in detect_list:
                     d.accepted = True
+                    d.rejection_reason = None
+                    d.save(update_fields=['accepted', 'rejection_reason'])
                 messages.info(request, f"Accepted {len(detect_list)} detections.")
                 return
         except Exception as e:
@@ -335,7 +348,7 @@ class DetectionAdmin(ModelAdmin):
         return len(queryset)
     add_comment.short_description = 'Add comments'
 
-    def lookup_allowed(self, lookup, value):
+    def lookup_allowed(self, lookup, value, request=None):
         return True
 
 
@@ -397,7 +410,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -456,7 +469,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
@@ -469,7 +482,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
             return 'id', 'run', 'name', 'display_x', 'display_y', 'display_z', 'display_f_sum', 'display_ell_maj', \
                    'display_ell_min', 'display_w20', 'display_w50', 'moment0_image', 'spectrum_image'
 
-    def lookup_allowed(self, lookup, value):
+    def lookup_allowed(self, lookup, value, request=None):
         if lookup is None:
             return True
         elif lookup != 'run':
@@ -668,7 +681,8 @@ class AcceptedDetectionAdmin(ModelAdmin):
         with transaction.atomic():
             for d in queryset:
                 d.accepted = False
-                d.save()
+                d.rejection_reason = None
+                d.save(update_fields=['accepted', 'rejection_reason'])
         return len(queryset)
     deselect.short_description = 'Deselect detection'
 
@@ -681,7 +695,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def summary(self, obj):
         url = reverse('summary_image')
-        return format_html(f"<a href='{url}?id={obj.id}' target='_blank'>{obj.summary_image()}</a>")
+        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdmin, self).get_queryset(request).select_related('run')
@@ -697,7 +711,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
@@ -737,11 +751,11 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
 
     def detection_products_download(self, obj):
         url = reverse('detection_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
-    def get_queryset(self, request):
+    def get_queryset(self, request):  # TODO: Why are there two get_queryset definitions?
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
         return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
 
@@ -767,7 +781,7 @@ class InstanceAdmin(ModelAdmin):
 
     def instance_products_download(self, obj):
         url = reverse('instance_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     instance_products_download.short_description = 'Products'
 
@@ -790,7 +804,7 @@ class InstanceAdminInline(ModelAdminInline):
 
     def instance_products_download(self, obj):
         url = reverse('instance_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     instance_products_download.short_description = 'Products'
 
@@ -810,7 +824,7 @@ class RunAdmin(ModelAdmin):
     ordering = ('-created',)
     search_fields = ['name']
     actions = ['_download_summaries', '_internal_cross_match', '_external_cross_match',
-               '_release_sources', '_delete_run']
+               '_release_sources', '_auto_assign_to_component', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -820,34 +834,34 @@ class RunAdmin(ModelAdmin):
 
     def run_products_download(self, obj):
         url = reverse('run_products')
-        return format_html(f"<a href='{url}?id={obj.id}'>Products</a>")
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
     run_products_download.short_description = 'Products'
 
     def run_catalog(self, obj):
         url = reverse('run_catalog')
-        return format_html(f"<a href='{url}?id={obj.id}'>Catalog</a>")
+        return format_html("<a href='{}?id={}'>Catalog</a>", url, obj.id)
     run_catalog.short_description = 'Catalog'
 
     def run_unresolved_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_unresolveddetection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Unresolved Detections</a>")
+        return format_html("<a href='{}?run={}'>Unresolved Detections</a>", url, obj.id)
     run_unresolved_detections.short_description = 'Unresolved Detections'
 
     def run_accepted_detections(self, obj):
         opts = self.model._meta
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
-        return format_html(f"<a href='{url}?run={obj.id}'>Accepted Detections</a>")
+        return format_html("<a href='{}?run={}'>Accepted Detections</a>", url, obj.id)
     run_accepted_detections.short_description = 'Accepted Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>Manual inspection</a>")
+        return format_html("<a href='{}'>Manual inspection</a>", url)
     run_manual_inspection.short_description = 'Manual inspection'
 
     def run_external_conflicts(self, obj):
         url = f"{reverse('external_conflict')}?run_id={obj.id}"
-        return format_html(f"<a href='{url}'>External conflicts</a>")
+        return format_html("<a href='{}'>External conflicts</a>", url)
     run_external_conflicts.short_description = 'External conflicts'
 
     def _is_match(self, d1, d2, thresh_spat=90.0, thresh_spec=2e+6):
@@ -886,6 +900,45 @@ class RunAdmin(ModelAdmin):
             messages.error(request, str(e))
 
     _download_summaries.short_description = 'Download Summaries'
+
+    def auto_assign_run_to_component(self, request, queryset):
+        """Auto assign runs to survey components based on the run name."""
+        survey_component_runs = get_survey_component_runs()
+        for run in queryset:
+            if run.name in survey_component_runs:
+                messages.error(request, f"Run '{run.name}' already has an existing\
+                    survey component.")
+                continue
+            match_found = False
+            for run_pattern in RUN_NAME_TO_SURVEY_COMPONENT:
+                if re.match(run_pattern, run.name):
+                    match_found = True
+                    component_name = RUN_NAME_TO_SURVEY_COMPONENT.get(run_pattern)
+                    with transaction.atomic():
+                        component = get_survey_component_by_name(component_name)
+                        if component:
+                            SurveyComponentRun.objects.create(run=run, sc=component)
+                            message = f"Successfully auto assigned run '{run.name}' to\
+                                survey component '{component.name}'"
+                            messages.info(request, message)
+                            logging.info(message)
+                        else:
+                            messages.error(request, f"Unable to auto-assign run '{run.name}' to\
+                                survey component '{component_name}'.\
+                                Survey component '{component_name}' does not exist.")
+                    # No need to look for another match
+                    break
+            if match_found is False:
+                messages.error(request, f"Run '{run.name}' does not match any known\
+                    survey component patterns.")
+
+    def _auto_assign_to_component(self, request, queryset):
+        try:
+            self.auto_assign_run_to_component(request, queryset)
+        except Exception as e:
+            messages.error(request, str(e))
+
+    _auto_assign_to_component.short_description = 'Auto-assign to Survey Component'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
     def delete_run(self, request, queryset):
@@ -974,10 +1027,7 @@ class RunAdmin(ModelAdmin):
 
         # Check to make sure run is in survey_components
         run = queryset.first()
-        survey_component_runs = []
-        survey_components = get_survey_components()
-        for runs in survey_components.values():
-            survey_component_runs += runs
+        survey_component_runs = get_survey_component_runs()
 
         if run.name not in survey_component_runs:
             raise Exception("This run is not in the survey component list.")
@@ -1020,13 +1070,17 @@ class RunAdmin(ModelAdmin):
                 delete_detections = []
                 rename_detections = []
 
-                # Compare against close detections (accepted) from other runs.
+                # Compare against close detections (accepted) from other runs in the same survey component
                 # TODO: Fix this threshold for the poles with delta RA (cosine factor)
+                this_sc_id = SurveyComponentRun.objects.get(run=run).sc_id
+                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=this_sc_id)]
+                sc_runs = Run.objects.filter(id__in=sc_run_ids)
                 close_detections = Detection.objects.filter(
                     accepted=True,
                     source_name__isnull=False,
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
+                    run__in=sc_runs
                 ).exclude(run=run)
 
                 for d_ext in list(set(close_detections)):
@@ -1095,9 +1149,11 @@ class RunAdmin(ModelAdmin):
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
-            # Release name check
+            # Release name check for detections in the same survey component
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(run=run)])
+            sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
+            sc_runs = Run.objects.filter(id__in=sc_run_ids)
+            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False, run__in=sc_runs).exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
@@ -1170,12 +1226,17 @@ class RunAdmin(ModelAdmin):
                     else:
                         logging.info(f'Tag already created for Source {d.source_name}')
 
+                    # Mark detections for needing kinematic modelling
+                    KinematicModelState.objects.create(detection=d, attempted=0)
+                    logging.debug('Created kinematic_model_state entry for detection %s (%i)' % (d.source_name, d.id))
+
                 # Delete sources
                 logging.info(f'De-selecting remaining detections {len(reject_detections)}')
                 for idx, d in enumerate(reject_detections):
                     logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
                     d.accepted = False
-                    d.save()
+                    d.rejection_reason = None
+                    d.save(update_fields=['accepted', 'rejection_reason'])
 
                 logging.info("Release completed")
 
@@ -1247,6 +1308,43 @@ class TaskAdmin(ModelAdmin):
     get_return_link.short_description = 'Link'
 
 
+class KinematicModel_Admin(ModelAdmin):
+    model = KinematicModel
+    list_display = (
+        'detection_id', 'ra', 'dec', 'freq', 'team_release', 'team_release_kin', 'vsys_model', 'e_vsys_model', 'x_model',
+        'e_x_model', 'y_model', 'e_y_model', 'ra_model', 'e_ra_model', 'dec_model', 'e_dec_model', 'inc_model',
+        'e_inc_model', 'pa_model', 'e_pa_model', 'pa_model_g', 'e_pa_model_g', 'qflag_model', 'rad', 'vrot_model',
+        'e_vrot_model', 'e_vrot_model_inc', 'rad_sd', 'sd_model', 'e_sd_model', 'sd_fo_model', 'e_sd_fo_model_inc',
+        'kinematic_model_download'
+    )
+    readonly_fields = list_display
+
+    def kinematic_model_download(self, obj):
+        url = reverse('wkapp_products')
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
+
+    kinematic_model_download.short_description = 'WKAPP Products'
+
+
+class KinematicModel_3KIDNAS_Admin(ModelAdmin):
+    model = KinematicModel_3KIDNAS
+    list_display = (
+        'detection_id', 'team_release', 'team_release_kin', 'vsys_model', 'e_vsys_model', 'x_model',
+        'e_x_model', 'y_model', 'e_y_model', 'ra_model', 'e_ra_model', 'dec_model', 'e_dec_model',
+        'inc_model', 'e_inc_model', 'pa_model', 'e_pa_model', 'pa_model_g', 'e_pa_model_g', 'vdisp_model',
+        'e_vdisp_model', 'rad', 'vrot_model', 'e_vrot_model', 'rad_sd', 'sd_model', 'e_sd_model', 'sdmethodflag',
+        'rhi_flag', 'rhi_as', 'rhi_low_as', 'rhi_high_as', 'dist_model', 'rhi_kpc', 'rhi_low_kpc', 'rhi_high_kpc',
+        'vhi_flag', 'vhi', 'e_vhi', 'kflag', 'kinver', 'kinematic_model_3kidnas_download'
+    )
+    readonly_fields = list_display
+
+    def kinematic_model_3kidnas_download(self, obj):
+        url = reverse('wrkp_products')
+        return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
+
+    kinematic_model_3kidnas_download.short_description = 'WRKP Products'
+
+
 admin.site.register(Run, RunAdmin)
 admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
@@ -1255,14 +1353,13 @@ admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 
-# NOTE: TBA
-# if settings.KINEMATICS:
-#    admin.site.register(KinematicModel, KinematicModelAdmin)
 
 if settings.PROJECT == 'WALLABY':
     admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
     admin.site.register(SurveyComponent, SurveyComponentAdmin)
     admin.site.register(Observation, ObservationAdmin)
     admin.site.register(Tile, TileAdmin)
+    admin.site.register(KinematicModel, KinematicModel_Admin)
+    admin.site.register(KinematicModel_3KIDNAS, KinematicModel_3KIDNAS_Admin)
 
 admin.site.register(Task, TaskAdmin)

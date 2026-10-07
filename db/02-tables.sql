@@ -45,7 +45,7 @@ CREATE TABLE survey.detection (
     run_id bigint NOT NULL,
     name character varying NOT NULL,
     source_name character varying NULL,
-    access_url character varying DEFAULT 'https://survey.aussrc.org/survey/vo/dl/dlmeta?ID='::character varying NOT NULL,
+    access_url character varying DEFAULT 'https://wallaby.aussrc.org/survey/vo/dl/dlmeta?ID='::character varying NOT NULL,
     access_format character varying DEFAULT 'application/x-votable+xml;content=datalink'::character varying NOT NULL,
     x double precision NOT NULL,
     y double precision NOT NULL,
@@ -57,9 +57,9 @@ CREATE TABLE survey.detection (
     z_min numeric NOT NULL,
     z_max numeric NOT NULL,
     n_pix numeric NOT NULL,
-    f_min double precision NOT NULL,
-    f_max double precision NOT NULL,
-    f_sum double precision NOT NULL,
+    f_min double precision,
+    f_max double precision,
+    f_sum double precision,
     rel double precision,
     rms double precision NOT NULL,
     w20 double precision NOT NULL,
@@ -67,9 +67,9 @@ CREATE TABLE survey.detection (
     ell_maj double precision NOT NULL,
     ell_min double precision NOT NULL,
     ell_pa double precision NOT NULL,
-    ell3s_maj double precision NOT NULL,
-    ell3s_min double precision NOT NULL,
-    ell3s_pa double precision NOT NULL,
+    ell3s_maj double precision,
+    ell3s_min double precision,
+    ell3s_pa double precision,
     kin_pa double precision,
     ra double precision,
     "dec" double precision,
@@ -78,10 +78,10 @@ CREATE TABLE survey.detection (
     v_rad double precision,
     v_opt double precision,
     v_app double precision,
-    err_x double precision NOT NULL,
-    err_y double precision NOT NULL,
-    err_z double precision NOT NULL,
-    err_f_sum double precision NOT NULL,
+    err_x double precision,
+    err_y double precision,
+    err_z double precision,
+    err_f_sum double precision,
     freq double precision,
     flag integer,
     unresolved boolean DEFAULT false NOT NULL,
@@ -117,8 +117,9 @@ CREATE TABLE survey.product (
     snr bytea,
     chan bytea,
     spec bytea,
-    pv bytea,
-    plot bytea
+    summary bytea,
+    plot bytea,
+    pv bytea
 )
 WITH (autovacuum_enabled='on');
 ALTER TABLE survey.product ADD FOREIGN KEY ("detection_id") REFERENCES survey.detection ("id") ON DELETE CASCADE;
@@ -175,9 +176,9 @@ ALTER TABLE survey.external_conflict OWNER TO admin;
 
 CREATE TABLE survey.observation (
     id bigserial primary key NOT NULL,
-    run_id bigint NOT NULL,
+    run_id bigint,
     name character varying,
-    sbid bigint NOT NULL,
+    sbid character varying,
     ra numeric NOT NULL,
     "dec" numeric NOT NULL,
     rotation numeric,
@@ -281,6 +282,15 @@ CREATE TABLE survey.task (
     "user" text
 );
 ALTER TABLE survey.task OWNER TO admin;
+
+CREATE TABLE survey.quality_check (
+    id bigserial primary key not null,
+    run_id bigint not null unique,
+    mom0 bytea,
+    frequency bytea
+);
+ALTER TABLE survey.quality_check ADD FOREIGN KEY ("run_id") REFERENCES survey.run ("id") ON DELETE CASCADE;
+ALTER TABLE survey.quality_check OWNER TO admin;
 
 ------------------------------------------------------------------------------
 -- Required extensions

@@ -20,6 +20,14 @@ The resource descriptor `vo.rd` is assembled on startup from `templates/header.r
 
 `core` is always required. To expose a new table add it to a module, or create a new file in `templates/modules` with its own `<data>` element.
 
+## Permissions
+
+It is also necessary to change the permissions of the folder
+
+```
+chown -R gavo:gavo /var/gavo
+```
+
 ## Basic Auth
 
 To set up basic auth you will need to follow the instructions here which are available from the links below
