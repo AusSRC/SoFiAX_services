@@ -1,7 +1,7 @@
-\connect surveydb
+-- WALLABY kinematic model catalogues and products
+-- Tables are created in the first schema of the search_path (see install-modules.sh)
 
--- WKAPP Kinematic model catalogue
-CREATE TABLE survey.kinematic_model (
+CREATE TABLE kinematic_model (
   "id" BIGSERIAL PRIMARY KEY,
   "detection_id" bigint NOT NULL,
   "name" varchar,
@@ -41,11 +41,9 @@ CREATE TABLE survey.kinematic_model (
   "v_rhi" double precision NULL,
   "kinver" varchar NULL
 );
-ALTER TABLE survey.kinematic_model ADD FOREIGN KEY ("detection_id") REFERENCES survey.detection ("id") ON DELETE CASCADE;
+ALTER TABLE kinematic_model ADD FOREIGN KEY ("detection_id") REFERENCES detection ("id") ON DELETE CASCADE;
 
-
--- Kinematic model product files
-CREATE TABLE survey.wkapp_product (
+CREATE TABLE wkapp_product (
   "id" BIGSERIAL PRIMARY KEY,
   "kinematic_model_id" BIGINT NOT NULL,
   "baroloinput" bytea,
@@ -60,11 +58,9 @@ CREATE TABLE survey.wkapp_product (
   "modcube" bytea,
   "procdata" bytea
 );
-ALTER TABLE survey.wkapp_product ADD FOREIGN KEY ("kinematic_model_id") REFERENCES survey.kinematic_model ("id") ON DELETE CASCADE;
+ALTER TABLE wkapp_product ADD FOREIGN KEY ("kinematic_model_id") REFERENCES kinematic_model ("id") ON DELETE CASCADE;
 
-
--- WKAPP Kinematic model catalogue
-CREATE TABLE survey.kinematic_model_3kidnas (
+CREATE TABLE kinematic_model_3kidnas (
   "id" BIGSERIAL PRIMARY KEY,
   "detection_id" bigint NOT NULL,
   "team_release" varchar NOT NULL,
@@ -108,11 +104,9 @@ CREATE TABLE survey.kinematic_model_3kidnas (
   "kflag" integer NOT NULL,
   "kinver" varchar NULL
 );
-ALTER TABLE survey.kinematic_model_3kidnas ADD FOREIGN KEY ("detection_id") REFERENCES survey.detection ("id") ON DELETE CASCADE;
+ALTER TABLE kinematic_model_3kidnas ADD FOREIGN KEY ("detection_id") REFERENCES detection ("id") ON DELETE CASCADE;
 
-
--- 3KIDNAS Kinematic model product files
-CREATE TABLE survey.wrkp_product (
+CREATE TABLE wrkp_product (
   "id" BIGSERIAL PRIMARY KEY,
   "kinematic_model_3kidnas" BIGINT NOT NULL,
   "bootstrapfits" bytea,
@@ -126,4 +120,4 @@ CREATE TABLE survey.wrkp_product (
   "pvminordata" bytea,
   "pvminormod" bytea
 );
-ALTER TABLE survey.wrkp_product ADD FOREIGN KEY ("kinematic_model_3kidnas") REFERENCES survey.kinematic_model_3kidnas ("id") ON DELETE CASCADE;
+ALTER TABLE wrkp_product ADD FOREIGN KEY ("kinematic_model_3kidnas") REFERENCES kinematic_model_3kidnas ("id") ON DELETE CASCADE;

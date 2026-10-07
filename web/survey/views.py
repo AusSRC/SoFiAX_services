@@ -38,7 +38,7 @@ from django.utils.safestring import mark_safe
 
 logging.basicConfig(level=logging.INFO)
 
-PRODUCTS = ["mom0", "mom1", "mom2", "cube", "mask", "chan", "spec"]
+PRODUCTS = ["mom0", "mom1", "mom2", "cube", "mask", "chan", "spec", "pv"]
 KINEMATIC_MODEL_PRODUCTS = [
     "baroloinput",
     "barolomod",
@@ -128,6 +128,8 @@ def instance_products(request):
             tarfile_write(tar, f"{folder}/{name}_mask.fits", product.mask)
             tarfile_write(tar, f"{folder}/{name}_chan.fits", product.chan)
             tarfile_write(tar, f"{folder}/{name}_spec.txt", product.spec)
+            if product.pv is not None:
+                tarfile_write(tar, f"{folder}/{name}_pv.fits", product.pv)
 
     data = fh.getvalue()
     size = len(data)
@@ -209,6 +211,7 @@ def detection_products(request):
                 "mask",
                 "chan",
                 "spec",
+                "pv",
                 "plot",
             )
             .first()
@@ -230,6 +233,8 @@ def detection_products(request):
             tarfile_write(tar, f"{name}_mask.fits", product.mask)
             tarfile_write(tar, f"{name}_chan.fits", product.chan)
             tarfile_write(tar, f"{name}_spec.txt", product.spec)
+            if product.pv is not None:
+                tarfile_write(tar, f"{name}_pv.fits", product.pv)
             if product.plot is not None:
                 tarfile_write(tar, f"{name}_plot.png", product.plot)
 
@@ -262,6 +267,8 @@ def detection_products(request):
         name = pathname2url(name.replace(" ", "_"))
 
         data = getattr(product[0], product_arg)
+        if data is None:
+            return HttpResponse(f"{product_arg} product not found.", status=404)
         size = len(data)
 
         content_type = "image/fits"
@@ -315,6 +322,8 @@ def run_products(request):
             tarfile_write(tar, f"{folder}/{name}_mask.fits", product.mask)
             tarfile_write(tar, f"{folder}/{name}_chan.fits", product.chan)
             tarfile_write(tar, f"{folder}/{name}_spec.txt", product.spec)
+            if product.pv is not None:
+                tarfile_write(tar, f"{folder}/{name}_pv.fits", product.pv)
 
     data = fh.getvalue()
     size = len(data)

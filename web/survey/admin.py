@@ -1354,9 +1354,11 @@ admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 
 
+if 'wallaby_operations' in settings.MODULES:
+    admin.site.register(SurveyComponent, SurveyComponentAdmin)
+
 if settings.PROJECT == 'WALLABY':
     admin.site.register(SourceExtractionRegion, SourceExtractionRegionAdmin)
-    admin.site.register(SurveyComponent, SurveyComponentAdmin)
     admin.site.register(Observation, ObservationAdmin)
     admin.site.register(Tile, TileAdmin)
     admin.site.register(KinematicModel, KinematicModel_Admin)

@@ -15,6 +15,7 @@ if not PROJECT:
 
 AUTH_GROUPS = env("AUTH_GROUPS").split(" ")
 PROJECT = PROJECT.upper()
+MODULES = [m.strip() for m in env("MODULES").split(",") if m.strip()]
 LOCAL = env.bool("LOCAL", default=True)
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env("DJANGO_SECRET_KEY")

@@ -1,5 +1,6 @@
 import uuid
 import tarfile
+import logging
 
 from survey.models import Product, FileTaskReturn
 from survey.utils.task import task
@@ -29,7 +30,12 @@ def download_accepted_sources(request, queryset):
             tarfile_write(tar, f'{folder}/{name}_mask.fits', product.mask)
             tarfile_write(tar, f'{folder}/{name}_chan.fits', product.chan)
             tarfile_write(tar, f'{folder}/{name}_spec.txt', product.spec)
-            tarfile_write(tar, f'{folder}/{name}_summary.png', detection.summary_image(size=(8, 6), binary_image=True))
+            if product.pv is not None:
+                tarfile_write(tar, f'{folder}/{name}_pv.fits', product.pv)
+            try:
+                tarfile_write(tar, f'{folder}/{name}_summary.png', detection.summary_image(size=(8, 6), binary_image=True))
+            except Exception as e:
+                logging.error(f'Failed to write summary figure for detection {detection}: {e}')
 
     return FileTaskReturn([uuid_filename])
 

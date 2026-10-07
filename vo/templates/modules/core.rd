@@ -192,6 +192,20 @@
                   url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="SoFiA-2 Detection Spectrum", semantics="#auxiliary")
 
+                  # PV diagram is only offered for detections that have one
+                  from gavo import base
+                  try:
+                      with base.getTableConn() as conn:
+                          has_pv = list(conn.query(
+                              "SELECT 1 FROM ${DATABASE_SCHEMA}.product WHERE detection_id = %(id)s AND pv IS NOT NULL",
+                              {"id": int(descriptor.pubDID)}))
+                  except Exception:
+                      has_pv = False
+                  if has_pv:
+                      params = {"id": descriptor.pubDID, "product": "pv"}
+                      url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
+                      yield LinkDef(descriptor.pubDID, url, contentType="image/fits", description="SoFiA-2 Detection PV Diagram", semantics="#auxiliary")
+
                   params = {"id": descriptor.pubDID, "product": "plot"}
                   url = "{1}/detection_products?{0}".format(urlencode(params), server_url)
                   yield LinkDef(descriptor.pubDID, url, contentType="text/plain", description="SoFiA-2 Detection Summary Plot", semantics="#auxiliary")

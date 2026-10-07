@@ -3,8 +3,7 @@
 ** This doc is AI generatad. Correctness was not verified.
 
 This project uses PostgreSQL database `wallabydb` and schema `wallaby`. The
-diagram is derived from the foreign keys in `db/02-tables.sql` and
-`db/03-kinematics.sql`; it describes the schema created by the repository, not
+diagram is derived from the foreign keys in the files in `db/modules`; it describes the schema created by the repository, not
 the contents of a particular running database.
 
 ## Entity relationship diagram

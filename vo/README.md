@@ -17,6 +17,7 @@ The resource descriptor `vo.rd` is assembled on startup from `templates/header.r
 | `operations` | `observation` |
 | `wallaby_operations` | `tile`, `tile_obs`, `source_extraction_region`, `source_extraction_region_tile` (requires `operations`) |
 | `wallaby_kinematics` | `kinematic_model`, `kinematic_model_3kidnas` |
+| `dingo_gama` | `detection_nearest_gama` |
 
 `core` is always required. To expose a new table add it to a module, or create a new file in `templates/modules` with its own `<data>` element.
 

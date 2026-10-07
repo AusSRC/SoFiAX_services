@@ -13,25 +13,36 @@ A web platform for interactively selecting and managing detections for large HI 
 
 ### Database
 
-1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
-2. Update the `db/01-create.sql` script with custom passwords for users
-3. Update volume mount point (`/data`) to a local volume
-4. Deploy the service (you will need to create a Docker network first)
+1. Create the environment variable file from the example and enter your own values. The same file is used by all of the services.
+
+```
+cp .env.example .env
+```
+
+* `MODULES` sets which parts of the service are deployed. Each module has a file with its tables in `db/modules`, and `core` is the minimal service.
+* Set your own passwords for the database users.
+
+2. Update volume mount point (`/data`) to a local volume
+3. Deploy the service (you will need to create a Docker network first)
 
 ```
 docker network create survey_network
 docker-compose up --build -d survey_db
 ```
 
+The database, users and the tables of the modules are created the first time the service is started with an empty volume (`db/init.sh`). If this fails (for example a missing variable), fix the `.env` file and empty the volume before starting the service again.
+
+To add a module to an existing database add it to `MODULES` and run
+
+```
+docker exec survey_db install-modules <module>
+```
+
 ### Web
 
 The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
 
-1. Create the environment variable file from the example and enter your own values. The same file is used by the `survey_vo` service.
-
-```
-cp .env.example .env
-```
+1. Enter your own values for the web application variables in the `.env` file
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
 * The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
@@ -60,7 +71,7 @@ python manage.py createsuperuser --username <username>
 
 ### GAVO DACHS
 
-The configuration files for the VO service are rendered from the templates in `vo/templates` when the container starts, using the environment variables in the `.env` file. Copy the example file and edit the values (the passwords must match those set in `db/01-create.sql`)
+The configuration files for the VO service are rendered from the templates in `vo/templates` when the container starts, using the environment variables in the `.env` file. The database users are created from the same variables when the database is first started
 
 ```
 cp .env.example .env
