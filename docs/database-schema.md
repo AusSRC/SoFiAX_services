@@ -38,7 +38,6 @@ erDiagram
         double dec
         double freq
         boolean accepted
-        varchar rejection_reason
         boolean unresolved
     }
     PRODUCT {
@@ -109,20 +108,14 @@ erDiagram
 
 ### Manual inspection state
 
-The `accepted` and nullable `rejection_reason` columns together represent
-the current manual inspection outcome:
+The nullable `accepted` column holds the manual inspection outcome:
 
-| Outcome | `accepted` | `rejection_reason` |
-| --- | --- | --- |
-| Accept | `true` | `NULL` |
-| Reject | `false` | `noise` |
-| RFI | `false` | `rfi` |
-| Pending or legacy unclassified | `false` | `NULL` |
-
-Historical `accepted=false` rows are not backfilled because the old schema
-did not distinguish an uninspected detection from an old rejection. Only
-non-null rejection reasons written by the new workflow are classified
-rejections.
+| Outcome | `accepted` |
+| --- | --- |
+| Not inspected | `NULL` |
+| Accept | `true` |
+| Reject | `false` |
+| RFI | `false`, with the `RFI` tag |
 
 ## Observation and scheduling relationships
 

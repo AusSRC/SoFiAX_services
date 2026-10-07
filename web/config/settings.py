@@ -35,6 +35,13 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 KINEMATICS = env("KINEMATICS")
 
+# Detections below these thresholds are not shown in the admin pages or manual inspection (0 to disable)
+DETECTION_MIN_N_PIX = env.int("DETECTION_MIN_N_PIX", default=300)
+DETECTION_MIN_REL = env.float("DETECTION_MIN_REL", default=0.7)
+
+# CARTA server to open the image cube of a detection from the manual inspection page (optional)
+CARTA_URL = env("CARTA_URL", default=None)
+
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",

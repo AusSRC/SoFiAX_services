@@ -230,8 +230,8 @@ class Detection(models.Model):
     v_opt = PostgresDecimalField(blank=True, null=True)
     v_app = PostgresDecimalField(blank=True, null=True)
     unresolved = models.BooleanField()
-    accepted = models.BooleanField(default=False)
-    rejection_reason = models.CharField(max_length=255, blank=True, null=True)
+    # Manual inspection outcome: None (not inspected), True (accepted) or False (rejected)
+    accepted = models.BooleanField(blank=True, null=True, default=None)
     wm50 = PostgresDecimalField(null=True)
     x_peak = models.IntegerField(null=True)
     y_peak = models.IntegerField(null=True)
@@ -336,6 +336,13 @@ class Detection(models.Model):
         return d_space <= sigma * d_space_err and d_spec <= sigma * d_spec_err
 
     def spectrum_image(self):
+        try:
+            return self._spectrum_image()
+        except Exception as e:
+            logging.error(f'Failed to create spectrum image for detection {self.id}: {e}')
+            return None
+
+    def _spectrum_image(self):
         product = self.product_set.only('spec')
         if not product:
             return None
@@ -414,7 +421,23 @@ class Detection(models.Model):
         unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
 
 
+def detection_thresholds():
+    """Filter for the detections shown in the admin pages and manual inspection."""
+    thresholds = {}
+    if settings.DETECTION_MIN_N_PIX > 0:
+        thresholds['n_pix__gte'] = settings.DETECTION_MIN_N_PIX
+    if settings.DETECTION_MIN_REL > 0:
+        thresholds['rel__gte'] = settings.DETECTION_MIN_REL
+    return thresholds
+
+
 class AcceptedDetection(Detection):
+    class Meta:
+        proxy = True
+
+
+class RejectedDetection(Detection):
+    """Detections rejected in manual inspection (accepted=False)."""
     class Meta:
         proxy = True
 
@@ -643,137 +666,139 @@ if settings.PROJECT == 'DINGO':
             db_table = 'detection_nearest_gama'
 
 
-if settings.PROJECT == 'WALLABY':
+class KinematicModel(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    ra = models.FloatField()
+    dec = models.FloatField()
+    freq = models.FloatField()
+    team_release = models.CharField(max_length=255)
+    team_release_kin = models.CharField(max_length=255)
+    vsys_model = models.FloatField()
+    e_vsys_model = models.FloatField()
+    x_model = models.FloatField()
+    e_x_model = models.FloatField()
+    y_model = models.FloatField()
+    e_y_model = models.FloatField()
+    ra_model = models.FloatField()
+    e_ra_model = models.FloatField()
+    dec_model = models.FloatField()
+    e_dec_model = models.FloatField()
+    inc_model = models.FloatField()
+    e_inc_model = models.FloatField()
+    pa_model = models.FloatField()
+    e_pa_model = models.FloatField()
+    pa_model_g = models.FloatField()
+    e_pa_model_g = models.FloatField()
+    qflag_model = models.IntegerField()
+    rad = models.CharField(max_length=255)
+    vrot_model = models.CharField(max_length=255)
+    e_vrot_model = models.CharField(max_length=255)
+    e_vrot_model_inc = models.CharField(max_length=255)
+    rad_sd = models.CharField(max_length=255)
+    sd_model = models.CharField(max_length=255)
+    e_sd_model = models.CharField(max_length=255)
+    sd_fo_model = models.CharField(max_length=255)
+    e_sd_fo_model_inc = models.CharField(max_length=255)
 
-    class KinematicModel(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        detection = models.ForeignKey(Detection, models.DO_NOTHING)
-        ra = models.FloatField()
-        dec = models.FloatField()
-        freq = models.FloatField()
-        team_release = models.CharField(max_length=255)
-        team_release_kin = models.CharField(max_length=255)
-        vsys_model = models.FloatField()
-        e_vsys_model = models.FloatField()
-        x_model = models.FloatField()
-        e_x_model = models.FloatField()
-        y_model = models.FloatField()
-        e_y_model = models.FloatField()
-        ra_model = models.FloatField()
-        e_ra_model = models.FloatField()
-        dec_model = models.FloatField()
-        e_dec_model = models.FloatField()
-        inc_model = models.FloatField()
-        e_inc_model = models.FloatField()
-        pa_model = models.FloatField()
-        e_pa_model = models.FloatField()
-        pa_model_g = models.FloatField()
-        e_pa_model_g = models.FloatField()
-        qflag_model = models.IntegerField()
-        rad = models.CharField(max_length=255)
-        vrot_model = models.CharField(max_length=255)
-        e_vrot_model = models.CharField(max_length=255)
-        e_vrot_model_inc = models.CharField(max_length=255)
-        rad_sd = models.CharField(max_length=255)
-        sd_model = models.CharField(max_length=255)
-        e_sd_model = models.CharField(max_length=255)
-        sd_fo_model = models.CharField(max_length=255)
-        e_sd_fo_model_inc = models.CharField(max_length=255)
+    class Meta:
+        managed = False
+        db_table = 'kinematic_model'
 
-        class Meta:
-            managed = False
-            db_table = 'kinematic_model'
 
-    class KinematicModel_3KIDNAS(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        detection = models.ForeignKey(Detection, models.DO_NOTHING)
-        team_release = models.CharField(max_length=255)
-        team_release_kin = models.CharField(max_length=255)
-        vsys_model = models.FloatField()
-        e_vsys_model = models.FloatField()
-        x_model = models.FloatField()
-        e_x_model = models.FloatField()
-        y_model = models.FloatField()
-        e_y_model = models.FloatField()
-        ra_model = models.FloatField()
-        e_ra_model = models.FloatField()
-        dec_model = models.FloatField()
-        e_dec_model = models.FloatField()
-        inc_model = models.FloatField()
-        e_inc_model = models.FloatField()
-        pa_model = models.FloatField()
-        e_pa_model = models.FloatField()
-        pa_model_g = models.FloatField()
-        e_pa_model_g = models.FloatField()
-        vdisp_model = models.FloatField()
-        e_vdisp_model = models.FloatField()
-        rad = models.CharField(max_length=255)
-        vrot_model = models.CharField(max_length=255)
-        e_vrot_model = models.CharField(max_length=255)
-        rad_sd = models.CharField(max_length=255)
-        sd_model = models.CharField(max_length=255)
-        e_sd_model = models.CharField(max_length=255)
-        sdmethodflag = models.IntegerField()
-        rhi_flag = models.FloatField()
-        rhi_as = models.FloatField()
-        rhi_low_as = models.FloatField()
-        rhi_high_as = models.FloatField()
-        dist_model = models.FloatField()
-        rhi_kpc = models.FloatField()
-        rhi_low_kpc = models.FloatField()
-        rhi_high_kpc = models.FloatField()
-        vhi_flag = models.IntegerField()
-        vhi = models.FloatField()
-        e_vhi = models.FloatField()
-        kflag = models.IntegerField()
-        kinver = models.CharField(max_length=255)
+class KinematicModel_3KIDNAS(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    detection = models.ForeignKey(Detection, models.DO_NOTHING)
+    team_release = models.CharField(max_length=255)
+    team_release_kin = models.CharField(max_length=255)
+    vsys_model = models.FloatField()
+    e_vsys_model = models.FloatField()
+    x_model = models.FloatField()
+    e_x_model = models.FloatField()
+    y_model = models.FloatField()
+    e_y_model = models.FloatField()
+    ra_model = models.FloatField()
+    e_ra_model = models.FloatField()
+    dec_model = models.FloatField()
+    e_dec_model = models.FloatField()
+    inc_model = models.FloatField()
+    e_inc_model = models.FloatField()
+    pa_model = models.FloatField()
+    e_pa_model = models.FloatField()
+    pa_model_g = models.FloatField()
+    e_pa_model_g = models.FloatField()
+    vdisp_model = models.FloatField()
+    e_vdisp_model = models.FloatField()
+    rad = models.CharField(max_length=255)
+    vrot_model = models.CharField(max_length=255)
+    e_vrot_model = models.CharField(max_length=255)
+    rad_sd = models.CharField(max_length=255)
+    sd_model = models.CharField(max_length=255)
+    e_sd_model = models.CharField(max_length=255)
+    sdmethodflag = models.IntegerField()
+    rhi_flag = models.FloatField()
+    rhi_as = models.FloatField()
+    rhi_low_as = models.FloatField()
+    rhi_high_as = models.FloatField()
+    dist_model = models.FloatField()
+    rhi_kpc = models.FloatField()
+    rhi_low_kpc = models.FloatField()
+    rhi_high_kpc = models.FloatField()
+    vhi_flag = models.IntegerField()
+    vhi = models.FloatField()
+    e_vhi = models.FloatField()
+    kflag = models.IntegerField()
+    kinver = models.CharField(max_length=255)
 
-        class Meta:
-            managed = False
-            db_table = 'kinematic_model_3kidnas'
+    class Meta:
+        managed = False
+        db_table = 'kinematic_model_3kidnas'
 
-    class WKAPP_Product(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
-        baroloinput = models.BinaryField(blank=True, null=True)
-        barolomod = models.BinaryField(blank=True, null=True)
-        barolosurfdens = models.BinaryField(blank=True, null=True)
-        diagnosticplot = models.BinaryField(blank=True, null=True)
-        diffcube = models.BinaryField(blank=True, null=True)
-        fatinput = models.BinaryField(blank=True, null=True)
-        fatmod = models.BinaryField(blank=True, null=True)
-        fullresmodcube = models.BinaryField(blank=True, null=True)
-        fullresproccube = models.BinaryField(blank=True, null=True)
-        modcube = models.BinaryField(blank=True, null=True)
-        procdata = models.BinaryField(blank=True, null=True)
 
-        class Meta:
-            managed = False
-            db_table = 'wkapp_product'
+class WKAPP_Product(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
+    baroloinput = models.BinaryField(blank=True, null=True)
+    barolomod = models.BinaryField(blank=True, null=True)
+    barolosurfdens = models.BinaryField(blank=True, null=True)
+    diagnosticplot = models.BinaryField(blank=True, null=True)
+    diffcube = models.BinaryField(blank=True, null=True)
+    fatinput = models.BinaryField(blank=True, null=True)
+    fatmod = models.BinaryField(blank=True, null=True)
+    fullresmodcube = models.BinaryField(blank=True, null=True)
+    fullresproccube = models.BinaryField(blank=True, null=True)
+    modcube = models.BinaryField(blank=True, null=True)
+    procdata = models.BinaryField(blank=True, null=True)
 
-    class WRKP_Product(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        kinematic_model_3kidnas = models.ForeignKey(KinematicModel_3KIDNAS, db_column='kinematic_model_3kidnas', to_field='id', on_delete=models.CASCADE)
-        bootstrapfits = models.BinaryField(blank=True, null=True)
-        diagnosticplot = models.BinaryField(blank=True, null=True)
-        diffcube = models.BinaryField(blank=True, null=True)
-        flag = models.BinaryField(blank=True, null=True)
-        modcube = models.BinaryField(blank=True, null=True)
-        procdata = models.BinaryField(blank=True, null=True)
-        pvmajordata = models.BinaryField(blank=True, null=True)
-        pvmajormod = models.BinaryField(blank=True, null=True)
-        pvminordata = models.BinaryField(blank=True, null=True)
-        pvminormod = models.BinaryField(blank=True, null=True)
+    class Meta:
+        managed = False
+        db_table = 'wkapp_product'
 
-        class Meta:
-            managed = False
-            db_table = 'wrkp_product'
 
-    class KinematicModelState(models.Model):
-        id = models.BigAutoField(primary_key=True)
-        detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
-        attempted = models.IntegerField()
+class WRKP_Product(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    kinematic_model_3kidnas = models.ForeignKey(KinematicModel_3KIDNAS, db_column='kinematic_model_3kidnas', to_field='id', on_delete=models.CASCADE)
+    bootstrapfits = models.BinaryField(blank=True, null=True)
+    diagnosticplot = models.BinaryField(blank=True, null=True)
+    diffcube = models.BinaryField(blank=True, null=True)
+    flag = models.BinaryField(blank=True, null=True)
+    modcube = models.BinaryField(blank=True, null=True)
+    procdata = models.BinaryField(blank=True, null=True)
+    pvmajordata = models.BinaryField(blank=True, null=True)
+    pvmajormod = models.BinaryField(blank=True, null=True)
+    pvminordata = models.BinaryField(blank=True, null=True)
+    pvminormod = models.BinaryField(blank=True, null=True)
 
-        class Meta:
-            managed = False
-            db_table = 'kinematic_model_state'
+    class Meta:
+        managed = False
+        db_table = 'wrkp_product'
+
+
+class KinematicModelState(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    detection = models.ForeignKey(Detection, on_delete=models.CASCADE)
+    attempted = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = 'kinematic_model_state'

@@ -6,11 +6,12 @@ import logging
 
 from urllib.request import pathname2url
 from survey.utils.io import tarfile_write
-from survey.utils.plot import product_summary_image
+from survey.utils.plot import product_summary_image, plot_html
 from survey.utils.components import get_survey_component, get_release_name
 from survey.utils.forms import _add_tag, _add_comment
 from survey.utils.views import handle_navigation, handle_next
 from survey.models import (
+    detection_thresholds,
     Product,
     Instance,
     Detection,
@@ -158,7 +159,11 @@ def task_file_download(request):
         return HttpResponse("task id does not exist.", status=400)
 
     task = Task.objects.filter(id=task_id).first()
-    if task.func not in ["download_accepted_sources", "download_summaries"]:
+    if task.func not in [
+        "download_accepted_sources",
+        "download_accepted_sources_catalog",
+        "download_summaries",
+    ]:
         return HttpResponse("No data.", status=404)
 
     if task.state != "COMPLETED":
@@ -236,7 +241,12 @@ def detection_products(request):
             if product.pv is not None:
                 tarfile_write(tar, f"{name}_pv.fits", product.pv)
             if product.plot is not None:
-                tarfile_write(tar, f"{name}_plot.png", product.plot)
+                # Summary plot is either an image or HTML
+                html = plot_html(product.plot)
+                if html is None:
+                    tarfile_write(tar, f"{name}_plot.png", product.plot)
+                else:
+                    tarfile_write(tar, f"{name}_plot.html", html.encode("utf-8"))
 
         data = fh.getvalue()
         size = len(data)
@@ -488,11 +498,9 @@ def manual_inspection_detection_view(request):
         run = Run.objects.get(id=int(run_id))
         queryset = Detection.objects.filter(
             run=run,
-            accepted=False,
-            rejection_reason__isnull=True,
+            accepted__isnull=True,
             source_name__isnull=True,
-            n_pix__gte=300,
-            rel__gte=0.7,
+            **detection_thresholds(),
         )
 
         if len(queryset) == 0:
@@ -523,6 +531,13 @@ def manual_inspection_detection_view(request):
             "DECaPS": f"https://decaps.legacysurvey.org/viewer/cutout.jpg?layer=decaps2&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768",
         }
 
+        # CARTA button to open the image cube
+        carta_url = None
+        if settings.CARTA_URL:
+            input_data = (detection.instance.parameters or {}).get("input.data")
+            if input_data:
+                carta_url = f"{settings.CARTA_URL}?file={input_data}"
+
         matches = {}
         if settings.PROJECT == "DINGO":
             gama = detection.detectionnearestgama_set.all()
@@ -539,6 +554,7 @@ def manual_inspection_detection_view(request):
             "image": mark_safe(img_src),
             "tags": Tag.objects.all(),
             "links": links,
+            "carta_url": carta_url,
             "matches": matches,
         }
 
@@ -551,22 +567,16 @@ def manual_inspection_detection_view(request):
         detection = Detection.objects.get(id=int(body["detection_id"][0]))
         queryset = Detection.objects.filter(
             run=run,
-            accepted=False,
-            rejection_reason__isnull=True,
+            accepted__isnull=True,
             source_name__isnull=True,
-            n_pix__gte=300,
-            rel__gte=0.7,
+            **detection_thresholds(),
         )
         idx = list(queryset).index(detection)
         url_base = reverse("inspect_detection")
         url_params = f"run_id={run.id}&detection_id="
 
         action = request.POST.get("action")
-        rejection_reasons = {
-            "Reject": "noise",
-            "RFI": "rfi",
-        }
-        if action == "Accept" or action in rejection_reasons:
+        if action in ["Accept", "Reject", "RFI"]:
             with transaction.atomic():
                 detection = Detection.objects.select_for_update().get(id=detection.id)
                 if action == "Accept":
@@ -574,16 +584,18 @@ def manual_inspection_detection_view(request):
                         f"Marking detection {detection.name} as an accepted detection."
                     )
                     detection.accepted = True
-                    detection.rejection_reason = None
                 else:
-                    rejection_reason = rejection_reasons[action]
-                    logging.info(
-                        f"Rejecting detection {detection.name} as {rejection_reason}."
-                    )
+                    logging.info(f"Rejecting detection {detection.name} ({action}).")
                     detection.accepted = False
-                    detection.rejection_reason = rejection_reason
                 logging.debug(detection.__dict__)
-                detection.save(update_fields=["accepted", "rejection_reason"])
+                detection.save(update_fields=["accepted"])
+
+                # RFI is a rejection with the RFI tag
+                if action == "RFI":
+                    tag, _ = Tag.objects.get_or_create(name="RFI")
+                    TagDetection.objects.get_or_create(
+                        tag=tag, detection=detection, defaults={"author": str(request.user)}
+                    )
 
                 tag_select = request.POST["tag_select"]
                 tag_create = str(request.POST["tag_create"])
@@ -825,10 +837,9 @@ def external_conflict_view(request):
                 # Remove any conflicts that may have previously been accepted for this detection
                 logging.info(f"De-selecting detection {ex_c.detection}")
                 ex_c.detection.source_name = None
-                ex_c.detection.accepted = False
-                ex_c.detection.rejection_reason = None
+                ex_c.detection.accepted = None
                 ex_c.detection.save(
-                    update_fields=["source_name", "accepted", "rejection_reason"]
+                    update_fields=["source_name", "accepted"]
                 )
 
                 # Remove external conflicts

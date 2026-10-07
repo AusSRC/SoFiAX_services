@@ -76,7 +76,7 @@ CREATE TABLE detection (
     freq double precision,
     flag integer,
     unresolved boolean DEFAULT false NOT NULL,
-    accepted boolean DEFAULT false NOT NULL,
+    accepted boolean,
     wm50 numeric,
     x_peak integer,
     y_peak integer,

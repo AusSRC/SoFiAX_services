@@ -40,6 +40,10 @@
                 </tr>
             </table>
 
+            {% if carta_url %}
+            <button type="button" onclick="window.open('{{ carta_url|escapejs }}', '_blank')">Open in CARTA</button>
+            {% endif %}
+
             <table>
                 <tr>
                     {% for key, value in matches.items %}

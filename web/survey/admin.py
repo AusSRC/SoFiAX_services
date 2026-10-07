@@ -21,12 +21,12 @@ from survey.utils.forms import _add_tag, _add_comment, _get_or_create_tag
 from survey.utils.components import get_survey_components, get_survey_component_by_name, \
     get_survey_component_runs, get_release_name
 from survey.decorators import action_form, add_tag_form, add_comment_form, require_confirmation
-from survey.models import Detection, UnresolvedDetection, AcceptedDetection, ExternalConflict, \
+from survey.models import Detection, UnresolvedDetection, AcceptedDetection, RejectedDetection, ExternalConflict, \
     Instance, Run, Comment, Tag, TagDetection, Observation, SurveyComponent, \
     Task, ValueTaskReturn, SurveyComponentRun, Tile, SourceExtractionRegion, \
-    KinematicModel, KinematicModel_3KIDNAS, KinematicModelState
+    KinematicModel, KinematicModel_3KIDNAS, KinematicModelState, detection_thresholds
 
-from .tasks import download_accepted_sources, download_summaries_for_run
+from .tasks import download_accepted_sources, download_summaries_for_run, download_accepted_sources_catalog
 
 logging.basicConfig(level=logging.INFO)
 
@@ -52,6 +52,20 @@ def sanity_check(request, queryset):
                     messages.error(request, msg)
     except Exception as e:
         messages.error(request, str(e))
+
+
+def render_summary(obj):
+    """Summary plot of a detection with a link to the full size version.
+
+    """
+    img = obj.summary_image()
+    if img is None:
+        return None
+    url = reverse('summary_image')
+    if img.startswith('<img'):
+        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, img)
+    # HTML plots are interactive, so the link is separate from the plot
+    return format_html("<div>{}</div><a href='{}?id={}' target='_blank'>Open full size</a>", img, url, obj.id)
 
 
 class TagAdmin(ModelAdmin):
@@ -278,8 +292,7 @@ class DetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_actions(self, request):
         return super(DetectionAdmin, self).get_actions(request)
@@ -317,8 +330,7 @@ class DetectionAdmin(ModelAdmin):
                 # Create source and source detection entries
                 for d in detect_list:
                     d.accepted = True
-                    d.rejection_reason = None
-                    d.save(update_fields=['accepted', 'rejection_reason'])
+                    d.save(update_fields=['accepted'])
                 messages.info(request, f"Accepted {len(detect_list)} detections.")
                 return
         except Exception as e:
@@ -416,7 +428,7 @@ class DetectionAdminInline(ModelAdminInline):
 
     def get_queryset(self, request):
         qs = super(DetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(unresolved=False, **detection_thresholds())
 
 
 class UnresolvedDetectionAdmin(ModelAdmin):
@@ -468,8 +480,7 @@ class UnresolvedDetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_actions(self, request):
         return super(UnresolvedDetectionAdmin, self).get_actions(request)
@@ -620,7 +631,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
         'kin_pa', 'err_x', 'err_y', 'err_z', 'err_f_sum', 'ra', 'dec', 'freq',
         'flag', 'unresolved', 'instance', 'l', 'b', 'v_rad', 'v_opt', 'v_app'
     ]
-    actions = ['deselect', 'download_products']
+    actions = ['deselect', 'download_products', 'download_catalog']
     fk_name = 'run'
 
     def has_delete_permission(self, request, obj=None):
@@ -629,7 +640,7 @@ class AcceptedDetectionAdmin(ModelAdmin):
     @admin.display(empty_value=None)
     def GAMA_matches(self, obj):
         if settings.PROJECT == 'DINGO':
-            return format_html("<br>".join([str(g.cata_id) for g in obj.detectionnearestgama_set.all()]))
+            return format_html_join(mark_safe("<br>"), "{}", ((g.cata_id,) for g in obj.detectionnearestgama_set.all()))
         else:
             return ""
 
@@ -680,11 +691,16 @@ class AcceptedDetectionAdmin(ModelAdmin):
     def deselect(self, request, queryset):
         with transaction.atomic():
             for d in queryset:
-                d.accepted = False
-                d.rejection_reason = None
-                d.save(update_fields=['accepted', 'rejection_reason'])
+                d.accepted = None
+                d.save(update_fields=['accepted'])
         return len(queryset)
     deselect.short_description = 'Deselect detection'
+
+    @admin.action(description='Download Catalog')
+    def download_catalog(self, request, queryset):
+        task_id = download_accepted_sources_catalog(request, queryset)
+        return redirect('/admin/survey/task/')
+    download_catalog.acts_on_all = True
 
     @admin.action(description='Download Products')
     def download_products(self, request, queryset):
@@ -694,12 +710,11 @@ class AcceptedDetectionAdmin(ModelAdmin):
 
     @admin.display(empty_value=None)
     def summary(self, obj):
-        url = reverse('summary_image')
-        return format_html("<a href='{}?id={}' target='_blank'>{}</a>", url, obj.id, obj.summary_image())
+        return render_summary(obj)
 
     def get_queryset(self, request):
         qs = super(AcceptedDetectionAdmin, self).get_queryset(request).select_related('run')
-        return qs.filter(accepted=True, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(accepted=True, **detection_thresholds())
 
     def get_list_display(self, request):
         if request.GET:
@@ -745,19 +760,43 @@ class AcceptedDetectionAdminInline(ModelAdminInline):
             return '-'
         return ', '.join(comments)
 
-    def get_queryset(self, request):
-        qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
-        return qs.filter(accepted=True)
-
     def detection_products_download(self, obj):
         url = reverse('detection_products')
         return format_html("<a href='{}?id={}'>Products</a>", url, obj.id)
 
     detection_products_download.short_description = 'Products'
 
-    def get_queryset(self, request):  # TODO: Why are there two get_queryset definitions?
+    def get_queryset(self, request):
         qs = super(AcceptedDetectionAdminInline, self).get_queryset(request)
-        return qs.filter(unresolved=False, n_pix__gte=300, rel__gte=0.7)
+        return qs.filter(accepted=True, unresolved=False, **detection_thresholds())
+
+
+class RejectedDetectionAdmin(AcceptedDetectionAdmin):
+    """Detections rejected in manual inspection (accepted=False).
+
+    """
+    model = RejectedDetection
+    actions = ['reopen', 'download_products']
+
+    def reopen(self, request, queryset):
+        with transaction.atomic():
+            for d in queryset:
+                d.accepted = None
+                d.save(update_fields=['accepted'])
+        return len(queryset)
+    reopen.short_description = 'Reopen detection (return to manual inspection)'
+
+    def get_queryset(self, request):
+        qs = ModelAdmin.get_queryset(self, request).select_related('run')
+        return qs.filter(accepted=False, **detection_thresholds())
+
+
+class RejectedDetectionAdminInline(AcceptedDetectionAdminInline):
+    model = RejectedDetection
+
+    def get_queryset(self, request):
+        qs = ModelAdminInline.get_queryset(self, request)
+        return qs.filter(accepted=False, **detection_thresholds())
 
 
 class InstanceAdmin(ModelAdmin):
@@ -813,11 +852,12 @@ class RunAdmin(ModelAdmin):
     model = Run
     list_display = (
         'id', 'name', 'created', 'sanity_thresholds',
-        'run_unresolved_detections', 'run_accepted_detections',
+        'run_unresolved_detections', 'run_accepted_detections', 'run_rejected_detections',
         'run_manual_inspection', 'run_external_conflicts',)
     inlines = (
         UnresolvedDetectionAdminInline,
         AcceptedDetectionAdminInline,
+        RejectedDetectionAdminInline,
         DetectionAdminInline,
         InstanceAdminInline
     )
@@ -853,6 +893,12 @@ class RunAdmin(ModelAdmin):
         url = reverse(f'admin:{opts.app_label}_accepteddetection_changelist')
         return format_html("<a href='{}?run={}'>Accepted Detections</a>", url, obj.id)
     run_accepted_detections.short_description = 'Accepted Detections'
+
+    def run_rejected_detections(self, obj):
+        opts = self.model._meta
+        url = reverse(f'admin:{opts.app_label}_rejecteddetection_changelist')
+        return format_html("<a href='{}?run={}'>Rejected Detections</a>", url, obj.id)
+    run_rejected_detections.short_description = 'Rejected Detections'
 
     def run_manual_inspection(self, obj):
         url = f"{reverse('inspect_detection')}?run_id={obj.id}"
@@ -985,8 +1031,7 @@ class RunAdmin(ModelAdmin):
             all_run_detections = Detection.objects.filter(
                 run=run,
                 unresolved=False,
-                n_pix__gte=300,
-                rel__gte=0.7
+                **detection_thresholds()
             )
 
             if any([d.unresolved for d in all_run_detections]):
@@ -1227,16 +1272,16 @@ class RunAdmin(ModelAdmin):
                         logging.info(f'Tag already created for Source {d.source_name}')
 
                     # Mark detections for needing kinematic modelling
-                    KinematicModelState.objects.create(detection=d, attempted=0)
-                    logging.debug('Created kinematic_model_state entry for detection %s (%i)' % (d.source_name, d.id))
+                    if 'wallaby_kinematics' in settings.MODULES:
+                        KinematicModelState.objects.create(detection=d, attempted=0)
+                        logging.debug('Created kinematic_model_state entry for detection %s (%i)' % (d.source_name, d.id))
 
                 # Delete sources
                 logging.info(f'De-selecting remaining detections {len(reject_detections)}')
                 for idx, d in enumerate(reject_detections):
                     logging.info(f'[{idx+1}/{len(reject_detections)}] Rejecting detection {d.name}')
-                    d.accepted = False
-                    d.rejection_reason = None
-                    d.save(update_fields=['accepted', 'rejection_reason'])
+                    d.accepted = None
+                    d.save(update_fields=['accepted'])
 
                 logging.info("Release completed")
 
@@ -1350,6 +1395,7 @@ admin.site.register(Instance, InstanceAdmin)
 admin.site.register(Detection, DetectionAdmin)
 admin.site.register(UnresolvedDetection, UnresolvedDetectionAdmin)
 admin.site.register(AcceptedDetection, AcceptedDetectionAdmin)
+admin.site.register(RejectedDetection, RejectedDetectionAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Tag, TagAdmin)
 

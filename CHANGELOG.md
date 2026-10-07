@@ -1,47 +1,46 @@
 # Changelog
 
-## RFI handling
+## Manual inspection outcome
 
 ### Added
 
 - Added Reject and RFI actions to the manual inspection page.
-- Added the nullable `Detection.rejection_reason` field.
-- Added functional coverage for the Reject and RFI workflows.
+- Added the Rejected Detections admin page, with an action to reopen detections.
 
 ### Changed
 
-- Manual inspection now excludes detections with a rejection reason.
-- Reject stores `noise`; RFI stores `rfi`.
-- Accept and existing deselect/reopen workflows clear `rejection_reason`.
+- `Detection.accepted` is now nullable and holds the manual inspection outcome.
+- Manual inspection only lists detections that have not been inspected.
+- RFI rejects the detection and adds the `RFI` tag.
 - Accept, Reject, and RFI all advance to the next detection.
+- Deselect and reopen return the detection to manual inspection.
+
+| Outcome | `accepted` |
+| --- | --- |
+| Not inspected | `NULL` |
+| Accept | `true` |
+| Reject | `false` |
+| RFI | `false`, with the `RFI` tag |
 
 ### Database
 
-Before deploying this version, add the nullable column to the existing database:
+New databases are created with a nullable `accepted` column without a default.
+Before deploying this version to an existing database (replace `survey` with the
+schema of the deployment):
 
 ```sql
-ALTER TABLE wallaby.detection
-ADD COLUMN IF NOT EXISTS rejection_reason varchar NULL;
+ALTER TABLE survey.detection ALTER COLUMN accepted DROP DEFAULT;
+ALTER TABLE survey.detection ALTER COLUMN accepted DROP NOT NULL;
 ```
 
-The application interprets `accepted` and `rejection_reason` together:
+Until now a rejected detection and a detection that had not been inspected were
+both stored as `accepted=false`. Decide which of the existing `accepted=false`
+rows are rejections, and set the rest to `NULL` so they return to manual
+inspection. For example, where nothing has been rejected yet:
 
-| Outcome | `accepted` | `rejection_reason` |
-| --- | --- | --- |
-| Accept | `true` | `NULL` |
-| Reject | `false` | `noise` |
-| RFI | `false` | `rfi` |
-| Pending or legacy unclassified | `false` | `NULL` |
+```sql
+UPDATE survey.detection SET accepted = NULL WHERE accepted = false;
+```
 
-Button behaviour:
-
-- Accept sets `accepted=true` and clears `rejection_reason`.
-- Reject sets `accepted=false` and `rejection_reason=noise`.
-- RFI sets `accepted=false` and `rejection_reason=rfi`.
-- All three outcomes remove the detection from the current manual inspection
-  list.
-- Deselect/reopen clears `rejection_reason`, allowing the detection to return
-  to manual inspection when it still meets the other list filters.
-
-Historical rows are intentionally not backfilled. Before this change, an old
-rejection and a detection that had never been inspected were both stored as
+Anything that inserts detections (for example SoFiAX) must leave `accepted`
+unset, otherwise new detections are treated as rejected.
