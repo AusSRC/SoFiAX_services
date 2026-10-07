@@ -2,9 +2,23 @@
 
 This service exposes the SoFiAX_services database to TAP so that it is publicly accessible via VO-compliant tools.
 
+## Configuration
+
+The DaCHS configuration files (`gavo.rc`, `dsn`, `feed`, `trustedquery`, `untrustedquery`, `defaultmeta.txt` and the parts of `vo.rd`) are templates in the `templates` folder. On startup `render-config.sh` fills in the `${VARIABLE}` placeholders from the environment and writes the files to where DaCHS expects them. The variables and their defaults are listed in [`.env.example`](../.env.example).
+
 ## Tables
 
-Edit the `vo.rd` file to change the tables in the database that will be exposed via the TAP service.
+The resource descriptor `vo.rd` is assembled on startup from `templates/header.rd`, one file in `templates/modules` for each module listed in the `MODULES` environment variable, and `templates/footer.rd`.
+
+| Module | Tables |
+|---|---|
+| `core` | `run`, `instance`, `detection` and the datalink services for products |
+| `metadata` | `comment`, `tag`, `tag_detection` |
+| `operations` | `observation` |
+| `wallaby_operations` | `tile`, `tile_obs`, `source_extraction_region`, `source_extraction_region_tile` (requires `operations`) |
+| `wallaby_kinematics` | `kinematic_model`, `kinematic_model_3kidnas` |
+
+`core` is always required. To expose a new table add it to a module, or create a new file in `templates/modules` with its own `<data>` element.
 
 ## Basic Auth
 

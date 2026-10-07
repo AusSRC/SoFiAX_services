@@ -2,11 +2,9 @@ ARG DEBIAN_IMAGE="latest"
 
 FROM "debian:$DEBIAN_IMAGE"
 
-ARG RD="vo.rd"
-
 RUN apt-get update && apt-get -y upgrade && \
     apt-get install -y subversion python3 python3-setuptools python3-pip \
-    curl git gnupg2 locales sudo vim wget  
+    curl gettext-base git gnupg2 locales sudo vim wget
 
 ARG APT_REPO="release" 
 
@@ -16,7 +14,7 @@ RUN echo LC_ALL="$LC_ALL" > /etc/default/locale
 
 RUN echo "deb http://vo.ari.uni-heidelberg.de/debian ${APT_REPO} main" \
         > /etc/apt/sources.list.d/gavo.list                         && \
-    wget -qO - http://docs.g-vo.org/archive-key.asc | apt-key add -
+    wget -qO - http://docs.g-vo.org/archive-key.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/gavo.gpg
 
 
 RUN DEBIAN_FRONTEND='noninteractive'                  && \
@@ -36,16 +34,10 @@ RUN adduser --system gavo && \
 
 
 RUN gavo init --nodb
-COPY gavo.rc /etc/gavo.rc
-COPY defaultmeta.txt ${GAVO_ROOT}/etc/defaultmeta.txt
-COPY dsn ${GAVO_ROOT}/etc/dsn
-COPY feed ${GAVO_ROOT}/etc/feed
-COPY trustedquery ${GAVO_ROOT}/etc/trustedquery
-COPY untrustedquery ${GAVO_ROOT}/etc/untrustedquery
+# Configuration is rendered from the templates on startup
+COPY templates/ /templates/
+COPY render-config.sh /render-config.sh
 COPY startup.sh /startup.sh
 
-RUN mkdir -p ${GAVO_INPUTS}/survey
-COPY ${RD} ${GAVO_INPUTS}/survey/vo.rd
-
-RUN chmod +x /startup.sh
+RUN chmod +x /startup.sh /render-config.sh
 CMD /startup.sh

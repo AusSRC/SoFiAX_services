@@ -1,0 +1,5 @@
+database = ${DATABASE_NAME}
+host = ${DATABASE_HOST}
+port = ${DATABASE_PORT}
+user = ${DATABASE_ADMIN_USERNAME}
+password = ${DATABASE_ADMIN_PASSWORD}

@@ -77,11 +77,14 @@ python manage.py createsuperuser --username <username>
 
 ### GAVO DACHS
 
-Edit the config file `vo/vo.rd` to configure the VO service
+The configuration files for the VO service are rendered from the templates in `vo/templates` when the container starts, using the environment variables in the `.env` file. Copy the example file and edit the values (the passwords must match those set in `db/01-create.sql`)
 
 ```
+cp .env.example .env
 docker-compose up --build -d survey_vo
 ```
+
+The `MODULES` variable sets which tables are exposed. Each module is a file in `vo/templates/modules`.
 
 Sometimes I find that I need to give the `gavo` user ownership of the directory `/var/gavo`, otherwise there are warnings in the deployment. You can run
 

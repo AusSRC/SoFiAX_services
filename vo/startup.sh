@@ -1,3 +1,6 @@
+#!/bin/sh
+/render-config.sh || exit 1
+
 gavo imp //dc_tables
 gavo imp //tap
 gavo imp //services

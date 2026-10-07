@@ -1,0 +1,3 @@
+include dsn
+user = gavoadmin
+password = ${VO_FEED_PASSWORD}

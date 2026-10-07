@@ -55,7 +55,7 @@ services:
     build:
       context: vo
     env_file:
-      - vo/vo.env
+      - .env
     volumes:
       - /var/gavo/state:/var/gavo/state
       - /var/gavo/cache:/var/gavo/cache
