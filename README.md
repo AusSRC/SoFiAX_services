@@ -27,31 +27,15 @@ docker-compose up --build -d survey_db
 
 The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
 
-1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
+1. Create the environment variable file from the example and enter your own values. The same file is used by the `survey_vo` service.
 
 ```
-PROJECT=WALLABY
-DEBUG=True
-LOCAL=True
-SITE_NAME=WALLABY Catalog
-SITE_HEADER=WALLABY Catalog
-SITE_TITLE=WALLABY Catalog
-INDEX_TITLE=WALLABY Catalog
-AUTH_GROUPS=wallaby
-
-DJANGO_SECRET_KEY=<django key>
-DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
-
-DATABASE_HOST=survey_db
-DATABASE_PORT=5432
-DATABASE_NAME=surveydb
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-SEARCH_PATH=survey,public
+cp .env.example .env
 ```
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
 * The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
+* For development over plain http (for example `http://localhost:8000` without `survey_nginx`) uncomment the development options in the file.
 
 2. Deploy the service
 
