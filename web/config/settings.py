@@ -15,10 +15,10 @@ if not PROJECT:
 
 AUTH_GROUPS = env("AUTH_GROUPS").split(" ")
 PROJECT = PROJECT.upper()
-LOCAL = bool(env("LOCAL", default=True))
+LOCAL = env.bool("LOCAL", default=True)
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env("DJANGO_SECRET_KEY")
-DEBUG = env("DEBUG")
+DEBUG = env.bool("DEBUG", default=False)
 USE_X_FORWARDED_HOST = True
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS", default=["https://*.aussrc.org"]
