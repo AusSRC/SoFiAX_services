@@ -36,7 +36,7 @@ CREATE TABLE detection (
     run_id bigint NOT NULL,
     name character varying NOT NULL,
     source_name character varying NULL,
-    access_url character varying DEFAULT 'https://wallaby.aussrc.org/survey/vo/dl/dlmeta?ID='::character varying NOT NULL,
+    access_url character varying NOT NULL,  -- default is set from ACCESS_URL by install-modules.sh
     access_format character varying DEFAULT 'application/x-votable+xml;content=datalink'::character varying NOT NULL,
     x double precision NOT NULL,
     y double precision NOT NULL,

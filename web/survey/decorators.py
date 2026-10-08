@@ -1,17 +1,8 @@
-import base64
 import functools
 
-from django.conf import settings
 from django.contrib.admin import helpers
 from django.template.response import TemplateResponse
-from django.http import HttpResponse
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import User, Group
-from django.core.exceptions import ObjectDoesNotExist
-from social_django.models import UserSocialAuth
 from survey.models import Tag, Comment
-
-from keycloak import KeycloakOpenID
 
 
 # decorator for model action
@@ -140,48 +131,3 @@ def add_comment_form(form_class=None):
 
         return wrapper
     return decorator
-
-
-def basic_auth(view):
-    """Function requires user authentication.
-
-    """
-    def wrap(request, *args, **kwargs):
-        try:
-            if request.user.is_authenticated:
-                return view(request, *args, **kwargs)
-
-            if 'HTTP_AUTHORIZATION' in request.META:
-                auth = request.META['HTTP_AUTHORIZATION'].split()
-                if len(auth) == 2:
-                    if auth[0].lower() == "basic":
-                        username, password = base64.b64decode(auth[1]).decode("utf8").split(':')
-                        try:
-                            token = None
-                            openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
-                                                    client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
-                                                    realm_name=settings.REALM,
-                                                    client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET)
-                            token = openid.token(username, password)
-                        finally:
-                            try:
-                                # Basic Auth does not carry the token around so end session
-                                if token:
-                                    openid.logout(token['refresh_token'])
-                            except:
-                                pass
-
-                        response = view(request, *args, **kwargs)
-                        response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
-                        return response
-
-            response = HttpResponse()
-            response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
-            return response
-        except Exception as e:
-            response = HttpResponse(str(e))
-            response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
-            return response
-    return wrap

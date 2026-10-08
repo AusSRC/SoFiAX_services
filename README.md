@@ -4,10 +4,10 @@ A web platform for interactively selecting and managing detections for large HI 
 
 ## Services
 
-- survey_db (PostgreSQL database)
-- survey_web (Django web application)
-- survey_nginx (NGINX reverse proxy)
-- survey_vo (GAVO DACHS TAP service)
+- database (PostgreSQL database)
+- web (Django web application)
+- nginx (NGINX reverse proxy)
+- gavo (GAVO DACHS TAP service)
 
 ## Deploy
 
@@ -27,7 +27,7 @@ cp .env.example .env
 
 ```
 docker network create survey_network
-docker-compose up --build -d survey_db
+docker-compose up --build -d database
 ```
 
 The database, users and the tables of the modules are created the first time the service is started with an empty volume (`db/init.sh`). If this fails (for example a missing variable), fix the `.env` file and empty the volume before starting the service again.
@@ -35,23 +35,23 @@ The database, users and the tables of the modules are created the first time the
 To add a module to an existing database add it to `MODULES` and run
 
 ```
-docker exec survey_db install-modules <module>
+docker exec database install-modules <module>
 ```
 
 ### Web
 
-The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
+The `web` service provides core functionality for managing and selecting detections that are stored in the `database` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
 
 1. Enter your own values for the web application variables in the `.env` file
 
 * The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
 * The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
-* For development over plain http (for example `http://localhost:8000` without `survey_nginx`) uncomment the development options in the file.
+* For development over plain http (for example `http://localhost:8000` without `nginx`) uncomment the development options in the file.
 
 2. Deploy the service
 
 ```
-docker-compose up --build -d survey_web
+docker-compose up --build -d web
 ```
 
 3. Migrations and create user
@@ -59,7 +59,7 @@ docker-compose up --build -d survey_web
 This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
 
 ```
-docker exec -it survey_web /bin/bash
+docker exec -it web /bin/bash
 ```
 
 and then inside of the container run the following
@@ -75,7 +75,7 @@ The configuration files for the VO service are rendered from the templates in `v
 
 ```
 cp .env.example .env
-docker-compose up --build -d survey_vo
+docker-compose up --build -d gavo
 ```
 
 The `MODULES` variable sets which tables are exposed. Each module is a file in `vo/templates/modules`.
@@ -89,7 +89,7 @@ chown -R gavo:gavo /var/gavo/
 ### NGINX reverse proxy
 
 ```
-docker-compose up --build -d survey_nginx
+docker-compose up --build -d nginx
 ```
 
 ## Dependent services

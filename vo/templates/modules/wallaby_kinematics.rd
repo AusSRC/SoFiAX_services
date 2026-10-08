@@ -73,7 +73,7 @@
               <code>
                   import os
                   from urllib.parse import urlencode
-                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  server_url = os.environ.get('SERVER_URL', "http://localhost:8080")
 
                   params = {"id": descriptor.pubDID, "product": "baroloinput"}
                   url = "{1}/wkapp_products?{0}".format(urlencode(params), server_url)
@@ -132,7 +132,7 @@
                </setup>
                <code>
                   import os
-                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  server_url = os.environ.get('SERVER_URL', "http://localhost:8080")
                   url = "{1}/wkapp_products?id={0}".format(descriptor.pubDID, server_url)
                   raise WebRedirect(url)
                </code>
@@ -220,7 +220,7 @@
               <code>
                   import os
                   from urllib.parse import urlencode
-                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  server_url = os.environ.get('SERVER_URL', "http://localhost:8080")
 
                   params = {"id": descriptor.pubDID, "product": "bootstrapfits"}
                   url = "{1}/wrkp_products?{0}".format(urlencode(params), server_url)
@@ -275,7 +275,7 @@
                </setup>
                <code>
                   import os
-                  server_url = os.environ.get('PRODUCT_URL', "http://localhost:8080")
+                  server_url = os.environ.get('SERVER_URL', "http://localhost:8080")
                   url = "{1}/wrkp_products?id={0}".format(descriptor.pubDID, server_url)
                   raise WebRedirect(url)
                </code>

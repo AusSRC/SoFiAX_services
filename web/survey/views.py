@@ -1,7 +1,6 @@
 import io
 import os
 import tarfile
-import urllib.parse
 import logging
 
 from urllib.request import pathname2url
@@ -31,7 +30,6 @@ from django.urls import reverse
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import render, redirect
-from django.contrib.auth import logout
 from django.contrib import messages
 from django.conf import settings
 from django.utils.safestring import mark_safe
@@ -65,16 +63,6 @@ KINEMATIC_MODEL_3KIDNAS_PRODUCTS = [
     "pvminordata",
     "pvminormod",
 ]
-
-
-def logout_view(request):
-    logout(request)
-    url = (
-        settings.LOGOUT_URL +
-        "?redirect_uri=" +
-        urllib.parse.quote(f"https://{request.get_host()}/admin")
-    )
-    return redirect(url)
 
 
 def test(request):

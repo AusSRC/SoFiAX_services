@@ -13,10 +13,8 @@ PROJECT = env("PROJECT")
 if not PROJECT:
     raise Exception("Project not defined")
 
-AUTH_GROUPS = env("AUTH_GROUPS").split(" ")
 PROJECT = PROJECT.upper()
 MODULES = [m.strip() for m in env("MODULES").split(",") if m.strip()]
-LOCAL = env.bool("LOCAL", default=True)
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
@@ -61,7 +59,6 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "sslserver",
     "django_extensions",
-    "social_django",
     "survey",
     "rest_framework",
 ]
@@ -76,62 +73,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-if LOCAL is False:
-    MIDDLEWARE.append(
-        "social_django.middleware.SocialAuthExceptionMiddleware",
-    )
-    MIDDLEWARE.append(
-        "survey.middleware.oauth.KeycloakMiddleware",
-    )
-
-AUTHENTICATION_BACKENDS = []
-
-if LOCAL is False:
-    AUTHENTICATION_BACKENDS.append(
-        "social_core.backends.keycloak.KeycloakOAuth2",
-    )
-
-AUTHENTICATION_BACKENDS.append("django.contrib.auth.backends.ModelBackend")
-
-## Social Auth
-LOGIN_URL = "/oauth/login/keycloak"
-LOGIN_REDIRECT_URL = "/admin"
-LOGOUT_URL = env("LOGOUT_URL", default="/logout")
-
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
-
-SOCIAL_AUTH_URL_NAMESPACE = "social"
-SOCIAL_AUTH_JSONFIELD_ENABLED = True
-SOCIAL_AUTH_JSONFIELD_CUSTOM = "django.db.models.JSONField"
-SOCIAL_AUTH_SESSION_EXPIRATION = True
-SOCIAL_AUTH_FORCE_POST_DISCONNECT = True
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
-
-SITE_ID = 1
-
-if LOCAL is False:
-    SOCIAL_AUTH_KEYCLOAK_KEY = env("KEY")
-    SOCIAL_AUTH_KEYCLOAK_SECRET = env("SECRET")
-    REALM = env("REALM")
-    SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = env("PUBLIC_KEY")
-    CLIENT_AUTH = env("CLIENT_AUTH")
-    SOCIAL_AUTH_KEYCLOAK_AUTHORIZATION_URL = env("AUTHORIZATION_URL")
-    SOCIAL_AUTH_KEYCLOAK_ACCESS_TOKEN_URL = env("ACCESS_TOKEN_URL")
-    ID_KEY = env("ID_KEY")
-## End Social Auth
-
-SOCIAL_AUTH_PIPELINE = (
-    "social_core.pipeline.social_auth.social_details",
-    "social_core.pipeline.social_auth.social_uid",
-    "social_core.pipeline.social_auth.auth_allowed",
-    "social_core.pipeline.social_auth.social_user",
-    "social_core.pipeline.user.create_user",
-    "social_core.pipeline.user.get_username",
-    "social_core.pipeline.social_auth.associate_user",
-    "social_core.pipeline.social_auth.load_extra_data",
-    "social_core.pipeline.user.user_details",
-)
 
 ROOT_URLCONF = "config.urls"
 
@@ -148,8 +91,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "social_django.context_processors.backends",
-                "social_django.context_processors.login_redirect",
             ],
         },
     },

@@ -9,7 +9,6 @@ from survey.views import (
     instance_products,
     run_products,
     run_catalog,
-    logout_view,
     test,
     summary_image,
     manual_inspection_detection_view,
@@ -43,18 +42,6 @@ urlpatterns = [
     path("external_conflict", external_conflict_view, name="external_conflict"),
 ]
 
-# settings.LOCAL=(TRUE|FALSE) - use django admin authentication | use keycloak authentication
-if settings.LOCAL is False:
-    urlpatterns.append(
-        path(
-            "admin/login/",
-            RedirectView.as_view(
-                url=settings.LOGIN_URL, permanent=True, query_string=True
-            ),
-        )
-    )
-    urlpatterns.append(path("admin/logout/", logout_view, name="logout_view"))
-
 # REST API endpoints
 router = routers.DefaultRouter()
 router.register("observations", ObservationViewSet, basename="observations")
@@ -65,7 +52,6 @@ urlpatterns += [
     path("api/", include(router.urls)),
     path("", RedirectView.as_view(url=reverse_lazy("admin:index"))),
     path("admin/", admin.site.urls),
-    path("oauth/", include("social_django.urls", namespace="social")),
 ]
 
 admin.site.enable_nav_sidebar = False

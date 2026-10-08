@@ -10,9 +10,6 @@ python-dotenv
 django-extensions
 psycopg2-binary
 django-sslserver
-social-auth-app-django
-social-auth-core
-python-keycloak
 django-environ
 djangorestframework
 markdown

@@ -1,9 +1,8 @@
 version: '3.5'
 
 services:
-  survey_db:
-    image: survey_db
-    container_name: survey_db
+  database:
+    container_name: database
     shm_size: '32gb'
     build:
       context: db/
@@ -17,9 +16,8 @@ services:
     networks:
       - survey_network
 
-  survey_web:
-    image: survey_web
-    container_name: survey_web
+  web:
+    container_name: web
     build:
       context: web
     env_file:
@@ -33,9 +31,8 @@ services:
     networks:
       - survey_network
 
-  survey_nginx:
-    image: survey_nginx
-    container_name: survey_nginx
+  nginx:
+    container_name: app_nginx
     build:
       context: nginx
     ports:
@@ -49,9 +46,8 @@ services:
     networks:
       - survey_network
 
-  survey_vo:
-    image: survey_vo
-    container_name: survey_vo
+  gavo:
+    container_name: gavo
     build:
       context: vo
     env_file:
