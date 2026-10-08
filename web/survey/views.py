@@ -502,22 +502,30 @@ def manual_inspection_detection_view(request):
         product = Product.objects.get(detection=detection)
         img_src = product_summary_image(product, size=(12, 9))
 
-        properties = {
-            "RA": round(detection.ra, 4),
-            "Dec": round(detection.dec, 4),
+        ra, dec = detection.equatorial()
+        properties = {}
+        if ra is not None:
+            properties["RA"] = round(ra, 4)
+            properties["Dec"] = round(dec, 4)
+        if detection.ra is None and detection.l is not None and detection.b is not None:
+            properties["Glon"] = round(detection.l, 4)
+            properties["Glat"] = round(detection.b, 4)
+        properties.update({
             "freq [MHz]": round(detection.freq / 10**6, 2),
             "v_opt": round(299792.458 * (1.42040575e9 / detection.freq - 1.0), 2),
             "f_sum": round(detection.f_sum, 2),
-            "rel": round(detection.rel, 2),
+            "rel": None if detection.rel is None else round(detection.rel, 2),
             "rms [mJy]": round(detection.rms * 10**3, 2),
-            "snr": round(detection.f_sum / detection.err_f_sum, 2),
-        }
+            "snr": round(detection.f_sum / detection.err_f_sum, 2) if detection.err_f_sum else None,
+        })
 
-        links = {
-            "NED": f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&lon={round(detection.ra, 5)}d&lat={round(detection.dec, 5)}d&radius=0.5",
-            "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768",
-            "DECaPS": f"https://decaps.legacysurvey.org/viewer/cutout.jpg?layer=decaps2&ra={round(detection.ra, 5)}&dec={round(detection.dec, 5)}&pixscale=0.262&size=768",
-        }
+        links = {}
+        if ra is not None:
+            links = {
+                "NED": f"https://ned.ipac.caltech.edu/cgi-bin/objsearch?search_type=Near+Position+Search&in_csys=Equatorial&in_equinox=J2000.0&lon={round(ra, 5)}d&lat={round(dec, 5)}d&radius=0.5",
+                "LS-DR10": f"https://www.legacysurvey.org/viewer/jpeg-cutout?layer=ls-dr10&ra={round(ra, 5)}&dec={round(dec, 5)}&pixscale=0.262&size=768",
+                "DECaPS": f"https://decaps.legacysurvey.org/viewer/cutout.jpg?layer=decaps2&ra={round(ra, 5)}&dec={round(dec, 5)}&pixscale=0.262&size=768",
+            }
 
         # CARTA button to open the image cube
         carta_url = None

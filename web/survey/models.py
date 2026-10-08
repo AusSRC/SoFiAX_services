@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from enum import IntEnum
 from io import BytesIO, StringIO
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils.safestring import mark_safe
@@ -405,6 +406,18 @@ class Detection(models.Model):
         if not products:
             return None
         return product_summary_image(products[0], size=size, binary_image=binary_image)
+
+    def equatorial(self):
+        """RA and Dec (J2000) in degrees. Converted from galactic coordinates for
+        detections that only have those, (None, None) if there is no position.
+
+        """
+        if self.ra is not None and self.dec is not None:
+            return float(self.ra), float(self.dec)
+        if self.l is None or self.b is None:
+            return None, None
+        coord = SkyCoord(l=float(self.l), b=float(self.b), unit='deg', frame='galactic').icrs
+        return float(coord.ra.deg), float(coord.dec.deg)
 
     def description_string(self):
         description = ''

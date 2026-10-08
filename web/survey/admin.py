@@ -244,11 +244,13 @@ class DetectionAdmin(ModelAdmin):
     actions = ['mark_genuine', 'check_action', 'add_tag', 'add_comment']
 
     def display_ra(self, obj):
-        return round(obj.ra, 4)
+        ra, dec = obj.equatorial()
+        return None if ra is None else round(ra, 4)
     display_ra.short_description = 'RA'
 
     def display_dec(self, obj):
-        return round(obj.dec, 4)
+        ra, dec = obj.equatorial()
+        return None if dec is None else round(dec, 4)
     display_dec.short_description = 'Dec'
 
     def display_freq(self, obj):
