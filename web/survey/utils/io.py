@@ -5,9 +5,7 @@ from datetime import datetime
 
 
 def tarfile_write(tar, filename, content):
-    """Helper function for writing content to a tarfile.
-
-    """
+    """Helper function for writing content to a tarfile."""
     info = tarfile.TarInfo(filename)
     info.size = len(content)
     info.mtime = time.mktime(datetime.now().timetuple())

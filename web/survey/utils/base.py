@@ -6,6 +6,7 @@ class ModelAdmin(admin.ModelAdmin):
     classes.
 
     """
+
     show_change_link = True
 
     def has_add_permission(self, request, obj=None):
@@ -21,9 +22,8 @@ class ModelAdmin(admin.ModelAdmin):
 
 
 class ModelAdminInline(admin.TabularInline):
-    """Base class for table Admin inline classes.
+    """Base class for table Admin inline classes."""
 
-    """
     show_change_link = True
 
     def has_add_permission(self, request, obj=None):

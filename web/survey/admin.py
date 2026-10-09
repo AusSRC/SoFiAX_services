@@ -824,7 +824,8 @@ class RunAdmin(ModelAdmin):
     ordering = ('-created',)
     search_fields = ['name']
     actions = ['_download_summaries', '_internal_cross_match', '_external_cross_match',
-               '_release_sources', '_auto_assign_to_component', '_delete_run']
+               '_external_cross_match_dry_run', '_release_sources',
+               '_auto_assign_to_component', '_delete_run']
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -1014,7 +1015,7 @@ class RunAdmin(ModelAdmin):
     _internal_cross_match.short_description = 'Internal cross matching'
 
     @task(exclusive_func_with=['internal_cross_match', 'external_cross_match', 'release_sources', 'delete_run', 'download_summaries'])
-    def external_cross_match(self, request, queryset):
+    def external_cross_match(self, request, queryset, dry_run=False):
         # Threshold values
         thresh_spat = 90.0
         thresh_spec = 2e+6
@@ -1040,6 +1041,13 @@ class RunAdmin(ModelAdmin):
 
         with transaction.atomic():
             Detection.objects.filter(accepted=True, source_name__isnull=False).select_for_update()
+            internal_release_tag = Tag.objects.get(name='Internal Release')
+            released_detections = Detection.objects.filter(
+                id__in=TagDetection.objects.filter(tag=internal_release_tag).values('detection_id'),
+                accepted=True,
+                source_name__startswith=settings.PROJECT,
+            ).exclude(run=run)
+            logging.info(f'{released_detections.count()} released detections available for cross matching')
 
             # Get survey components
             survey_components = get_survey_components()
@@ -1048,10 +1056,8 @@ class RunAdmin(ModelAdmin):
             if len(run_list) != 1:
                 raise Exception("Only one run can be selected at a time for external cross matching.")
 
-            PROJECT = settings.PROJECT
-
             run = run_list[0]
-            run_detections = Detection.objects.filter(run=run, accepted=True)  # Accepted detections that are not yet sources
+            run_detections = Detection.objects.filter(run=run, accepted=True).order_by('id')  # Accepted detections that are not yet sources
 
             if any([d.unresolved for d in run_detections]):
                 raise Exception('There cannot be any unresolved detections for the run at the time of running external cross matching.')
@@ -1064,72 +1070,73 @@ class RunAdmin(ModelAdmin):
             logging.info(f'External cross matching applied in {run.name} to {len(run_detections)} detections')
             start = time.time()
             for idx, d in enumerate(run_detections):
+                # Define variables for actions to be applied to this detection.
                 auto_rename = False
                 auto_delete = False
                 matches = []
                 delete_detections = []
                 rename_detections = []
 
-                # Compare against close detections (accepted) from other runs in the same survey component
-                # TODO: Fix this threshold for the poles with delta RA (cosine factor)
-                this_sc_id = SurveyComponentRun.objects.get(run=run).sc_id
-                sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=this_sc_id)]
-                sc_runs = Run.objects.filter(id__in=sc_run_ids)
-                close_detections = Detection.objects.filter(
-                    accepted=True,
-                    source_name__isnull=False,
+                # Check against all internally released accepted detections with WALLABY source name
+                close_detections = released_detections.filter(
                     ra__range=(d.ra - SEARCH_THRESHOLD, d.ra + SEARCH_THRESHOLD),
                     dec__range=(d.dec - SEARCH_THRESHOLD, d.dec + SEARCH_THRESHOLD),
-                    run__in=sc_runs
-                ).exclude(run=run)
+                )
 
-                for d_ext in list(set(close_detections)):
-                    # Require official released source.
-                    # TODO: require associated tag?
-                    if PROJECT not in d_ext.source_name:
-                        continue
-
+                for d_ext in close_detections:
                     # Auto-delete check on tighter threshold values
                     if self._is_match(d, d_ext, thresh_spat=thresh_spat_auto, thresh_spec=thresh_spec_auto):
-                        # Logic: delete if in same survey component or reassign to existing source otherwise.
+                        # NOTE: shouldn't this be caught already anyway by the internal cross matching?
+                        # If not, then this is a bug in the internal cross matching.
                         delete = False
-                        for runs in survey_components.values():
-                            if set([d.run.name, d_ext.run.name]).issubset(set(runs)):
+                        for sc_run_names in survey_components.values():
+                            if {d.run.name, d_ext.run.name}.issubset(set(sc_run_names)):
                                 delete = True
                         if delete:
                             auto_delete = True
                             delete_detections.append(d_ext)
                         else:
-                            auto_rename = True
-                            rename_detections.append((d, d_ext))
+                            # The run that came first owns the name. If this run
+                            # is the older one, the other run is the one to fix.
+                            if d.source_name is None or d_ext.run.created < d.run.created:
+                                auto_rename = True
+                                rename_detections.append((d, d_ext))
+                            else:
+                                logging.info(
+                                    f'{d.name} keeps {d.source_name}: '
+                                    f'{d_ext.run.name} is newer than {d.run.name}'
+                                )
 
                     # Otherwise mark for manual resolution
                     elif self._is_match(d, d_ext, thresh_spat=thresh_spat, thresh_spec=thresh_spec):
                         matches.append(d_ext)
 
-                # Possible action for this detection
+                # NOTE: this does nothing...
                 if auto_delete:
                     logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically deleted. Conflict: {delete_detections}')
 
                 if auto_rename and not auto_delete:
-                    if len(rename_detections) > 1:
+                    candidate_names = {d_ext.source_name for (_, d_ext) in rename_detections}
+                    if len(candidate_names) > 1:
                         logging.error(f'Multiple rename sources: {rename_detections}')
                         raise Exception('Should not be able to rename a detection to more than one source (existing database conflict to resolve).')
 
-                    # Check other detections pointing to rename source in same survey component
+                    # Matches agree on the name; take the oldest run's detection.
+                    d_cur, d_ext = min(rename_detections, key=lambda pair: pair[1].run.created)
+
                     conflict_in_survey_component = False
-                    d_cur, d_ext = rename_detections[0]
-                    ds = Detection.objects.filter(source_name=d_ext.source_name)
-                    for d in ds:
-                        if set([d_cur.run.name, d.run.name]).issubset(set(runs)):
-                            conflict_in_survey_component = True
-                            logging.info(f'Cannot rename detection {d_cur.name} to {d_ext.source_name} due to potential conflict {d.name} in same survey component.')
-                            logging.info(f'Creating external conflict {d_cur.name} to detection {d.name}')
-                            external_conflicts.append({
-                                'run': run,
-                                'detection': d_cur,
-                                'conflict_detection': d_ext
-                            })
+                    ds = Detection.objects.filter(source_name=d_ext.source_name).exclude(id__in=[d_cur.id, d_ext.id])
+                    for d_other in ds:
+                        for sc_run_names in survey_components.values():
+                            if {d_cur.run.name, d_other.run.name}.issubset(set(sc_run_names)):
+                                conflict_in_survey_component = True
+                                logging.info(f'Cannot rename detection {d_cur.name} to {d_ext.source_name} due to potential conflict {d_other.name} in same survey component.')
+                                logging.info(f'Creating external conflict {d_cur.name} to detection {d_other.name}')
+                                external_conflicts.append({
+                                    'run': run,
+                                    'detection': d_cur,
+                                    'conflict_detection': d_ext
+                                })
                     if not conflict_in_survey_component:
                         all_rename_detections += rename_detections
                         logging.info(f'[{idx+1}/{len(run_detections)}] {d.name} to be automatically renamed to {d_ext.source_name} [{d_ext.run.name}]')
@@ -1149,20 +1156,41 @@ class RunAdmin(ModelAdmin):
             end = time.time()
             logging.info(f"External cross matching completed in {round(end - start, 2)} seconds")
 
-            # Release name check for detections in the same survey component
+            # Release name checks against released detections
             accepted_source_names = set([get_release_name(d.name) for d in accepted_detections])
-            sc_run_ids = [scr.run_id for scr in SurveyComponentRun.objects.filter(sc_id=SurveyComponentRun.objects.get(run=run).sc_id)]
-            sc_runs = Run.objects.filter(id__in=sc_run_ids)
-            existing_names = set([d.source_name for d in Detection.objects.filter(accepted=True, source_name__isnull=False, run__in=sc_runs).exclude(run=run)])
+            existing_names = set([d.source_name for d in released_detections.exclude(run=run)])
             if accepted_source_names & existing_names:
                 logging.error('External cross matching failed - release name already exists for accepted detection.')
                 raise Exception(f'Attempting to rename to: {accepted_source_names.intersection(existing_names)}')
+            unexpected = [
+                (d.name, d.source_name, get_release_name(d.name))
+                for d in accepted_detections
+                if d.source_name and d.source_name != get_release_name(d.name)
+            ]
+            if unexpected:
+                raise Exception(f'Detections carry an inherited name with no released match: {unexpected}')
 
-            logging.info("Writing updates to database")
+            # Dry run exit point
+            summary = (
+                f'{len([d for d in accepted_detections if d.source_name is None])} to name, '
+                f'{len(all_rename_detections)} to rename, '
+                f'{len(external_conflicts)} conflicts'
+            )
+            if dry_run:
+                logging.info(f'DRY RUN - no changes written. {summary}')
+                return ValueTaskReturn(f'Dry run {run.name}: {summary}')
+
+            # Applying changes
+            logging.info("Applying updates to detections in database")
+
             # Accepted sources
             for d in accepted_detections:
+                if d.source_name is not None:
+                    # Already named and nothing released matches it: a re-run
+                    # must not re-derive the name from its own coordinates.
+                    continue
                 d.source_name = get_release_name(d.name)
-                d.save()
+                d.save(update_fields=['source_name'])
 
             # Renaming
             logging.info(f'Renaming: {all_rename_detections}')
@@ -1170,7 +1198,7 @@ class RunAdmin(ModelAdmin):
                 # Check if deleted in this run
                 logging.info(f'Database update: Renaming {d.source_name} to {new_d.source_name}')
                 d.source_name = new_d.source_name
-                d.save()
+                d.save(update_fields=['source_name'])
 
             # External conflicts
             for ex_c in external_conflicts:
@@ -1192,6 +1220,17 @@ class RunAdmin(ModelAdmin):
             messages.error(request, str(e))
 
     _external_cross_match.short_description = 'External cross matching'
+
+    def _external_cross_match_dry_run(self, request, queryset):
+        """Run the external cross matching workflow to identify sources in a dry-run mode"""
+        try:
+            task_id = self.external_cross_match(request, queryset, True)
+            logging.info(f'Created task {task_id} for external cross matching (dry run)')
+            return redirect('/admin/survey/task/')
+        except Exception as e:
+            messages.error(request, str(e))
+
+    _external_cross_match_dry_run.short_description = 'External cross matching (dry run)'
 
     class ReleaseSourceForm(forms.Form):
         title = 'Release sources for selected runs. Created source names and adds new tag to all sources.'

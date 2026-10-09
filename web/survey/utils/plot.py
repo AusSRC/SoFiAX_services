@@ -15,7 +15,7 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
     fig.set_size_inches(*size)
     img = mpimg.imread(io.BytesIO(plot))
     plt.imshow(img)
-    plt.axis('off')
+    plt.axis("off")
     plt.tight_layout()
     ax = plt.gca()
     ax.set_frame_on(False)
@@ -23,12 +23,14 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
     ax.get_yaxis().set_visible(False)
 
     with io.BytesIO() as image_data:
-        fig.savefig(image_data, format='png')
+        fig.savefig(image_data, format="png")
         if binary_image:
             plt.close(fig)
             return image_data.getvalue()
 
         base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-        img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
+        img_src = (
+            f'<img src="data:image/png;base64,{base_img}", style="border-radius: 3%;">'
+        )
         plt.close(fig)
         return mark_safe(img_src)

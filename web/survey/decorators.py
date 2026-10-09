@@ -32,22 +32,18 @@ def require_confirmation(func):
 
 
 def action_form(form_class=None):
-    """
+    """ """
 
-    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset, form)
-                    self.message_user(
-                        request,
-                        '%s objects updated' % obj_count
-                    )
+                    self.message_user(request, "%s objects updated" % obj_count)
                     return None
 
             context = dict(
@@ -57,17 +53,17 @@ def action_form(form_class=None):
                 opts=self.model._meta,
                 queryset=queryset,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
+            )
 
             return TemplateResponse(
-                request,
-                'admin/form_action_confirmation.html',
-                context
+                request, "admin/form_action_confirmation.html", context
             )
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator
 
 
@@ -77,7 +73,7 @@ def add_tag_form(form_class=None, tags=Tag.objects.all()):
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset)
@@ -91,17 +87,15 @@ def add_tag_form(form_class=None, tags=Tag.objects.all()):
                 queryset=queryset,
                 tags=tags,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
-
-            return TemplateResponse(
-                request,
-                'admin/form_add_tag.html',
-                context
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
             )
+
+            return TemplateResponse(request, "admin/form_add_tag.html", context)
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator
 
 
@@ -111,14 +105,11 @@ def add_comment_form(form_class=None):
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset)
-                    self.message_user(
-                        request,
-                        '%s objects updated' % obj_count
-                    )
+                    self.message_user(request, "%s objects updated" % obj_count)
                 return None
 
             context = dict(
@@ -128,60 +119,62 @@ def add_comment_form(form_class=None):
                 opts=self.model._meta,
                 queryset=queryset,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
-
-            return TemplateResponse(
-                request,
-                'admin/form_add_comment.html',
-                context
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
             )
+
+            return TemplateResponse(request, "admin/form_add_comment.html", context)
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator
 
 
 def basic_auth(view):
-    """Function requires user authentication.
+    """Function requires user authentication."""
 
-    """
     def wrap(request, *args, **kwargs):
         try:
             if request.user.is_authenticated:
                 return view(request, *args, **kwargs)
 
-            if 'HTTP_AUTHORIZATION' in request.META:
-                auth = request.META['HTTP_AUTHORIZATION'].split()
+            if "HTTP_AUTHORIZATION" in request.META:
+                auth = request.META["HTTP_AUTHORIZATION"].split()
                 if len(auth) == 2:
                     if auth[0].lower() == "basic":
-                        username, password = base64.b64decode(auth[1]).decode("utf8").split(':')
+                        username, password = (
+                            base64.b64decode(auth[1]).decode("utf8").split(":")
+                        )
                         try:
                             token = None
-                            openid = KeycloakOpenID(server_url=settings.CLIENT_AUTH,
-                                                    client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
-                                                    realm_name=settings.REALM,
-                                                    client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET)
+                            openid = KeycloakOpenID(
+                                server_url=settings.CLIENT_AUTH,
+                                client_id=settings.SOCIAL_AUTH_KEYCLOAK_KEY,
+                                realm_name=settings.REALM,
+                                client_secret_key=settings.SOCIAL_AUTH_KEYCLOAK_SECRET,
+                            )
                             token = openid.token(username, password)
                         finally:
                             try:
                                 # Basic Auth does not carry the token around so end session
                                 if token:
-                                    openid.logout(token['refresh_token'])
+                                    openid.logout(token["refresh_token"])
                             except:
                                 pass
 
                         response = view(request, *args, **kwargs)
-                        response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
+                        response["WWW-Authenticate"] = 'Basic realm="AusSRC"'
                         return response
 
             response = HttpResponse()
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
+            response["WWW-Authenticate"] = 'Basic realm="AusSRC"'
             return response
         except Exception as e:
             response = HttpResponse(str(e))
             response.status_code = 401
-            response['WWW-Authenticate'] = 'Basic realm="AusSRC"'
+            response["WWW-Authenticate"] = 'Basic realm="AusSRC"'
             return response
+
     return wrap
