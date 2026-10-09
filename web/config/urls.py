@@ -36,9 +36,7 @@ urlpatterns = [
     path("task_file_download", task_file_download, name="task_file_download"),
     path("run_products", run_products, name="run_products"),
     path("catalog", run_catalog, name="run_catalog"),
-    path(
-        "inspect_detection", manual_inspection_detection_view, name="inspect_detection"
-    ),
+    path("inspect_detection", manual_inspection_detection_view, name="inspect_detection"),
     path("external_conflict", external_conflict_view, name="external_conflict"),
 ]
 

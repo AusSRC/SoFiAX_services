@@ -18,17 +18,15 @@ class HTMLChecker(HTMLParser):
 
 
 def plot_html(plot):
-    """Return the content of a summary plot if it is HTML (optionally gzipped), otherwise None.
-
-    """
+    """Return the content of a summary plot if it is HTML (optionally gzipped), otherwise None."""
     data = bytes(plot)
-    if data[:2] == b'\x1f\x8b':
+    if data[:2] == b"\x1f\x8b":
         try:
             data = gzip.decompress(data)
         except OSError:
             return None
     try:
-        content = data.decode('utf-8')
+        content = data.decode("utf-8")
     except UnicodeDecodeError:
         return None
     checker = HTMLChecker()
@@ -54,13 +52,13 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
     try:
         img = mpimg.imread(io.BytesIO(plot))
     except Exception as e:
-        logging.error(f'Failed to read summary plot: {e}')
+        logging.error(f"Failed to read summary plot: {e}")
         return None
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.set_size_inches(*size)
     plt.imshow(img)
-    plt.axis('off')
+    plt.axis("off")
     plt.tight_layout()
     ax = plt.gca()
     ax.set_frame_on(False)
@@ -68,12 +66,12 @@ def product_summary_image(products, size=(3, 2), binary_image=False):
     ax.get_yaxis().set_visible(False)
 
     with io.BytesIO() as image_data:
-        fig.savefig(image_data, format='png')
+        fig.savefig(image_data, format="png")
         if binary_image:
             plt.close(fig)
             return image_data.getvalue()
 
         base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-        img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
+        img_src = f'<img src="data:image/png;base64,{base_img}", style="border-radius: 3%;">'
         plt.close(fig)
         return mark_safe(img_src)

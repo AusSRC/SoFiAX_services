@@ -29,7 +29,7 @@ from survey.models import (
 from django.urls import reverse
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib import messages
 from django.conf import settings
 from django.utils.safestring import mark_safe
@@ -166,9 +166,7 @@ def task_file_download(request):
 
     filename = task.get_paths()[0]
     response = StreamingHttpResponse(streaming_content=_read_in_chunks(filename))
-    response["Content-Disposition"] = (
-        f"attachment; filename={os.path.basename(filename)}"
-    )
+    response["Content-Disposition"] = f"attachment; filename={os.path.basename(filename)}"
     response["Content-Length"] = os.path.getsize(filename)
     return response
 
@@ -510,14 +508,16 @@ def manual_inspection_detection_view(request):
         if detection.ra is None and detection.l is not None and detection.b is not None:
             properties["Glon"] = round(detection.l, 4)
             properties["Glat"] = round(detection.b, 4)
-        properties.update({
-            "freq [MHz]": round(detection.freq / 10**6, 2),
-            "v_opt": round(299792.458 * (1.42040575e9 / detection.freq - 1.0), 2),
-            "f_sum": round(detection.f_sum, 2),
-            "rel": None if detection.rel is None else round(detection.rel, 2),
-            "rms [mJy]": round(detection.rms * 10**3, 2),
-            "snr": round(detection.f_sum / detection.err_f_sum, 2) if detection.err_f_sum else None,
-        })
+        properties.update(
+            {
+                "freq [MHz]": round(detection.freq / 10**6, 2),
+                "v_opt": round(299792.458 * (1.42040575e9 / detection.freq - 1.0), 2),
+                "f_sum": round(detection.f_sum, 2),
+                "rel": None if detection.rel is None else round(detection.rel, 2),
+                "rms [mJy]": round(detection.rms * 10**3, 2),
+                "snr": round(detection.f_sum / detection.err_f_sum, 2) if detection.err_f_sum else None,
+            }
+        )
 
         links = {}
         if ra is not None:
@@ -576,9 +576,7 @@ def manual_inspection_detection_view(request):
             with transaction.atomic():
                 detection = Detection.objects.select_for_update().get(id=detection.id)
                 if action == "Accept":
-                    logging.info(
-                        f"Marking detection {detection.name} as an accepted detection."
-                    )
+                    logging.info(f"Marking detection {detection.name} as an accepted detection.")
                     detection.accepted = True
                 else:
                     logging.info(f"Rejecting detection {detection.name} ({action}).")
@@ -623,13 +621,9 @@ def external_conflict_view(request):
             return HttpResponse("Run id is not an integer.", status=400)
 
         run = Run.objects.get(id=run_id)
-        conflicts = ExternalConflict.objects.filter(
-            detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
-        )
+        conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
         if len(conflicts) == 0:
-            messages.info(
-                request, "All external conflicts for this run have been resolved"
-            )
+            messages.info(request, "All external conflicts for this run have been resolved")
             return HttpResponseRedirect("/admin/survey/run")
 
         ex_c_id = int(request.GET.get("external_conflict_id", conflicts[0].id))
@@ -640,15 +634,8 @@ def external_conflict_view(request):
         product = Product.objects.get(detection=ex_c.detection)
         img_src = product_summary_image(product, size=(6, 4))
         description = ""
-        description += ", ".join(
-            [
-                td.tag.name
-                for td in TagDetection.objects.filter(detection=ex_c.detection)
-            ]
-        )
-        description += ", ".join(
-            [c.comment for c in Comment.objects.filter(detection=ex_c.detection)]
-        )
+        description += ", ".join([td.tag.name for td in TagDetection.objects.filter(detection=ex_c.detection)])
+        description += ", ".join([c.comment for c in Comment.objects.filter(detection=ex_c.detection)])
         if description == "":
             description = "No tags or comments"
         properties = {
@@ -708,9 +695,7 @@ def external_conflict_view(request):
         run = Run.objects.get(id=int(body["run_id"][0]))
         logging.info(f"External conflict resolution for run {run.name}")
         ex_c = ExternalConflict.objects.get(id=int(body["external_conflict_id"][0]))
-        conflicts = ExternalConflict.objects.filter(
-            detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
-        )
+        conflicts = ExternalConflict.objects.filter(detection_id__in=[d.id for d in Detection.objects.filter(run=run)])
         idx = list(conflicts).index(ex_c)
 
         if "Add tags and comments" in body["action"]:
@@ -724,9 +709,7 @@ def external_conflict_view(request):
                     tag_select_input="tag_select_conflict",
                     tag_create_input="tag_create_conflict",
                 )
-                _add_comment(
-                    request, ex_c.conflict_detection, comment_input="comment_conflict"
-                )
+                _add_comment(request, ex_c.conflict_detection, comment_input="comment_conflict")
             url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={ex_c.id}"
             return HttpResponseRedirect(url)
 
@@ -736,9 +719,9 @@ def external_conflict_view(request):
                 new_name = get_release_name(ex_c.detection.name)
                 if new_name in [
                     d.source_name
-                    for d in Detection.objects.filter(
-                        accepted=True, source_name__isnull=False
-                    ).exclude(id=ex_c.detection.id)
+                    for d in Detection.objects.filter(accepted=True, source_name__isnull=False).exclude(
+                        id=ex_c.detection.id
+                    )
                 ]:
                     messages.error(
                         request,
@@ -747,17 +730,13 @@ def external_conflict_view(request):
                     url = f"{reverse('external_conflict')}?run_id={run.id}&external_conflict_id={conflicts[idx].id}"
                     return HttpResponseRedirect(url)
                 # Accept new name as an official (and separate) source
-                logging.info(
-                    f"Adding official name {new_name} to detection {ex_c.detection.name}"
-                )
+                logging.info(f"Adding official name {new_name} to detection {ex_c.detection.name}")
                 ex_c.detection.source_name = new_name
                 ex_c.detection.save()
                 # Remove external conflicts that reference this detection
                 for c in conflicts:
                     if c.detection == ex_c.detection:
-                        logging.info(
-                            f"Removing external conflict for this detection: {c.id}"
-                        )
+                        logging.info(f"Removing external conflict for this detection: {c.id}")
                         c.delete()
                 conflicts = ExternalConflict.objects.filter(
                     detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
@@ -812,9 +791,7 @@ def external_conflict_view(request):
                 # Remove external conflicts that reference this detection
                 for c in conflicts:
                     if c.detection == ex_c.detection:
-                        logging.info(
-                            f"Removing external conflict for this detection: {c.id}"
-                        )
+                        logging.info(f"Removing external conflict for this detection: {c.id}")
                         c.delete()
                 conflicts = ExternalConflict.objects.filter(
                     detection_id__in=[d.id for d in Detection.objects.filter(run=run)]
@@ -834,14 +811,10 @@ def external_conflict_view(request):
                 logging.info(f"De-selecting detection {ex_c.detection}")
                 ex_c.detection.source_name = None
                 ex_c.detection.accepted = None
-                ex_c.detection.save(
-                    update_fields=["source_name", "accepted"]
-                )
+                ex_c.detection.save(update_fields=["source_name", "accepted"])
 
                 # Remove external conflicts
-                logging.info(
-                    f"Deleting external conflicts for detection {ex_c.detection}"
-                )
+                logging.info(f"Deleting external conflicts for detection {ex_c.detection}")
                 for c in ExternalConflict.objects.filter(detection=ex_c.detection):
                     c.delete()
                 # NOTE: issue with indexing here if multiple conflicts have been deleted
@@ -885,9 +858,7 @@ def wkapp_products(request):
     if product_arg is not None:
         product_arg = product_arg.lower()
         if product_arg not in KINEMATIC_MODEL_PRODUCTS:
-            return HttpResponse(
-                "not a valid kinematic_model wkapp_product.", status=400
-            )
+            return HttpResponse("not a valid kinematic_model wkapp_product.", status=400)
 
     # Query model and products
     kinematic_model = KinematicModel.objects.get(id=kinematic_model_id)
@@ -952,9 +923,7 @@ def wrkp_products(request):
     if product_arg is not None:
         product_arg = product_arg.lower()
         if product_arg not in KINEMATIC_MODEL_3KIDNAS_PRODUCTS:
-            return HttpResponse(
-                "not a valid kinematic_model_3kidnas wrkp_product.", status=400
-            )
+            return HttpResponse("not a valid kinematic_model_3kidnas wrkp_product.", status=400)
 
     # Query model and products
     kinematic_model = KinematicModel_3KIDNAS.objects.get(id=kinematic_model_3kidnas_id)

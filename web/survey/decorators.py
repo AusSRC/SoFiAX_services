@@ -2,7 +2,7 @@ import functools
 
 from django.contrib.admin import helpers
 from django.template.response import TemplateResponse
-from survey.models import Tag, Comment
+from survey.models import Tag
 
 
 # decorator for model action
@@ -23,22 +23,18 @@ def require_confirmation(func):
 
 
 def action_form(form_class=None):
-    """
+    """ """
 
-    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset, form)
-                    self.message_user(
-                        request,
-                        '%s objects updated' % obj_count
-                    )
+                    self.message_user(request, "%s objects updated" % obj_count)
                     return None
 
             context = dict(
@@ -48,17 +44,15 @@ def action_form(form_class=None):
                 opts=self.model._meta,
                 queryset=queryset,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
-
-            return TemplateResponse(
-                request,
-                'admin/form_action_confirmation.html',
-                context
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
             )
+
+            return TemplateResponse(request, "admin/form_action_confirmation.html", context)
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator
 
 
@@ -68,10 +62,10 @@ def add_tag_form(form_class=None, tags=Tag.objects.all()):
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
-                    obj_count = func(self, request, queryset)
+                    func(self, request, queryset)
                 return None
 
             context = dict(
@@ -82,17 +76,15 @@ def add_tag_form(form_class=None, tags=Tag.objects.all()):
                 queryset=queryset,
                 tags=tags,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
-
-            return TemplateResponse(
-                request,
-                'admin/form_add_tag.html',
-                context
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
             )
+
+            return TemplateResponse(request, "admin/form_add_tag.html", context)
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator
 
 
@@ -102,14 +94,11 @@ def add_comment_form(form_class=None):
         def wrapper(self, request, queryset):
             form = form_class()
 
-            if 'confirm' in request.POST and request.POST:
+            if "confirm" in request.POST and request.POST:
                 form = form_class(request.POST)
                 if form.is_valid():
                     obj_count = func(self, request, queryset)
-                    self.message_user(
-                        request,
-                        '%s objects updated' % obj_count
-                    )
+                    self.message_user(request, "%s objects updated" % obj_count)
                 return None
 
             context = dict(
@@ -119,15 +108,13 @@ def add_comment_form(form_class=None):
                 opts=self.model._meta,
                 queryset=queryset,
                 form=form,
-                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME)
-
-            return TemplateResponse(
-                request,
-                'admin/form_add_comment.html',
-                context
+                action_checkbox_name=helpers.ACTION_CHECKBOX_NAME,
             )
+
+            return TemplateResponse(request, "admin/form_add_comment.html", context)
 
         wrapper.short_description = form_class.title
 
         return wrapper
+
     return decorator

@@ -26,7 +26,7 @@ from survey.utils.fields import PostgresDecimalField
 from survey.utils.plot import product_summary_image
 
 
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 logging.basicConfig(level=logging.INFO)
 
 
@@ -50,7 +50,7 @@ class TaskReturn(object):
         return None
 
     def get_json(self):
-        return json.dumps({'type': self.return_type, 'retval': self.return_values})
+        return json.dumps({"type": self.return_type, "retval": self.return_values})
 
     def cleanup(self):
         pass
@@ -72,20 +72,20 @@ class FileTaskReturn(TaskReturn):
         super(FileTaskReturn, self).__init__(int(TaskReturnType.FILE), file_paths)
 
     def __str__(self):
-        return ','.join([os.path.basename(f) for f in self.return_values])
+        return ",".join([os.path.basename(f) for f in self.return_values])
 
     def get_paths(self):
         return self.return_values
 
     def get_link(self, task):
-        url = reverse('task_file_download')
+        url = reverse("task_file_download")
         return format_html("<a href='{}?id={}'>Download</a>", url, task.id)
 
     def cleanup(self):
         for f in self.return_values:
             try:
                 os.remove(f)
-            except Exception as e:
+            except Exception:
                 pass
 
 
@@ -112,7 +112,7 @@ class Task(models.Model):
     def get_return_link(self):
         ret = self.get_return()
         if ret:
-            if self.state == 'COMPLETED':
+            if self.state == "COMPLETED":
                 return ret.get_link(self)
         return None
 
@@ -120,20 +120,21 @@ class Task(models.Model):
         if self.retval is None:
             return None
         retval = json.loads(self.retval)
-        rettype = retval['type']
+        rettype = retval["type"]
 
         if rettype == int(TaskReturnType.NONE):
-            return NoneTaskReturn(retval['retval'])
+            return NoneTaskReturn(retval["retval"])
         elif rettype == int(TaskReturnType.FILE):
-            return FileTaskReturn(retval['retval'])
+            return FileTaskReturn(retval["retval"])
         elif rettype == int(TaskReturnType.VALUE):
-            return ValueTaskReturn(retval['retval'])
+            return ValueTaskReturn(retval["retval"])
         else:
             raise ValueError("Unknown return type")
 
     class Meta:
         managed = False
-        db_table = 'task'
+        db_table = "task"
+
 
 # ------------------------------------------------------------------------------
 # Astronomy data tables
@@ -150,14 +151,13 @@ class Run(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'run'
-        unique_together = (('name', 'sanity_thresholds'),)
+        db_table = "run"
+        unique_together = (("name", "sanity_thresholds"),)
 
 
 class Instance(models.Model):
-    """Automatically generated Django model from the database.
+    """Automatically generated Django model from the database."""
 
-    """
     id = models.BigAutoField(primary_key=True)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
     filename = models.TextField()
@@ -180,14 +180,13 @@ class Instance(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'instance'
-        unique_together = (('run', 'filename', 'boundary'),)
+        db_table = "instance"
+        unique_together = (("run", "filename", "boundary"),)
 
 
 class Detection(models.Model):
-    """Auto-generated Django model for detection table.
+    """Auto-generated Django model for detection table."""
 
-    """
     id = models.BigAutoField(primary_key=True)
     instance = models.ForeignKey(Instance, on_delete=models.CASCADE)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
@@ -250,28 +249,28 @@ class Detection(models.Model):
         return self.name
 
     def sanity_check(self, detect):
-        logging.info(f'Running sanity check between detections {self.id} and {detect.id}')
+        logging.info(f"Running sanity check between detections {self.id} and {detect.id}")
         if self.id == detect.id:
-            return False, 'Same detection.'
+            return False, "Same detection."
 
         if self.run.id != detect.run.id:
-            return False, f'Detections {self.id} and {detect.id} belong to different runs.'
+            return False, f"Detections {self.id} and {detect.id} belong to different runs."
 
         sanity_thresholds = self.run.sanity_thresholds
 
         f1 = self.f_sum
         f2 = detect.f_sum
-        flux_threshold = sanity_thresholds['flux']
+        flux_threshold = sanity_thresholds["flux"]
         diff = abs(f1 - f2) * 100 / ((abs(f1) + abs(f2)) / 2)
-        logging.info(f'Flux comparison: {f1} vs {f2}. Difference: {diff}')
-        logging.info(f'Flux threshold: {flux_threshold}')
+        logging.info(f"Flux comparison: {f1} vs {f2}. Difference: {diff}")
+        logging.info(f"Flux threshold: {flux_threshold}")
 
         if diff > flux_threshold:
             message = f"Detections: {self.id}, {detect.id} \
                 Var: flux {round(diff, 2)}% > {flux_threshold}%"
             return False, message
 
-        min_extent, max_extent = sanity_thresholds['spatial_extent']
+        min_extent, max_extent = sanity_thresholds["spatial_extent"]
         max1 = self.ell_maj
         max2 = detect.ell_maj
         min1 = self.ell_min
@@ -280,14 +279,18 @@ class Detection(models.Model):
         max_diff = abs(max1 - max2) * 100 / ((abs(max1) + abs(max2)) / 2)
         min_diff = abs(min1 - min2) * 100 / ((abs(min1) + abs(min2)) / 2)
         if max_diff > max_extent:
-            return False, f"Detections: {self.id}, {detect.id} Var: ell_maj " \
-                          f"Check: {round(max_diff, 2)}% > {max_extent}%"
+            return (
+                False,
+                f"Detections: {self.id}, {detect.id} Var: ell_maj Check: {round(max_diff, 2)}% > {max_extent}%",
+            )
 
         if min_diff > min_extent:
-            return False, f"Detections: {self.id}, {detect.id} Var: ell_min " \
-                          f"Check: {round(min_diff, 2)}% > {min_extent}%"
+            return (
+                False,
+                f"Detections: {self.id}, {detect.id} Var: ell_min Check: {round(min_diff, 2)}% > {min_extent}%",
+            )
 
-        min_extent, max_extent = sanity_thresholds['spectral_extent']
+        min_extent, max_extent = sanity_thresholds["spectral_extent"]
         max1 = self.w20
         max2 = detect.w20
         min1 = self.w50
@@ -295,44 +298,42 @@ class Detection(models.Model):
         max_diff = abs(max1 - max2) * 100 / ((abs(max1) + abs(max2)) / 2)
         min_diff = abs(min1 - min2) * 100 / ((abs(min1) + abs(min2)) / 2)
         if max_diff > max_extent:
-            return False, f"Detections: {self.id}, {detect.id} Var: w20 " \
-                          f"Check: {round(max_diff, 2)}% > {max_extent}%"
+            return False, f"Detections: {self.id}, {detect.id} Var: w20 Check: {round(max_diff, 2)}% > {max_extent}%"
 
         if min_diff > min_extent:
-            return False, f"Detections: {self.id}, {detect.id} Var: w50 " \
-                          f"Check: {round(min_diff, 2)}% > {min_extent}%"
+            return False, f"Detections: {self.id}, {detect.id} Var: w50 Check: {round(min_diff, 2)}% > {min_extent}%"
 
         return True, None
 
     def is_match(self, detect):
-        logging.info(f'Checking if detections {self.id} and {detect.id} are matches')
+        logging.info(f"Checking if detections {self.id} and {detect.id} are matches")
         if self.id == detect.id:
-            raise ValueError('Same detection.')
+            raise ValueError("Same detection.")
 
         if self.run.id != detect.run.id:
-            raise ValueError(f'Detections {self.id} and {detect.id} belong to different runs.')
+            raise ValueError(f"Detections {self.id} and {detect.id} belong to different runs.")
 
         if self.x == detect.x and self.y == detect.y and self.z == detect.z:
             return True
 
         sanity = self.run.sanity_thresholds
-        sigma = sanity.get('uncertainty_sigma', 5)
-        logging.info(f'Allowed uncertainty: {sigma}')
+        sigma = sanity.get("uncertainty_sigma", 5)
+        logging.info(f"Allowed uncertainty: {sigma}")
 
-        d_space = math.sqrt(
-            (self.x - detect.x) ** 2 + (self.y - detect.y) ** 2
-        )
-        logging.info(f'Spatial separation: {d_space}')
+        d_space = math.sqrt((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
+        logging.info(f"Spatial separation: {d_space}")
         d_space_err = math.sqrt(
-            (self.x - detect.x) ** 2 * (self.err_x ** 2 + detect.err_x ** 2) +
-            (self.y - detect.y) ** 2 * (self.err_y ** 2 + detect.err_y ** 2)) \
-            / ((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
-        logging.info(f'Spatial separation error: {d_space_err}')
+            (self.x - detect.x) ** 2 * (self.err_x**2 + detect.err_x**2)
+            + (self.y - detect.y) ** 2 * (self.err_y**2 + detect.err_y**2)
+        ) / ((self.x - detect.x) ** 2 + (self.y - detect.y) ** 2)
+        logging.info(f"Spatial separation error: {d_space_err}")
         d_spec = abs(self.z - detect.z)
-        logging.info(f'Spectral separation: {d_spec}')
-        d_spec_err = math.sqrt(self.err_z ** 2 + detect.err_z ** 2)
-        logging.info(f'Spectral separation error: {d_spec_err}')
-        logging.info(f'Spatial and spectral tests passing: ({d_space <= sigma * d_space_err}, {d_spec <= sigma * d_spec_err})')
+        logging.info(f"Spectral separation: {d_spec}")
+        d_spec_err = math.sqrt(self.err_z**2 + detect.err_z**2)
+        logging.info(f"Spectral separation error: {d_spec_err}")
+        logging.info(
+            f"Spatial and spectral tests passing: ({d_space <= sigma * d_space_err}, {d_spec <= sigma * d_spec_err})"
+        )
 
         return d_space <= sigma * d_space_err and d_spec <= sigma * d_spec_err
 
@@ -340,17 +341,17 @@ class Detection(models.Model):
         try:
             return self._spectrum_image()
         except Exception as e:
-            logging.error(f'Failed to create spectrum image for detection {self.id}: {e}')
+            logging.error(f"Failed to create spectrum image for detection {self.id}: {e}")
             return None
 
     def _spectrum_image(self):
-        product = self.product_set.only('spec')
+        product = self.product_set.only("spec")
         if not product:
             return None
 
         x = []
         y = []
-        with StringIO(product[0].spec.tobytes().decode('ascii')) as f:
+        with StringIO(product[0].spec.tobytes().decode("ascii")) as f:
             for line in f:
                 li = line.strip()
                 if not li.startswith("#"):
@@ -367,20 +368,20 @@ class Detection(models.Model):
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.set_size_inches(2, 1)
         ax.plot(x, y, linewidth=1)
-        ax.axhline(y.max() * .5, linewidth=1, color='r', alpha=0.5)
-        ax.axhline(y.max() * .2, linewidth=1, color='r', alpha=0.5)
+        ax.axhline(y.max() * 0.5, linewidth=1, color="r", alpha=0.5)
+        ax.axhline(y.max() * 0.2, linewidth=1, color="r", alpha=0.5)
         ax.set_yticklabels([])
         ax.set_xticklabels([])
 
         with BytesIO() as image_data:
-            fig.savefig(image_data, format='png')
+            fig.savefig(image_data, format="png")
             base_img = binascii.b2a_base64(image_data.getvalue()).decode()
-            img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
+            img_src = f'<img src="data:image/png;base64,{base_img}", style="border-radius: 3%;">'
             plt.close(fig)
             return mark_safe(img_src)
 
     def moment0_image(self):
-        product = self.product_set.only('mom0')
+        product = self.product_set.only("mom0")
         if not product:
             return None
 
@@ -389,20 +390,17 @@ class Detection(models.Model):
             img = 255 * ((data - data.min()) / np.ptp(data))
             img = img.astype(np.uint8)
             img = cv2.applyColorMap(img, cv2.COLORMAP_HSV)
-            img = Image.fromarray(img, 'RGB')
-            img = img.resize(
-                (hdu[0].header['NAXIS1'] * 2, hdu[0].header['NAXIS2'] * 2),
-                Image.BICUBIC
-            )
+            img = Image.fromarray(img, "RGB")
+            img = img.resize((hdu[0].header["NAXIS1"] * 2, hdu[0].header["NAXIS2"] * 2), Image.BICUBIC)
             with BytesIO() as image_file:
-                img.save(image_file, format='PNG')
+                img.save(image_file, format="PNG")
                 image_data = image_file.getvalue()
                 base_img = binascii.b2a_base64(image_data).decode()
-                img_src = f'<img src=\"data:image/png;base64,{base_img}\", style="border-radius: 3%;">'
+                img_src = f'<img src="data:image/png;base64,{base_img}", style="border-radius: 3%;">'
                 return mark_safe(img_src)
 
     def summary_image(self, size=(3, 2), binary_image=False):
-        products = self.product_set.only('spec')
+        products = self.product_set.only("spec")
         if not products:
             return None
         return product_summary_image(products[0], size=size, binary_image=binary_image)
@@ -416,31 +414,31 @@ class Detection(models.Model):
             return float(self.ra), float(self.dec)
         if self.l is None or self.b is None:
             return None, None
-        coord = SkyCoord(l=float(self.l), b=float(self.b), unit='deg', frame='galactic').icrs
+        coord = SkyCoord(l=float(self.l), b=float(self.b), unit="deg", frame="galactic").icrs
         return float(coord.ra.deg), float(coord.dec.deg)
 
     def description_string(self):
-        description = ''
-        description += ', '.join([td.tag.name for td in TagDetection.objects.filter(detection_id=self.id)])
-        description += ', '.join([c.comment for c in Comment.objects.filter(detection_id=self.id)])
-        if description == '':
-            description = 'No tags or comments'
+        description = ""
+        description += ", ".join([td.tag.name for td in TagDetection.objects.filter(detection_id=self.id)])
+        description += ", ".join([c.comment for c in Comment.objects.filter(detection_id=self.id)])
+        if description == "":
+            description = "No tags or comments"
         return description
 
     class Meta:
         managed = False
-        db_table = 'detection'
+        db_table = "detection"
         ordering = ("x",)
-        unique_together = (('ra', 'dec', 'freq', 'instance', 'run'),)
+        unique_together = (("ra", "dec", "freq", "instance", "run"),)
 
 
 def detection_thresholds():
     """Filter for the detections shown in the admin pages and manual inspection."""
     thresholds = {}
     if settings.DETECTION_MIN_N_PIX > 0:
-        thresholds['n_pix__gte'] = settings.DETECTION_MIN_N_PIX
+        thresholds["n_pix__gte"] = settings.DETECTION_MIN_N_PIX
     if settings.DETECTION_MIN_REL > 0:
-        thresholds['rel__gte'] = settings.DETECTION_MIN_REL
+        thresholds["rel__gte"] = settings.DETECTION_MIN_REL
     return thresholds
 
 
@@ -451,6 +449,7 @@ class AcceptedDetection(Detection):
 
 class RejectedDetection(Detection):
     """Detections rejected in manual inspection (accepted=False)."""
+
     class Meta:
         proxy = True
 
@@ -481,23 +480,24 @@ class Product(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'product'
-        unique_together = (('detection',),)
+        db_table = "product"
+        unique_together = (("detection",),)
 
 
 # ------------------------------------------------------------------------------
 # Metadata tables
 
+
 class Comment(models.Model):
     id = models.BigAutoField(primary_key=True)
     comment = models.TextField()
     author = models.CharField(max_length=2048, blank=True, null=True)
-    detection = models.ForeignKey('Detection', on_delete=models.CASCADE)
+    detection = models.ForeignKey("Detection", on_delete=models.CASCADE)
     updated_at = models.DateTimeField(auto_now_add=True, blank=True)
 
     class Meta:
         managed = False
-        db_table = 'comment'
+        db_table = "comment"
 
 
 class Tag(models.Model):
@@ -512,7 +512,7 @@ class Tag(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'tag'
+        db_table = "tag"
 
 
 class TagDetection(models.Model):
@@ -524,22 +524,31 @@ class TagDetection(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'tag_detection'
-        unique_together = (('tag', 'detection'),)
+        db_table = "tag_detection"
+        unique_together = (("tag", "detection"),)
 
 
 # ------------------------------------------------------------------------------
 # Operational tables
 
+
 class ExternalConflict(models.Model):
     id = models.BigAutoField(primary_key=True)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    detection = models.ForeignKey(Detection, db_column='detection_id', related_name='detection', to_field='id', on_delete=models.CASCADE)
-    conflict_detection = models.ForeignKey(Detection, db_column='conflict_detection_id', related_name='conflict_detection', to_field='id', on_delete=models.CASCADE)
+    detection = models.ForeignKey(
+        Detection, db_column="detection_id", related_name="detection", to_field="id", on_delete=models.CASCADE
+    )
+    conflict_detection = models.ForeignKey(
+        Detection,
+        db_column="conflict_detection_id",
+        related_name="conflict_detection",
+        to_field="id",
+        on_delete=models.CASCADE,
+    )
 
     class Meta:
         managed = False
-        db_table = 'external_conflict'
+        db_table = "external_conflict"
 
 
 class Observation(models.Model):
@@ -569,20 +578,20 @@ class Observation(models.Model):
         # TODO: refactor into common util function
         try:
             flags = self.flags
-            region_list = flags.split(';')
-            region_list = [ast.literal_eval(r.strip()) for r in flags.split(';') if r.strip()]
+            region_list = flags.split(";")
+            region_list = [ast.literal_eval(r.strip()) for r in flags.split(";") if r.strip()]
         except (ValueError, SyntaxError):
-            raise ValidationError('Invalid format for flags field. Use (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...')
+            raise ValidationError("Invalid format for flags field. Use (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...")
         for region in region_list:
             if len(region) != 6:
-                raise ValidationError('Flag region should have 6 values: (x1,x2,y1,y2,z1,z2) separeted by semicolon')
+                raise ValidationError("Flag region should have 6 values: (x1,x2,y1,y2,z1,z2) separeted by semicolon")
             x1, x2, y1, y2, z1, z2 = region
             if not (x1 < x2 and y1 < y2 and z1 < z2):
-                raise ValidationError('Flag region values should satisfy x1 < x2, y1 < y2, z1 < z2')
+                raise ValidationError("Flag region values should satisfy x1 < x2, y1 < y2, z1 < z2")
 
     class Meta:
         managed = False
-        db_table = 'observation'
+        db_table = "observation"
 
 
 class Tile(models.Model):
@@ -594,25 +603,39 @@ class Tile(models.Model):
     description = models.TextField(null=True)
     image_cube_file = models.TextField(null=True)
     weights_cube_file = models.TextField(null=True)
-    footprint_A = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_A', related_name='footprint_A', to_field='id', null=True)
-    footprint_B = models.ForeignKey(Observation, on_delete=models.SET_NULL, db_column='footprint_B', related_name='footprint_B', to_field='id', null=True)
+    footprint_A = models.ForeignKey(
+        Observation,
+        on_delete=models.SET_NULL,
+        db_column="footprint_A",
+        related_name="footprint_A",
+        to_field="id",
+        null=True,
+    )
+    footprint_B = models.ForeignKey(
+        Observation,
+        on_delete=models.SET_NULL,
+        db_column="footprint_B",
+        related_name="footprint_B",
+        to_field="id",
+        null=True,
+    )
 
     def __str__(self):
         return self.name
 
     class Meta:
         managed = False
-        db_table = 'tile'
+        db_table = "tile"
 
 
 class TileObs(models.Model):
     id = models.BigAutoField(primary_key=True)
-    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING, db_column='tile_id', to_field='id')
-    obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column='obs_id', to_field='id')
+    tile = models.ForeignKey(Tile, on_delete=models.DO_NOTHING, db_column="tile_id", to_field="id")
+    obs = models.ForeignKey(Observation, on_delete=models.DO_NOTHING, db_column="obs_id", to_field="id")
 
     class Meta:
         managed = False
-        db_table = 'tile_obs'
+        db_table = "tile_obs"
 
 
 class SurveyComponent(models.Model):
@@ -625,7 +648,7 @@ class SurveyComponent(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'survey_component'
+        db_table = "survey_component"
 
 
 class SurveyComponentRun(models.Model):
@@ -635,8 +658,8 @@ class SurveyComponentRun(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'survey_component_run'
-        unique_together = (('run', 'sc'),)
+        db_table = "survey_component_run"
+        unique_together = (("run", "sc"),)
 
 
 class SourceExtractionRegion(models.Model):
@@ -651,7 +674,7 @@ class SourceExtractionRegion(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'source_extraction_region'
+        db_table = "source_extraction_region"
 
 
 class SourceExtractionRegionTile(models.Model):
@@ -661,23 +684,23 @@ class SourceExtractionRegionTile(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'source_extraction_region_tile'
+        db_table = "source_extraction_region_tile"
 
 
 # ------------------------------------------------------------------------------
 # Project specific
 
 
-if settings.PROJECT == 'DINGO':
+if settings.PROJECT == "DINGO":
 
     class DetectionNearestGAMA(models.Model):
         id = models.BigAutoField(primary_key=True)
-        detection_id = models.ForeignKey('Detection', models.DO_NOTHING, db_column='detection_id', to_field='id')
+        detection_id = models.ForeignKey("Detection", models.DO_NOTHING, db_column="detection_id", to_field="id")
         cata_id = models.BigIntegerField()
 
         class Meta:
             managed = False
-            db_table = 'detection_nearest_gama'
+            db_table = "detection_nearest_gama"
 
 
 class KinematicModel(models.Model):
@@ -717,7 +740,7 @@ class KinematicModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'kinematic_model'
+        db_table = "kinematic_model"
 
 
 class KinematicModel_3KIDNAS(models.Model):
@@ -766,12 +789,14 @@ class KinematicModel_3KIDNAS(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'kinematic_model_3kidnas'
+        db_table = "kinematic_model_3kidnas"
 
 
 class WKAPP_Product(models.Model):
     id = models.BigAutoField(primary_key=True)
-    kinematic_model = models.ForeignKey(KinematicModel, db_column='kinematic_model_id', to_field='id', on_delete=models.CASCADE)
+    kinematic_model = models.ForeignKey(
+        KinematicModel, db_column="kinematic_model_id", to_field="id", on_delete=models.CASCADE
+    )
     baroloinput = models.BinaryField(blank=True, null=True)
     barolomod = models.BinaryField(blank=True, null=True)
     barolosurfdens = models.BinaryField(blank=True, null=True)
@@ -786,12 +811,14 @@ class WKAPP_Product(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'wkapp_product'
+        db_table = "wkapp_product"
 
 
 class WRKP_Product(models.Model):
     id = models.BigAutoField(primary_key=True)
-    kinematic_model_3kidnas = models.ForeignKey(KinematicModel_3KIDNAS, db_column='kinematic_model_3kidnas', to_field='id', on_delete=models.CASCADE)
+    kinematic_model_3kidnas = models.ForeignKey(
+        KinematicModel_3KIDNAS, db_column="kinematic_model_3kidnas", to_field="id", on_delete=models.CASCADE
+    )
     bootstrapfits = models.BinaryField(blank=True, null=True)
     diagnosticplot = models.BinaryField(blank=True, null=True)
     diffcube = models.BinaryField(blank=True, null=True)
@@ -805,7 +832,7 @@ class WRKP_Product(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'wrkp_product'
+        db_table = "wrkp_product"
 
 
 class KinematicModelState(models.Model):
@@ -815,4 +842,4 @@ class KinematicModelState(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'kinematic_model_state'
+        db_table = "kinematic_model_state"

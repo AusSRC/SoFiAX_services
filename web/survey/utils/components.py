@@ -25,34 +25,27 @@ def get_survey_component_runs():
 
 
 def get_release_name(name):
-    """Return name of source depending on the project.
-
-    """
+    """Return name of source depending on the project."""
     PROJECT = settings.PROJECT
-    if PROJECT == 'DINGO':
+    if PROJECT == "DINGO":
         return dingo_release_name(name)
-    elif PROJECT == 'WALLABY':
+    elif PROJECT == "WALLABY":
         return wallaby_release_name(name)
     else:
-        parts = re.split('[+-]', name.replace('SoFiA', PROJECT).replace('_', ' '))
-        return re.search('[+-]', name).group().join(parts)
+        parts = re.split("[+-]", name.replace("SoFiA", PROJECT).replace("_", " "))
+        return re.search("[+-]", name).group().join(parts)
 
 
 def wallaby_release_name(name):
-    """Release name from detection name
-
-    """
-    parts = re.split('[+-]', name.replace('SoFiA', 'WALLABY').replace('_', ' '))
-    return re.search('[+-]', name).group().join(
-        list(map(lambda x: x.split('.')[0], parts)))
+    """Release name from detection name"""
+    parts = re.split("[+-]", name.replace("SoFiA", "WALLABY").replace("_", " "))
+    return re.search("[+-]", name).group().join(list(map(lambda x: x.split(".")[0], parts)))
 
 
 def dingo_release_name(name):
-    """Release name for a DINGO source.
-
-    """
-    parts = re.split('[+-]', name.replace('SoFiA', 'DINGO').replace('_', ' '))
-    return re.search('[+-]', name).group().join(parts)
+    """Release name for a DINGO source."""
+    parts = re.split("[+-]", name.replace("SoFiA", "DINGO").replace("_", " "))
+    return re.search("[+-]", name).group().join(parts)
 
 
 def get_survey_component(detection):

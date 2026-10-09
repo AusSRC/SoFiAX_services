@@ -22,7 +22,7 @@ def delete_task_hook(sender, instance, using, **kwargs):
 
 def _thread_func(func, task_id, *args, **kwargs):
     try:
-        Task.objects.filter(pk=task_id).update(start=datetime.now(), state='RUNNING')
+        Task.objects.filter(pk=task_id).update(start=datetime.now(), state="RUNNING")
         if len(args[0]) == 0:
             ret = func()
         else:
@@ -33,9 +33,9 @@ def _thread_func(func, task_id, *args, **kwargs):
         elif isinstance(ret, TaskReturn) is False:
             raise Exception(f"{func.__name__} must return TaskReturn object")
 
-        Task.objects.filter(pk=task_id).update(retval=ret.get_json(), end=datetime.now(), state='COMPLETED')
+        Task.objects.filter(pk=task_id).update(retval=ret.get_json(), end=datetime.now(), state="COMPLETED")
     except Exception as e:
-        Task.objects.filter(pk=task_id).update(error=str(e), state='ERROR')
+        Task.objects.filter(pk=task_id).update(error=str(e), state="ERROR")
         logging.exception(e)
 
     connection.close()
@@ -52,14 +52,16 @@ def task(exclusive_func_with=[]):
                     break
 
             if not req:
-                raise ValueError('Must have HttpRequest as argument')
+                raise ValueError("Must have HttpRequest as argument")
 
             if isinstance(exclusive_func_with, list) is False:
-                raise ValueError('exclusive_func_with must be a list')
+                raise ValueError("exclusive_func_with must be a list")
 
-            running = Task.objects.filter(func__in=exclusive_func_with, state__in=['PENDING', 'RUNNING'])
+            running = Task.objects.filter(func__in=exclusive_func_with, state__in=["PENDING", "RUNNING"])
             if running.count() > 0:
-                raise ValueError(f'Functions {",".join(exclusive_func_with)} is RUNNING or PENDING, please wait for them to finish.')
+                raise ValueError(
+                    f"Functions {','.join(exclusive_func_with)} is RUNNING or PENDING, please wait for them to finish."
+                )
 
             query_set = None
             for a in args:
@@ -68,11 +70,13 @@ def task(exclusive_func_with=[]):
                     break
 
             # Create new task to track, in PENDING
-            t = Task.objects.create(func=func.__name__,
-                                    args=json.dumps([str(a) for a in args]),
-                                    queryset=query_set,
-                                    state='PENDING',
-                                    user=req.user.username)
+            t = Task.objects.create(
+                func=func.__name__,
+                args=json.dumps([str(a) for a in args]),
+                queryset=query_set,
+                state="PENDING",
+                user=req.user.username,
+            )
             t.save()
 
             th = threading.Thread(target=_thread_func, args=(func, t.id, args), kwargs=kwargs, daemon=True)
@@ -80,4 +84,5 @@ def task(exclusive_func_with=[]):
             return t.id
 
         return wrapper
+
     return decorator

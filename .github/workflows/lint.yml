@@ -5,17 +5,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v4
+      - uses: astral-sh/setup-uv@v3
         with:
-          python-version: '3.10.10'
-          architecture: 'x64'
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-build-${{ env.cache-name }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}
-      - run: pip3 install pycodestyle
-      - run: pycodestyle web/survey --ignore=E501,E226,E722,E741,W504,E221
+          enable-cache: true
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
 

@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class TablesConfig(AppConfig):
-    name = 'survey'
+    name = "survey"
