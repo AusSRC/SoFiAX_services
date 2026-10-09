@@ -544,7 +544,7 @@ class ExternalConflict(models.Model):
 
 class Observation(models.Model):
     id = models.BigAutoField(primary_key=True)
-    run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True)
+    run = models.ForeignKey(Run, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.TextField()
     sbid = models.CharField(max_length=64, null=True)
     ra = models.FloatField()
@@ -552,8 +552,9 @@ class Observation(models.Model):
     rotation = models.FloatField(null=True)
     description = models.TextField(null=True, blank=True)
     phase = models.CharField(max_length=64, null=True)
-    image_cube_file = models.TextField(null=True, blank=True)
-    weights_cube_file = models.TextField(null=True, blank=True)
+    image_cube_file = models.TextField(null=True)
+    weights_cube_file = models.TextField(null=True)
+    flags = models.CharField(max_length=256, blank=True, null=True, editable=True)
     quality = models.CharField(max_length=64, null=True)
     status = models.CharField(max_length=64, null=True)
     scheduled = models.BooleanField(null=True)

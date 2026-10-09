@@ -7,12 +7,13 @@ from random import choice
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html, format_html_join, mark_safe
-from django.forms import forms
+from django.forms import forms, ModelForm
 from django.db import transaction
 from django.conf import settings
 from django.shortcuts import redirect
 from django.db.models.aggregates import Count
 from django.db.models import Q
+from django.core.exceptions import ValidationError
 
 from survey.utils.base import ModelAdmin, ModelAdminInline
 from survey.utils.constants import RUN_NAME_TO_SURVEY_COMPONENT
@@ -101,12 +102,33 @@ class CommentAdmin(ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-class ObservationAdmin(ModelAdmin):
-    """Flag format: (x1,x2,y1,y2,z1,z2); (x1,x2,y1,y2,z1,z2); ...
+class ObservationForm(ModelForm):
+    class Meta:
+        model = Observation
+        fields = '__all__'
 
-    """
-    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'accepted', 'flags']
-    readonly_fields = ['id', 'name', 'ra', 'dec', 'rotation', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'description', 'image_cube_file', 'weights_cube_file']
+    def clean_flags(self):
+        """Validate input flags"""
+        region_str = self.cleaned_data.get('flags')
+        if not region_str:
+            return region_str
+        try:
+            region_list = region_str.split(';')
+            for region in region_list:
+                x1, x2, y1, y2, z1, z2 = tuple([int(v) for v in region.replace('(', '').replace(')', '').split(',')])
+                assert x2>x1, 'x2 > x1'
+                assert y2>y1, 'y2 > y1'
+                assert z2>z1, 'z2 > z1'
+        except Exception as e:
+            raise ValidationError(f'Invalid input format. Expected: (x1,x2,y1,y2,z1,z2);(x1,x2,y1,y2,z1,z2);...\n Got: {self.cleaned_data.get('flags')}')
+        return region_str
+
+
+class ObservationAdmin(ModelAdmin):
+    form = ObservationForm
+    list_display = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'flags']
+    readonly_fields = ['id', 'name', 'phase', 'sbid', 'quality', 'status', 'run_link', 'scheduled', 'run', 'ra', 'dec', 'rotation', 'image_cube_file', 'weights_cube_file', 'description']
+    list_editable = ['flags']
     search_fields = ['name', 'sbid', 'quality', 'status', 'scheduled']
     ordering = ('-sbid',)
 
@@ -118,6 +140,9 @@ class ObservationAdmin(ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_change_permission(self, request, obj=None):
+        return True
 
     def get_queryset(self, request):
         """Show only Full Survey fields that have been observed
@@ -873,6 +898,18 @@ class RunAdmin(ModelAdmin):
 
     def get_actions(self, request):
         return super(RunAdmin, self).get_actions(request)
+
+    def observation_link(self, obj):
+        """Quick link to reference observation for quality check runs"""
+        run_name = obj.name
+        sbid = run_name.strip('SB').strip('_qc')
+        observation_name = f'ASKAP-{sbid}'
+        obs = Observation.objects.filter(sbid=observation_name).first()
+        if not obs:
+            return '-'
+        url = reverse('admin:%s_%s_change' % (obj._meta.app_label,  Observation._meta.model_name),  args=[obs.id] )
+        return format_html(f"<a href='{url}' target='_blank'>{obs.sbid}</a>")
+    observation_link.short_description = 'Observation'
 
     def run_products_download(self, obj):
         url = reverse('run_products')
