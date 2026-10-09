@@ -8,3 +8,7 @@ lint:
 
 format:
 	uv run ruff format .
+
+# Web application tests against a throwaway database (see web/tests/run.sh)
+test:
+	web/tests/run.sh

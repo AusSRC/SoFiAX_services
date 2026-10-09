@@ -92,6 +92,16 @@ chown -R gavo:gavo /var/gavo/
 docker-compose up --build -d nginx
 ```
 
+## Tests
+
+The tests of the web application run against a throwaway database in Docker. Nothing is shared with a deployment, so they are safe to run on a server with running services.
+
+```
+make test
+```
+
+Arguments for pytest can be passed to the script directly, for example `web/tests/run.sh -k inspection -x`.
+
 ## Dependent services
 
 On changes to the deployment of these services you will also need to update the following configuration items:
