@@ -4,7 +4,7 @@ This service exposes the SoFiAX_services database to TAP so that it is publicly 
 
 ## Configuration
 
-The DaCHS configuration files (`gavo.rc`, `dsn`, `feed`, `trustedquery`, `untrustedquery`, `defaultmeta.txt` and the parts of `vo.rd`) are templates in the `templates` folder. On startup `render-config.sh` fills in the `${VARIABLE}` placeholders from the environment and writes the files to where DaCHS expects them. The variables and their defaults are listed in [`.env.example`](../.env.example).
+The DaCHS configuration files (`gavo.rc`, `dsn`, `feed`, `trustedquery`, `untrustedquery`, `defaultmeta.txt` and the parts of `vo.rd`) are templates in the `templates` folder. On startup `render-config.sh` fills in the `${VARIABLE}` placeholders from the environment and writes the files to where DaCHS expects them. The variables and their defaults are listed in [`server/.env.example`](../.env.example).
 
 ## Tables
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Initialise the database on first startup (empty data directory) using
-# environment variables (see .env.example in the repository root).
+# environment variables (see server/.env.example).
 set -eu
 
 SQL_DIR="${SQL_DIR:-/sql}"
@@ -8,10 +8,23 @@ SQL_DIR="${SQL_DIR:-/sql}"
 # Required
 : "${MODULES:?MODULES is not set}"
 : "${DATABASE_ADMIN_PASSWORD:?DATABASE_ADMIN_PASSWORD is not set}"
-: "${DATABASE_SURVEY_PASSWORD:?DATABASE_SURVEY_PASSWORD is not set}"
-: "${VO_FEED_PASSWORD:?VO_FEED_PASSWORD is not set}"
-: "${VO_TRUSTED_PASSWORD:?VO_TRUSTED_PASSWORD is not set}"
-: "${VO_UNTRUSTED_PASSWORD:?VO_UNTRUSTED_PASSWORD is not set}"
+
+# Optional: the survey user (DATABASE_SURVEY_PASSWORD) and the users of the VO service
+# (VO_FEED_PASSWORD, VO_TRUSTED_PASSWORD, VO_UNTRUSTED_PASSWORD) are created if their passwords are set
+OPTIONAL_USERS=()
+if [ -n "${DATABASE_SURVEY_PASSWORD:-}" ]; then
+    OPTIONAL_USERS+=(-v survey_password="${DATABASE_SURVEY_PASSWORD}")
+fi
+if [ -n "${VO_FEED_PASSWORD:-}${VO_TRUSTED_PASSWORD:-}${VO_UNTRUSTED_PASSWORD:-}" ]; then
+    : "${VO_FEED_PASSWORD:?VO_FEED_PASSWORD is not set}"
+    : "${VO_TRUSTED_PASSWORD:?VO_TRUSTED_PASSWORD is not set}"
+    : "${VO_UNTRUSTED_PASSWORD:?VO_UNTRUSTED_PASSWORD is not set}"
+    OPTIONAL_USERS+=(
+        -v vo_feed_password="${VO_FEED_PASSWORD}"
+        -v vo_trusted_password="${VO_TRUSTED_PASSWORD}"
+        -v vo_untrusted_password="${VO_UNTRUSTED_PASSWORD}"
+    )
+fi
 
 # Modules to install (comma separated). The names used before the modules were
 # restructured are still accepted.
@@ -50,10 +63,7 @@ psql -v ON_ERROR_STOP=1 --no-psqlrc --quiet --username "${POSTGRES_USER:-postgre
     -v schema="${DATABASE_SCHEMA:-survey}" \
     -v admin_user="${DATABASE_ADMIN_USERNAME:-admin}" \
     -v admin_password="${DATABASE_ADMIN_PASSWORD}" \
-    -v survey_password="${DATABASE_SURVEY_PASSWORD}" \
-    -v vo_feed_password="${VO_FEED_PASSWORD}" \
-    -v vo_trusted_password="${VO_TRUSTED_PASSWORD}" \
-    -v vo_untrusted_password="${VO_UNTRUSTED_PASSWORD}" \
+    "${OPTIONAL_USERS[@]}" \
     -f "${SQL_DIR}/create.sql"
 
 install-modules ${MODULE_NAMES}

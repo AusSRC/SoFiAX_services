@@ -14,6 +14,8 @@ app/
 └── tests/
 ```
 
+The application is run locally with `make start`, or as the `app` service in Docker (see the [`README.md`](../README.md) in the root of the repository and [`server/README.md`](../server/README.md)). The configuration is read from the `.env` file in the root of the repository when it is run locally.
+
 The dependencies are listed in `pyproject.toml` in the root of the repository and locked in `uv.lock`. After changing them run `uv lock`.
 
 ## Modules

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Render the DaCHS configuration files from the templates in $VO_TEMPLATES
-# using environment variables (see .env.example in the repository root).
+# using environment variables (see server/.env.example).
 set -eu
 
 TEMPLATES="${VO_TEMPLATES:-/templates}"

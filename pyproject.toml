@@ -10,7 +10,7 @@ dependencies = [
     "django-split-settings",
     "gunicorn",
     "matplotlib",
-    "opencv-python",
+    "opencv-python-headless",
     "Pillow",
     "python-dotenv",
     "django-extensions",

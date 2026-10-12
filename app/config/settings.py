@@ -3,9 +3,12 @@ import environ
 from django.core.exceptions import ImproperlyConfigured
 from pathlib import Path
 
-# Initialise environment variables
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Environment variables, from the .env file in the root of the repository when the
+# application is run locally (or the file in ENV_FILE). In Docker they are set by docker-compose.
 env = environ.Env()
-environ.Env.read_env()
+environ.Env.read_env(os.environ.get("ENV_FILE", BASE_DIR.parent / ".env"))
 
 # ---------------------------------------------------------------------------------------
 # Deployment settings
@@ -35,17 +38,16 @@ if "core" not in MODULES:
 if "wallaby" in MODULES and "operations" not in MODULES:
     raise ImproperlyConfigured("MODULES: wallaby requires operations")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 USE_X_FORWARDED_HOST = True
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=["https://*.aussrc.org"])
 
-ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS").split(" ")
-SITE_NAME = env("SITE_NAME")
-SITE_HEADER = env("SITE_HEADER")
-SITE_TITLE = env("SITE_TITLE")
-INDEX_TITLE = env("INDEX_TITLE")
+ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS", default="localhost 127.0.0.1").split(" ")
+SITE_NAME = env("SITE_NAME", default=f"{PROJECT} Catalog")
+SITE_HEADER = env("SITE_HEADER", default=SITE_NAME)
+SITE_TITLE = env("SITE_TITLE", default=SITE_NAME)
+INDEX_TITLE = env("INDEX_TITLE", default=SITE_NAME)
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -116,12 +118,13 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASE_HOST = env("DATABASE_HOST")
-DATABASE_PORT = env("DATABASE_PORT")
-DATABASE_NAME = env("DATABASE_NAME")
-DATABASE_USER = env("DATABASE_USER")
-DATABASE_PASSWORD = env("DATABASE_PASSWORD")
-SEARCH_PATH = env("SEARCH_PATH")
+# The defaults are those of the database created by server/db (make db)
+DATABASE_HOST = env("DATABASE_HOST", default="localhost")
+DATABASE_PORT = env("DATABASE_PORT", default="5432")
+DATABASE_NAME = env("DATABASE_NAME", default="surveydb")
+DATABASE_USER = env("DATABASE_USER", default=env("DATABASE_ADMIN_USERNAME", default="admin"))
+DATABASE_PASSWORD = env("DATABASE_PASSWORD", default=env("DATABASE_ADMIN_PASSWORD", default=None))
+SEARCH_PATH = env("SEARCH_PATH", default=f"{env('DATABASE_SCHEMA', default='survey')},public")
 
 DATABASES = {
     "default": {
