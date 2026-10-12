@@ -6,6 +6,12 @@ This page describes the minimal deployment: the web application run locally with
 
 ## Quick start
 
+This project depends on git submodules.
+
+```
+git submodule update --init --recursive
+```
+
 You will need [uv](https://docs.astral.sh/uv/), Docker and `make`.
 
 ```
