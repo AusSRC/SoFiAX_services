@@ -5,7 +5,7 @@ A web platform for interactively selecting and managing detections for large HI 
 ## Services
 
 - database (PostgreSQL database)
-- web (Django web application)
+- app (Django web application)
 - nginx (NGINX reverse proxy)
 - gavo (GAVO DACHS TAP service)
 
@@ -19,7 +19,7 @@ A web platform for interactively selecting and managing detections for large HI 
 cp .env.example .env
 ```
 
-* `MODULES` sets which parts of the service are deployed. Each module has a file with its tables in `db/modules`, and `core` is the minimal service.
+* `MODULES` sets which parts of the service are deployed, and `core` is the minimal service. Each module is an application in `app/modules`, a file with its tables in `server/db/modules`, and a file with the tables exposed by the VO service in `server/vo/templates/modules`.
 * Set your own passwords for the database users.
 
 2. Update volume mount point (`/data`) to a local volume
@@ -40,7 +40,7 @@ docker exec database install-modules <module>
 
 ### Web
 
-The `web` service provides core functionality for managing and selecting detections that are stored in the `database` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
+The `app` service provides core functionality for managing and selecting detections that are stored in the `database` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`app/README.md`](./app/README.md).
 
 1. Enter your own values for the web application variables in the `.env` file
 
@@ -51,7 +51,7 @@ The `web` service provides core functionality for managing and selecting detecti
 2. Deploy the service
 
 ```
-docker-compose up --build -d web
+docker-compose up --build -d app
 ```
 
 3. Migrations and create user
@@ -59,7 +59,7 @@ docker-compose up --build -d web
 This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
 
 ```
-docker exec -it web /bin/bash
+docker exec -it app /bin/bash
 ```
 
 and then inside of the container run the following
@@ -100,7 +100,7 @@ The tests of the web application run against a throwaway database in Docker. Not
 make test
 ```
 
-Arguments for pytest can be passed to the script directly, for example `web/tests/run.sh -k inspection -x`.
+Arguments for pytest can be passed to the script directly, for example `app/tests/run.sh -k inspection -x`.
 
 ## Dependent services
 

@@ -8,6 +8,6 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
+      - run: uv run --only-group dev ruff check .
+      - run: uv run --only-group dev ruff format --check .
 

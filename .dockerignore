@@ -1,0 +1,12 @@
+# The build context of the app image is the root of the repository
+.git
+.venv
+.ruff_cache
+.pytest_cache
+**/__pycache__
+**/.env
+**/*.env
+app/static
+app/media
+app/survey
+python-templates

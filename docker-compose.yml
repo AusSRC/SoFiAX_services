@@ -16,16 +16,17 @@ services:
     networks:
       - survey_network
 
-  web:
-    container_name: web
+  app:
+    container_name: app
     build:
-      context: web
+      context: .
+      dockerfile: app/Dockerfile
     env_file:
       - .env
     ports:
       - 8000:8000
     volumes:
-      - ./web:/opt/services/survey_web/src
+      - ./app:/opt/services/survey_web/src
       - static_volume:/opt/services/survey_web/src/static
       - media_volume:/opt/services/survey_web/src/media
     networks:

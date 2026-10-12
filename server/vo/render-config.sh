@@ -59,31 +59,39 @@ for f in dsn feed trustedquery untrustedquery defaultmeta.txt; do
 done
 render gavo.rc "${GAVO_SETTINGS}"
 
-# Assemble vo.rd from the modules listed in MODULES (comma separated)
+# Modules to install (comma separated). The names used before the modules were
+# restructured are still accepted.
+REQUESTED="$(echo "${MODULES}" | tr -d '[:space:]' | tr ',' '\n' | sed \
+    -e 's/^metadata$/core/' \
+    -e 's/^wallaby_operations$/wallaby/' \
+    -e 's/^wallaby_kinematics$/wallaby/' \
+    -e 's/^dingo_gama$/dingo/')"
 has_module() {
-    case ",${MODULE_LIST}," in *",$1,"*) return 0 ;; *) return 1 ;; esac
+    echo "${REQUESTED}" | grep -qx "$1"
 }
-requires() {
-    if has_module "$1" && ! has_module "$2"; then
-        echo "MODULES: $1 requires $2" >&2
-        exit 1
-    fi
-}
-MODULE_LIST="$(echo "${MODULES}" | tr -d '[:space:]')"
-if ! has_module core; then
-    echo "MODULES: core is required" >&2
-    exit 1
-fi
-requires wallaby_operations operations
-
-MODULE_NAMES="$(echo "${MODULE_LIST}" | tr ',' ' ')"
-for m in ${MODULE_NAMES}; do
+for m in ${REQUESTED}; do
     if [ ! -f "${TEMPLATES}/modules/$m.rd" ]; then
         echo "MODULES: unknown module $m" >&2
         exit 1
     fi
 done
+if ! has_module core; then
+    echo "MODULES: core is required" >&2
+    exit 1
+fi
+if has_module wallaby && ! has_module operations; then
+    echo "MODULES: wallaby requires operations" >&2
+    exit 1
+fi
+# Modules are installed in this order
+MODULE_NAMES=""
+for m in core operations wallaby dingo; do
+    if has_module "$m"; then
+        MODULE_NAMES="${MODULE_NAMES} $m"
+    fi
+done
 
+# Assemble vo.rd from the modules
 RD="${GAVO_INPUTS}/survey/vo.rd"
 mkdir -p "$(dirname "${RD}")"
 {

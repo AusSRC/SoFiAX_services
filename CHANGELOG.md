@@ -1,5 +1,36 @@
 # Changelog
 
+## Modules
+
+### Changed
+
+- The web application is split into Django applications in `app/modules`: `core`, `operations`, `wallaby` and `dingo`.
+- `MODULES` selects the applications, the database tables and the tables of the VO service.
+- Tags and comments are part of `core` (previously `metadata`).
+- Survey components, external conflicts, cross matching and the release of sources are part of `operations`. The run page only has these when `operations` is installed.
+- Tiles, source extraction regions and kinematic models are `wallaby` (previously `wallaby_operations` and `wallaby_kinematics`), which requires `operations`.
+- The GAMA matches are `dingo` (previously `dingo_gama`).
+- The admin pages of a module are shown when the module is installed, not by `PROJECT`.
+- The old module names are still accepted in `MODULES`.
+
+### Deployment
+
+The admin pages of the tables that moved out of `core` have new addresses, for example
+`/admin/operations/observation/` and `/admin/wallaby/tile/`. The pages of the core tables are unchanged.
+
+To keep the permissions of existing users for the moved tables, update the application of their
+content types before starting this version (replace `survey` with the schema of the deployment):
+
+```sql
+UPDATE survey.django_content_type SET app_label = 'operations'
+ WHERE app_label = 'survey' AND model IN ('externalconflict', 'observation', 'surveycomponent', 'surveycomponentrun');
+UPDATE survey.django_content_type SET app_label = 'wallaby'
+ WHERE app_label = 'survey' AND model IN ('tile', 'tileobs', 'sourceextractionregion', 'sourceextractionregiontile',
+   'kinematicmodel', 'kinematicmodel_3kidnas', 'wkapp_product', 'wrkp_product', 'kinematicmodelstate');
+UPDATE survey.django_content_type SET app_label = 'dingo'
+ WHERE app_label = 'survey' AND model = 'detectionnearestgama';
+```
+
 ## Manual inspection outcome
 
 ### Added

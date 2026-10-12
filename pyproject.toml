@@ -2,10 +2,30 @@
 name = "SoFiAX_services"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+# Dependencies of the web application (app), installed in its image from uv.lock
+dependencies = [
+    "astropy",
+    "astroquery",
+    "Django",
+    "django-split-settings",
+    "gunicorn",
+    "matplotlib",
+    "opencv-python",
+    "Pillow",
+    "python-dotenv",
+    "django-extensions",
+    "psycopg2-binary",
+    "django-sslserver",
+    "django-environ",
+    "djangorestframework",
+    "markdown",
+    "django-filter",
+]
 
 [dependency-groups]
 dev = [
+    "pytest",
+    "pytest-django",
     "ruff>=0.8",
 ]
 
@@ -14,9 +34,9 @@ line-length = 120
 target-version = "py310"
 extend-exclude = [
     "python-templates",
-    "web/survey/migrations",
-    "web/static",
-    "web/media",
+    "app/modules/*/migrations",
+    "app/static",
+    "app/media",
 ]
 
 [tool.ruff.lint]
