@@ -3,7 +3,7 @@ version: '3.5'
 services:
   database:
     container_name: database
-    profile: database
+    profiles: [database]
     shm_size: '32gb'
     build:
       context: server/db
@@ -17,8 +17,8 @@ services:
     networks:
       - survey_network
 
-  app:
-    container_name: app
+  web:
+    container_name: web
     build:
       context: .
       dockerfile: app/Dockerfile
