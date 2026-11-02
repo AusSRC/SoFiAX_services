@@ -1,0 +1,22 @@
+publisher: AusSRC
+publisherID: ivo://aussrc-vo/org
+contact.name: ${VO_CONTACT_NAME}
+contact.address: ${VO_CONTACT_ADDRESS}
+contact.email: ${VO_CONTACT_EMAIL}
+contact.telephone:
+creator.name: ${VO_CONTACT_NAME}
+creator.logo:
+
+_noresultwarning: Your query did not match any data.
+
+authority.creationDate: ${VO_CREATION_DATE}
+authority.title: ${VO_TITLE}
+authority.shortName: ${VO_SHORT_NAME}
+authority.description: ${VO_DESCRIPTION}
+authority.referenceURL: ${VO_REFERENCE_URL}
+authority.managingOrg: ivo://x-unregistred/org
+organization.title: AusSRC
+organization.description:
+organization.referenceURL: https://aussrc.org/
+
+site.description: ${VO_DESCRIPTION}

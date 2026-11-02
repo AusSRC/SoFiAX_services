@@ -1,0 +1,1 @@
+-- The gaskap module only changes pages of the web application, it has no tables
