@@ -3,6 +3,7 @@ version: '3.5'
 services:
   database:
     container_name: database
+    profile: database
     shm_size: '32gb'
     build:
       context: server/db
