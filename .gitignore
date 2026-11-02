@@ -111,4 +111,4 @@ ssl
 *.pass
 .local_pass
 *.orig
-server/db/*.env
+*.env
