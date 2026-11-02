@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+{% load i18n l10n admin_urls %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation
+  delete-selected-confirmation{% endblock %}
+
+{% block breadcrumbs %}
+  <ol class="breadcrumbs">
+    <li><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+    <li><a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a></li>
+    <li><a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a></li>
+    <li aria-current="page">{{ title }}</li>
+  </ol>
+{% endblock %}
+
+{% block content %}
+  <form action="" method="post">{% csrf_token %}
+    <h2>Tag a source</h2>
+    <p>Either create a new tag or select an existing tag to apply to this source. If an existing tag is selected it will override the create tag input.</p>
+    <br>
+    <hr>
+    <br>
+    <label>Create Tag</label>
+    <br>
+	<input type="text" name="tag_create" id="tag_create" />
+    <br>
+    <label>Description</label>
+    <br>
+    <input type="text" name="tag_description" id="tag_description" />
+    <br>
+    <div></div>
+    <br>
+    <label>or select existing Tag</label>
+    <br>
+    <select name="tag_select" id="tag_select">
+        <option value="None">None</option>
+        {% for object in tags.all %}
+        <option value={{ object.id }}>{{ object }}</option>
+        {% endfor %}
+    </select>
+    <div></div>
+    <br>
+    <hr>
+    <br>
+
+    <h2>This tag will be added to the following detections:</h2>
+    <ul style="padding: 0">
+        {% for object in queryset.all %}
+        <li style="list-style: none; float: left; margin: 5px">
+            {{ object }}
+        </li>
+        {% endfor %}
+    </ul>
+    <hr>
+    <br>
+    <fieldset class="module aligned">
+      {% for obj in queryset.all %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}"/>
+      {% endfor %}
+      <div class="form-row">
+        {{ form.as_p }}
+      </div>
+    </fieldset>
+    <div class="submit-row">
+      <input type="hidden" name="action" value="{{ action }}"/>
+      <input type="submit" name="confirm" value="{% trans "Add" %}"/>
+      <a href="#" onclick="window.history.back(); return false;"
+         class="button cancel-link">{% trans "No, take me back" %}</a>
+    </div>
+  </form>
+{% endblock %}

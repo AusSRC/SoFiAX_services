@@ -1,97 +1,94 @@
 # HI survey portal
 
-A web platform for interactively selecting and managing detections for large HI surveys. Deployed as a collection of containerised services using Docker. Currently used for WALLABY and DINGO ASKAP surveys. Custom web interfaces have also been developed to provide custom functionality for these key science projects. Designed be handle source finding outputs from [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX).
+A web platform for interactively selecting and managing detections for large HI surveys. Currently used for the WALLABY, DINGO and GASKAP-OH ASKAP surveys. Designed to handle source finding outputs from [SoFiA](https://gitlab.com/SoFiA-Admin/SoFiA-2) and [SoFiAX](https://github.com/AusSRC/SoFiAX).
 
-## Services
+This page describes the minimal deployment: the web application run locally with Python, and its database in Docker. To deploy all of the services on a server (database, web application, TAP service and reverse proxy in Docker) see [`server/README.md`](./server/README.md).
 
-- survey_db (PostgreSQL database)
-- survey_web (Django web application)
-- survey_nginx (NGINX reverse proxy)
-- survey_vo (GAVO DACHS TAP service)
+## Quick start
 
-## Deploy
-
-### Database
-
-1. Create `db/psql.env` file to set the `POSTGRES_USER` and `POSTGRES_PASSWORD` environment variables
-2. Update the `db/01-create.sql` script with custom passwords for users
-3. Update volume mount point (`/data`) to a local volume
-4. Deploy the service (you will need to create a Docker network first)
+This project depends on git submodules.
 
 ```
-docker network create survey_network
-docker-compose up --build -d survey_db
+git submodule update --init --recursive
 ```
 
-### Web
-
-The `survey_web` service provides core functionality for managing and selecting detections that are stored in the `survey_db` database. It has been designed to be easily extendible for new science projects that require custom functionality. More information about the structure of the Django web application can be found at [`web/README.md`](./web/README.md).
-
-1. Create environment variable file and place it at `web/config` with the following variables (enter your own values for these):
+You will need [uv](https://docs.astral.sh/uv/), Docker and `make`.
 
 ```
-PROJECT=WALLABY
-DEBUG=True
-LOCAL=True
-SITE_NAME=WALLABY Catalog
-SITE_HEADER=WALLABY Catalog
-SITE_TITLE=WALLABY Catalog
-INDEX_TITLE=WALLABY Catalog
-AUTH_GROUPS=wallaby
-
-DJANGO_SECRET_KEY=<django key>
-DJANGO_ALLOWED_HOSTS=127.0.0.1 localhost
-
-DATABASE_HOST=survey_db
-DATABASE_PORT=5432
-DATABASE_NAME=surveydb
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-SEARCH_PATH=survey,public
+make start
 ```
 
-* The `DJANGO_SECRET_KEY` can be generated here: https://djecrety.ir/
-* The `DJANGO_ALLOWED_HOSTS` will need to set to the hostname of the deployment.
+This creates the configuration file `.env` from [`.env.example`](./.env.example), installs the Python dependencies, starts the database, and runs the web application at http://localhost:8000.
 
-2. Deploy the service
-
-```
-docker-compose up --build -d survey_web
-```
-
-3. Migrations and create user
-
-This is easiest done inside of the container. To create the superuser you will be prompted to provide a password.
-
+To log in you need a user. In another terminal create one with
 
 ```
-docker exec -it survey_web /bin/bash
+make superuser
 ```
 
-and then inside of the container run the following
+## Commands
+
+`make start` runs the following steps, which can also be run on their own.
+
+| Command | Description |
+|---|---|
+| `make env` | Create `.env` from `.env.example`, if it does not exist |
+| `make install` | Install the Python dependencies (`pyproject.toml`) |
+| `make db` | Start the PostgreSQL database in Docker |
+| `make migrate` | Create the tables for users and sessions |
+| `make run` | Run the web application at http://localhost:8000 |
+| `make superuser` | Create a user to log in with |
+| `make stop` | Stop the database |
+| `make test` | Run the tests (see [Tests](#tests)) |
+
+The web application can be run on another port with `make run PORT=8080`. Add the address to `CSRF_TRUSTED_ORIGINS` in `.env` if you do.
+
+## Configuration
+
+The configuration is in the `.env` file. The minimal configuration only needs the modules of the application to install.
 
 ```
-python manage.py migrate
-python manage.py createsuperuser --username <username>
+MODULES=core
 ```
 
-### GAVO DACHS
+| Module | Description |
+|---|---|
+| `core` | Runs, instances, detections and their products, tags, comments and manual inspection |
+| `operations` | Observations, survey components, external conflicts, cross matching and release of sources |
+| `wallaby` | Tiles, source extraction regions and kinematic models (requires `operations`) |
+| `dingo` | GAMA matches of detections |
 
-Edit the config file `vo/vo.rd` to configure the VO service
+`core` is always required. More information about the modules and the structure of the web application is in [`app/README.md`](./app/README.md), and the other options (for example the detection thresholds) are described in [`server/.env.example`](./server/.env.example).
+
+## Database
+
+`make db` starts a PostgreSQL container (`sofiax_dev_db`) on port `5432` of localhost, with its data in the Docker volume `sofiax_dev_db_data`. The database, the admin user and the tables of the modules in `MODULES` are created the first time it is started. Change `DATABASE_PORT` in `.env` before the first `make db` if the port is already in use.
+
+The tables are not changed when `MODULES` is changed later. To add the tables of a module to the database run
 
 ```
-docker-compose up --build -d survey_vo
+docker exec sofiax_dev_db install-modules <module>
 ```
 
-Sometimes I find that I need to give the `gavo` user ownership of the directory `/var/gavo`, otherwise there are warnings in the deployment. You can run
+To start again with an empty database remove the container and its volume
 
 ```
-chown -R gavo:gavo /var/gavo/
+docker rm -f sofiax_dev_db
+docker volume rm sofiax_dev_db_data
 ```
 
-### NGINX reverse proxy
+The web application can use another PostgreSQL database by setting `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER` and `DATABASE_PASSWORD` in `.env`. Its tables have to be created from the files in [`server/db/modules`](./server/db/modules).
+
+## Tests
+
+The tests of the web application run against a throwaway database in Docker. Nothing is shared with a deployment, so they are safe to run on a server with running services.
 
 ```
-docker-compose up --build -d survey_nginx
+make test
 ```
 
+Arguments for pytest can be passed to the script directly, for example `app/tests/run.sh -k inspection -x`.
+
+## Server deployment
+
+The deployment of the database, web application, TAP service (GAVO DaCHS) and NGINX reverse proxy with `docker-compose` is described in [`server/README.md`](./server/README.md).

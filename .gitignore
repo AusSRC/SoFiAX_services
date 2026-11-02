@@ -45,7 +45,6 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
 
 # Translations
 *.mo
@@ -105,6 +104,11 @@ venv.bak/
 
 # other
 secrets
-db
 migrations
 ssl
+
+# Local credentials and patch backups
+*.pass
+.local_pass
+*.orig
+*.env

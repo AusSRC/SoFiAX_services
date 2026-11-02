@@ -1,0 +1,3 @@
+include dsn
+user = gavo
+password = ${VO_TRUSTED_PASSWORD}
